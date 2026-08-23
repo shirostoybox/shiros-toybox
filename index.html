@@ -75,9 +75,15 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .cat-tab.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
 .grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:6px 20px 20px; }
 .card{ background:var(--card); border-radius:var(--r-md); overflow:hidden; box-shadow:0 1px 2px rgba(20,22,30,.05), 0 10px 22px -16px rgba(20,22,30,.35); display:flex; flex-direction:column; }
-.card-visual{ position:relative; height:104px; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 38%, #F8F9FB, #ECEEF2); overflow:hidden; }
+.card-visual{ position:relative; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 38%, #F8F9FB, #ECEEF2); overflow:hidden; }
 .product-photo{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.product-photo.zoomable{ cursor:pointer; }
 .visual-fallback{ display:none; align-items:center; justify-content:center; position:absolute; inset:0; }
+.lightbox-overlay{ position:fixed; inset:0; background:rgba(10,11,15,.94); display:none; align-items:center; justify-content:center; z-index:250; }
+.lightbox-overlay.is-open{ display:flex; }
+.lightbox-img{ max-width:92%; max-height:82vh; object-fit:contain; border-radius:12px; }
+.lightbox-close{ position:absolute; top:20px; right:20px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:16px; }
+.modal-photo{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:var(--r-md); margin-bottom:14px; background:var(--paper); cursor:pointer; }
 .cat-badge{ width:54px; height:54px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--text-dark); }
 .cat-badge svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; }
 .fav-btn{ position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; border:none; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; }
@@ -190,6 +196,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="modal-overlay" id="orderModal">
 <div class="modal-card">
 <button class="modal-close" id="orderModalClose">✕</button>
+<img class="modal-photo zoomable" id="orderModalPhoto" src="" alt="" onerror="this.style.display='none'">
 <h3 id="orderModalTitle"></h3>
 <p class="modal-sub" id="orderModalSub"></p>
 <div class="qty-row">
@@ -199,6 +206,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </div>
 <button class="btn btn--primary btn--full" id="orderModalConfirm">加入喊單</button>
 </div>
+</div>
+<div class="lightbox-overlay" id="lightboxOverlay">
+<button class="lightbox-close" id="lightboxClose">✕</button>
+<img class="lightbox-img" id="lightboxImg" src="" alt="">
 </div>
 <div class="toast" id="toast"></div>
 <div class="page" id="app" style="display:none">
@@ -537,7 +548,7 @@ if(p.cat==='beyblade'){
 var title = p.spin==='r' ? '右旋 Right Spin' : '左旋 Left Spin';
 spinBadge = '<span class="spin-badge spin-badge--'+p.spin+'" title="'+title+'">'+p.spin.toUpperCase()+'</span>';
 }
-return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" data-zoom="'+imgUrl+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
 + '<div class="visual-fallback">' + fallbackInner + '</div>'
 + spinBadge;
 }
@@ -573,6 +584,12 @@ for(var k=0;k<PRODUCTS.length;k++){ if(PRODUCTS[k].id===id) product = PRODUCTS[k
 if(product) openOrderModal(product);
 };
 })(orderBtns[j]));
+}
+var zoomImgs = container.querySelectorAll('.zoomable');
+for(var z=0;z<zoomImgs.length;z++){
+zoomImgs[z].addEventListener('click', (function(img){
+return function(){ openLightbox(img.getAttribute('data-zoom') || img.src); };
+})(zoomImgs[z]));
 }
 }
 function renderHome(){
@@ -612,6 +629,11 @@ var orderModalQty = 1;
 function openOrderModal(product){
 orderModalProduct = product;
 orderModalQty = 1;
+var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + '.jpg';
+var photoEl = document.getElementById('orderModalPhoto');
+photoEl.style.display = '';
+photoEl.src = imgUrl;
+photoEl.setAttribute('data-zoom', imgUrl);
 document.getElementById('orderModalTitle').textContent = product.name;
 document.getElementById('orderModalSub').textContent = product.sub + ' · NT$' + product.price;
 document.getElementById('qtyValue').textContent = '1';
@@ -620,13 +642,19 @@ document.getElementById('orderModal').classList.add('is-open');
 function closeOrderModal(){
 document.getElementById('orderModal').classList.remove('is-open');
 }
+function openLightbox(url){
+document.getElementById('lightboxImg').src = url;
+document.getElementById('lightboxOverlay').classList.add('is-open');
+}
+function closeLightbox(){
+document.getElementById('lightboxOverlay').classList.remove('is-open');
+}
 async function confirmOrder(){
 if(!orderModalProduct) return;
 var btn = document.getElementById('orderModalConfirm');
 btn.disabled = true; btn.textContent = '送出中...';
 var res = await supabaseClient.from('orders').insert({
 line_uid: currentUser.uid,
-nickname: currentUser.nickname,
 product_name: orderModalProduct.name,
 variant: orderModalProduct.sub,
 quantity: orderModalQty,
@@ -727,6 +755,12 @@ showToast('請手動選取複製');
 });
 document.getElementById('orderModalClose').addEventListener('click', closeOrderModal);
 document.getElementById('orderModalConfirm').addEventListener('click', confirmOrder);
+document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+document.getElementById('lightboxOverlay').addEventListener('click', function(e){ if(e.target === this) closeLightbox(); });
+document.getElementById('orderModalPhoto').addEventListener('click', function(){
+var url = this.getAttribute('data-zoom');
+if(url) openLightbox(url);
+});
 document.getElementById('qtyMinus').addEventListener('click', function(){
 if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; }
 });
