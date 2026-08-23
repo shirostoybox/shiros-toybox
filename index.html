@@ -582,12 +582,15 @@ for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].featured) list.push(PRODUCTS[
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 }
+function normalizeSearch(s){
+return String(s).toLowerCase().replace(/[\s\-·・]/g, '');
+}
 function getFilteredShop(){
-var q = currentQuery.toLowerCase();
+var q = normalizeSearch(currentQuery);
 return PRODUCTS.filter(function(p){
 var catOk = currentCategory==='all' || p.cat===currentCategory;
-var qOk = p.name.toLowerCase().indexOf(q) !== -1;
-return catOk && qOk;
+var haystack = normalizeSearch(p.name + p.sub);
+return catOk && haystack.indexOf(q) !== -1;
 });
 }
 function renderShop(){
