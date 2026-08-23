@@ -9,651 +9,661 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root{
-    --ink:#171A24; --ink-2:#20242F; --paper:#EFF1F4; --card:#FFFFFF;
-    --ignis:#FF6647; --ignis-deep:#E2472A; --volt:#2FD8C9; --volt-deep:#17B5A8;
-    --text-light:#F3F4F8; --text-dark:#1B1E27; --muted:#7D8291; --muted-light:#9AA0B4; --line:#E2E4EA;
-    --r-lg:26px; --r-md:18px; --r-full:999px;
-    --font-display:'Rajdhani',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
-    --font-body:'Noto Sans TC',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{ background:#D9DCE2; font-family:var(--font-body); -webkit-font-smoothing:antialiased; display:flex; justify-content:center; }
-  .page{ width:100%; max-width:460px; min-height:100vh; background:var(--paper); position:relative; padding-bottom:88px; box-shadow:0 0 60px rgba(0,0,0,.18); }
-
-  @keyframes spin-disc{ to{ transform:rotate(360deg); } }
-  .disc{ width:var(--size,64px); height:var(--size,64px); border-radius:50%; flex-shrink:0; position:relative;
-    background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--c2)); animation:spin-disc 7s linear infinite; }
-  .disc::before{ content:''; position:absolute; inset:16%; border-radius:50%; background:var(--ink-2); }
-  .disc::after{ content:''; position:absolute; inset:42%; border-radius:50%; background:linear-gradient(135deg,var(--c1),var(--c2)); }
-
-  /* loading screen */
-  .loading-screen{ position:fixed; inset:0; background:var(--ink); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; z-index:300; }
-  .loading-screen p{ color:var(--muted-light); font-size:13.5px; font-weight:500; max-width:260px; text-align:center; line-height:1.6; }
-  .loading-screen.is-error .disc{ animation:none; opacity:.4; }
-  .loading-screen.is-error p{ color:var(--text-light); }
-  .retry-btn{ display:none; margin-top:4px; padding:10px 22px; border-radius:var(--r-full); border:1.5px solid rgba(255,255,255,.3); background:transparent; color:var(--text-light); font-weight:700; font-size:13px; font-family:var(--font-body); }
-  .loading-screen.is-error .retry-btn{ display:block; }
-
-  /* topbar */
-  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:var(--ink); border-bottom:1px solid rgba(255,255,255,.08); }
-  .topbar-brand{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:15px; color:var(--text-light); letter-spacing:.02em; }
-  .topbar-profile{ display:flex; align-items:center; gap:7px; }
-  .topbar-avatar{ width:26px; height:26px; border-radius:50%; background:var(--ink-2); object-fit:cover; }
-  .topbar-profile span{ font-size:12px; font-weight:600; color:var(--muted-light); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-  .view{ display:none; }
-  .view.is-active{ display:block; }
-
-  .hero{ position:relative; overflow:hidden; padding:28px 24px 30px; background:linear-gradient(160deg, var(--ink), var(--ink-2)); }
-  .hero-disc-wrap{ position:absolute; top:-26px; right:-56px; z-index:0; }
-  .hero-content{ position:relative; z-index:1; max-width:72%; }
-  .eyebrow{ margin:0 0 14px; font-family:var(--font-display); font-weight:600; font-size:11.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--volt); }
-  .greeting{ margin:0 0 6px; font-size:14.5px; color:var(--muted-light); font-weight:500; }
-  .wordmark{ margin:0 0 14px; font-family:var(--font-display); font-weight:700; font-size:clamp(28px,8vw,36px); line-height:1.08; letter-spacing:-.01em; color:var(--text-light); }
-  .hero-desc{ margin:0 0 24px; font-size:13.5px; line-height:1.65; color:var(--muted-light); }
-  .hero-actions{ display:flex; gap:10px; }
-  .btn{ font-family:var(--font-body); font-weight:700; font-size:14px; padding:13px 22px; border-radius:var(--r-full); border:none; cursor:pointer; transition:transform .15s ease; }
-  .btn:active{ transform:scale(.96); }
-  .btn--primary{ background:linear-gradient(135deg,var(--ignis),var(--ignis-deep)); color:#fff; box-shadow:0 10px 22px -8px rgba(255,102,71,.6); }
-  .btn--ghost{ background:transparent; color:var(--text-light); border:1.5px solid rgba(255,255,255,.32); }
-  .btn--dark{ background:var(--ink); color:#fff; }
-  .btn--full{ width:100%; }
-  .btn:disabled{ opacity:.6; }
-
-  .section-label{ margin:22px 20px 10px; font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
-  .cat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:8px 18px 4px; }
-  .cat-card{ display:flex; flex-direction:column; align-items:center; gap:7px; background:none; border:none; }
-  .cat-card-icon{ width:50px; height:50px; border-radius:50%; background:var(--card); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
-  .cat-card-icon svg{ width:23px; height:23px; stroke:var(--text-dark); fill:none; stroke-width:1.6; }
-  .cat-card span{ font-size:10.5px; font-weight:600; color:var(--text-dark); text-align:center; line-height:1.3; }
-
-  .picks-header,.shop-topline,.view-heading{ display:flex; align-items:center; justify-content:space-between; padding:20px 20px 8px; }
-  .picks-header h2,.shop-topline h2,.view-heading h2{ margin:0; font-size:20px; font-weight:700; color:var(--text-dark); }
-  .see-more{ font-size:12.5px; font-weight:600; color:var(--muted); }
-  .count-pill{ font-size:12px; color:var(--muted); font-weight:500; }
-
-  .search-bar{ display:flex; align-items:center; gap:8px; margin:6px 20px 12px; padding:11px 16px; border-radius:var(--r-full); background:var(--card); border:1px solid var(--line); }
-  .search-bar svg{ width:17px; height:17px; stroke:var(--muted); flex-shrink:0; }
-  .search-bar input{ border:none; outline:none; background:none; font-size:14px; font-family:var(--font-body); color:var(--text-dark); width:100%; }
-  .category-tabs{ display:flex; gap:8px; overflow-x:auto; padding:2px 20px 14px; scrollbar-width:none; }
-  .category-tabs::-webkit-scrollbar{ display:none; }
-  .cat-tab{ flex:0 0 auto; padding:8px 14px; border-radius:var(--r-full); border:1px solid var(--line); background:var(--card); font-size:12.5px; font-weight:600; color:var(--muted); font-family:var(--font-body); }
-  .cat-tab.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
-
-  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:6px 20px 20px; }
-  .card{ background:var(--card); border-radius:var(--r-md); overflow:hidden; box-shadow:0 1px 2px rgba(20,22,30,.05), 0 10px 22px -16px rgba(20,22,30,.35); display:flex; flex-direction:column; }
-  .card-visual{ position:relative; height:104px; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 38%, #F8F9FB, #ECEEF2); }
-  .cat-badge{ width:54px; height:54px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--text-dark); }
-  .cat-badge svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; }
-  .fav-btn{ position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; border:none; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; }
-  .fav-btn svg{ width:15px; height:15px; stroke:var(--muted); fill:none; stroke-width:1.8; }
-  .fav-btn.is-fav svg{ stroke:var(--ignis); fill:var(--ignis); }
-  .spin-badge{ position:absolute; bottom:8px; left:8px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:10px; font-weight:700; }
-  .spin-badge--r{ background:var(--ignis); color:#fff; }
-  .spin-badge--l{ background:var(--volt); color:var(--ink); }
-  .card-body{ padding:11px 13px 13px; }
-  .type-chip{ display:inline-block; font-size:10px; font-weight:600; padding:3px 9px; border-radius:var(--r-full); border:1px solid var(--line); color:var(--muted); margin-bottom:6px; }
-  .card-title{ margin:0 0 6px; font-family:var(--font-display); font-weight:700; font-size:15px; line-height:1.2; color:var(--text-dark); }
-  .card-title .sub{ display:block; margin-top:2px; font-family:var(--font-body); font-size:11px; font-weight:500; color:var(--muted); }
-  .card-meta{ display:flex; align-items:center; justify-content:space-between; }
-  .price{ font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-dark); }
-  .stock{ font-size:10px; font-weight:700; padding:3px 8px; border-radius:var(--r-full); }
-  .stock--in{ background:rgba(33,132,82,.12); color:#1E7A4C; }
-  .stock--pre{ background:rgba(176,106,22,.14); color:#A5650F; }
-  .card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
-  .card-order-btn:active{ transform:scale(.97); }
-
-  /* orders */
-  .order-list{ display:flex; flex-direction:column; gap:12px; padding:6px 20px 24px; }
-  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; }
-  .order-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .order-no{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--muted); }
-  .order-status{ font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:var(--r-full); background:rgba(255,102,71,.12); color:var(--ignis-deep); white-space:nowrap; }
-  .order-body{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-  .order-product{ margin:0; font-size:14px; font-weight:700; color:var(--text-dark); }
-  .order-product .sub{ display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px; }
-  .order-price{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--text-dark); white-space:nowrap; }
-  .order-time{ margin:10px 0 0; font-size:11px; color:var(--muted); }
-
-  /* profile / menu */
-  .profile-card{ display:flex; flex-direction:column; align-items:center; padding:26px 20px 10px; }
-  .profile-avatar{ width:64px; height:64px; border-radius:50%; background:var(--line); object-fit:cover; margin-bottom:12px; }
-  .profile-name{ margin:0 0 4px; font-size:17px; font-weight:700; color:var(--text-dark); }
-  .profile-badge{ font-size:11px; font-weight:600; color:var(--muted); background:var(--card); border:1px solid var(--line); padding:3px 12px; border-radius:var(--r-full); }
-  .menu-list{ display:flex; flex-direction:column; padding:14px 20px 24px; }
-  .menu-row{ display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none; border-bottom:1px solid var(--line); padding:16px 2px; font-size:14px; font-weight:600; color:var(--text-dark); text-align:left; font-family:var(--font-body); }
-  .menu-row:last-child{ border-bottom:none; }
-  .menu-row.danger{ color:var(--ignis-deep); }
-  .chev{ color:var(--muted); font-size:16px; }
-
-  .empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 40px 40px; }
-  .empty-icon{ width:56px; height:56px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--muted); margin-bottom:18px; font-family:var(--font-display); }
-  .empty-title{ margin:0 0 6px; font-size:16px; font-weight:700; color:var(--text-dark); }
-  .empty-sub{ margin:0 0 20px; font-size:13px; color:var(--muted); }
-
-  .bottom-nav{ position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:460px; display:flex; justify-content:space-around; align-items:center; padding:10px 2px 16px; background:var(--ink); border-top:1px solid rgba(255,255,255,.08); z-index:10; }
-  .nav-item{ display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; color:var(--muted-light); font-family:var(--font-body); font-size:10px; font-weight:500; padding:2px 3px; }
-  .nav-icon-wrap{ position:relative; }
-  .nav-item svg{ width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.7; }
-  .nav-item.active{ color:var(--ignis); }
-  .nav-badge{ position:absolute; top:-4px; right:-8px; background:var(--ignis); color:#fff; font-size:9px; font-weight:700; min-width:15px; height:15px; border-radius:50%; display:none; align-items:center; justify-content:center; padding:0 3px; }
-
-  /* overlays: nickname gate + order modal */
-  .gate-overlay,.modal-overlay{ position:fixed; inset:0; background:rgba(10,11,15,.7); display:none; align-items:flex-end; justify-content:center; z-index:150; }
-  .gate-overlay.is-open,.modal-overlay.is-open{ display:flex; }
-  .gate-card,.modal-card{ background:var(--card); border-radius:26px 26px 0 0; padding:28px 22px 30px; width:100%; max-width:460px; position:relative; }
-  .gate-eyebrow{ margin:0 0 8px; font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
-  .gate-card h2,.modal-card h3{ margin:0 0 8px; font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--text-dark); }
-  .gate-desc{ margin:0 0 18px; font-size:13px; line-height:1.6; color:var(--muted); }
-  .gate-input{ width:100%; padding:13px 16px; border-radius:var(--r-md); border:1.5px solid var(--line); font-size:15px; font-family:var(--font-body); margin-bottom:14px; }
-  .modal-close{ position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:50%; border:none; background:var(--paper); font-size:15px; color:var(--muted); }
-  .modal-sub{ margin:0 0 4px; font-size:12.5px; color:var(--muted); }
-  .qty-row{ display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0; }
-  .qty-row button{ width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--paper); font-size:18px; font-weight:700; color:var(--text-dark); }
-  .qty-row span{ font-family:var(--font-display); font-size:20px; font-weight:700; min-width:30px; text-align:center; }
-
-  .toast{ position:fixed; bottom:96px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff; padding:12px 22px; border-radius:var(--r-full); font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease; z-index:200; white-space:nowrap; }
-  .toast.is-visible{ opacity:1; transform:translateX(-50%) translateY(0); }
-
-  @media (prefers-reduced-motion: reduce){ .disc{ animation:none; } }
+:root{
+--ink:#171A24; --ink-2:#20242F; --paper:#EFF1F4; --card:#FFFFFF;
+--ignis:#FF6647; --ignis-deep:#E2472A; --volt:#2FD8C9; --volt-deep:#17B5A8;
+--text-light:#F3F4F8; --text-dark:#1B1E27; --muted:#7D8291; --muted-light:#9AA0B4; --line:#E2E4EA;
+--r-lg:26px; --r-md:18px; --r-full:999px;
+--font-display:'Rajdhani',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
+--font-body:'Noto Sans TC',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{ background:#D9DCE2; font-family:var(--font-body); -webkit-font-smoothing:antialiased; display:flex; justify-content:center; }
+.page{ width:100%; max-width:460px; min-height:100vh; background:var(--paper); position:relative; padding-bottom:88px; box-shadow:0 0 60px rgba(0,0,0,.18); }
+@keyframes spin-disc{ to{ transform:rotate(360deg); } }
+.disc{ width:var(--size,64px); height:var(--size,64px); border-radius:50%; flex-shrink:0; position:relative;
+background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--c2)); animation:spin-disc 7s linear infinite; }
+.disc::before{ content:''; position:absolute; inset:16%; border-radius:50%; background:var(--ink-2); }
+.disc::after{ content:''; position:absolute; inset:42%; border-radius:50%; background:linear-gradient(135deg,var(--c1),var(--c2)); }
+/* loading screen */
+.loading-screen{ position:fixed; inset:0; background:var(--ink); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; z-index:300; }
+.loading-screen p{ color:var(--muted-light); font-size:13.5px; font-weight:500; max-width:260px; text-align:center; line-height:1.6; }
+.loading-screen.is-error .disc{ animation:none; opacity:.4; }
+.loading-screen.is-error p{ color:var(--text-light); }
+.retry-btn{ display:none; margin-top:4px; padding:10px 22px; border-radius:var(--r-full); border:1.5px solid rgba(255,255,255,.3); background:transparent; color:var(--text-light); font-weight:700; font-size:13px; font-family:var(--font-body); }
+.loading-screen.is-error .retry-btn{ display:block; }
+/* topbar */
+.topbar{ display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:var(--ink); border-bottom:1px solid rgba(255,255,255,.08); }
+.topbar-brand{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:15px; color:var(--text-light); letter-spacing:.02em; }
+.topbar-profile{ display:flex; align-items:center; gap:7px; }
+.topbar-avatar{ width:26px; height:26px; border-radius:50%; background:var(--ink-2); object-fit:cover; }
+.topbar-profile span{ font-size:12px; font-weight:600; color:var(--muted-light); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.view{ display:none; }
+.view.is-active{ display:block; }
+.hero{ position:relative; overflow:hidden; padding:28px 24px 30px; background:linear-gradient(160deg, var(--ink), var(--ink-2)); }
+.hero-disc-wrap{ position:absolute; top:-26px; right:-56px; z-index:0; }
+.hero-content{ position:relative; z-index:1; max-width:72%; }
+.eyebrow{ margin:0 0 14px; font-family:var(--font-display); font-weight:600; font-size:11.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--volt); }
+.greeting{ margin:0 0 6px; font-size:14.5px; color:var(--muted-light); font-weight:500; }
+.wordmark{ margin:0 0 14px; font-family:var(--font-display); font-weight:700; font-size:clamp(28px,8vw,36px); line-height:1.08; letter-spacing:-.01em; color:var(--text-light); }
+.hero-desc{ margin:0 0 24px; font-size:13.5px; line-height:1.65; color:var(--muted-light); }
+.hero-actions{ display:flex; gap:10px; }
+.btn{ font-family:var(--font-body); font-weight:700; font-size:14px; padding:13px 22px; border-radius:var(--r-full); border:none; cursor:pointer; transition:transform .15s ease; }
+.btn:active{ transform:scale(.96); }
+.btn--primary{ background:linear-gradient(135deg,var(--ignis),var(--ignis-deep)); color:#fff; box-shadow:0 10px 22px -8px rgba(255,102,71,.6); }
+.btn--ghost{ background:transparent; color:var(--text-light); border:1.5px solid rgba(255,255,255,.32); }
+.btn--dark{ background:var(--ink); color:#fff; }
+.btn--full{ width:100%; }
+.btn:disabled{ opacity:.6; }
+.section-label{ margin:22px 20px 10px; font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
+.cat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:8px 18px 4px; }
+.cat-card{ display:flex; flex-direction:column; align-items:center; gap:7px; background:none; border:none; }
+.cat-card-icon{ width:50px; height:50px; border-radius:50%; background:var(--card); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+.cat-card-icon svg{ width:23px; height:23px; stroke:var(--text-dark); fill:none; stroke-width:1.6; }
+.cat-card span{ font-size:10.5px; font-weight:600; color:var(--text-dark); text-align:center; line-height:1.3; }
+.picks-header,.shop-topline,.view-heading{ display:flex; align-items:center; justify-content:space-between; padding:20px 20px 8px; }
+.picks-header h2,.shop-topline h2,.view-heading h2{ margin:0; font-size:20px; font-weight:700; color:var(--text-dark); }
+.see-more{ font-size:12.5px; font-weight:600; color:var(--muted); }
+.count-pill{ font-size:12px; color:var(--muted); font-weight:500; }
+.search-bar{ display:flex; align-items:center; gap:8px; margin:6px 20px 12px; padding:11px 16px; border-radius:var(--r-full); background:var(--card); border:1px solid var(--line); }
+.search-bar svg{ width:17px; height:17px; stroke:var(--muted); flex-shrink:0; }
+.search-bar input{ border:none; outline:none; background:none; font-size:14px; font-family:var(--font-body); color:var(--text-dark); width:100%; }
+.category-tabs{ display:flex; gap:8px; overflow-x:auto; padding:2px 20px 14px; scrollbar-width:none; }
+.category-tabs::-webkit-scrollbar{ display:none; }
+.cat-tab{ flex:0 0 auto; padding:8px 14px; border-radius:var(--r-full); border:1px solid var(--line); background:var(--card); font-size:12.5px; font-weight:600; color:var(--muted); font-family:var(--font-body); }
+.cat-tab.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:6px 20px 20px; }
+.card{ background:var(--card); border-radius:var(--r-md); overflow:hidden; box-shadow:0 1px 2px rgba(20,22,30,.05), 0 10px 22px -16px rgba(20,22,30,.35); display:flex; flex-direction:column; }
+.card-visual{ position:relative; height:104px; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 38%, #F8F9FB, #ECEEF2); }
+.cat-badge{ width:54px; height:54px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--text-dark); }
+.cat-badge svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; }
+.fav-btn{ position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; border:none; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; }
+.fav-btn svg{ width:15px; height:15px; stroke:var(--muted); fill:none; stroke-width:1.8; }
+.fav-btn.is-fav svg{ stroke:var(--ignis); fill:var(--ignis); }
+.spin-badge{ position:absolute; bottom:8px; left:8px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:10px; font-weight:700; }
+.spin-badge--r{ background:var(--ignis); color:#fff; }
+.spin-badge--l{ background:var(--volt); color:var(--ink); }
+.card-body{ padding:11px 13px 13px; }
+.type-chip{ display:inline-block; font-size:10px; font-weight:600; padding:3px 9px; border-radius:var(--r-full); border:1px solid var(--line); color:var(--muted); margin-bottom:6px; }
+.card-title{ margin:0 0 6px; font-family:var(--font-display); font-weight:700; font-size:15px; line-height:1.2; color:var(--text-dark); }
+.card-title .sub{ display:block; margin-top:2px; font-family:var(--font-body); font-size:11px; font-weight:500; color:var(--muted); }
+.card-meta{ display:flex; align-items:center; justify-content:space-between; }
+.price{ font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-dark); }
+.stock{ font-size:10px; font-weight:700; padding:3px 8px; border-radius:var(--r-full); }
+.stock--in{ background:rgba(33,132,82,.12); color:#1E7A4C; }
+.stock--pre{ background:rgba(176,106,22,.14); color:#A5650F; }
+.card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
+.card-order-btn:active{ transform:scale(.97); }
+/* orders */
+.order-list{ display:flex; flex-direction:column; gap:12px; padding:6px 20px 24px; }
+.order-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; }
+.order-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.order-no{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--muted); }
+.order-status{ font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:var(--r-full); background:rgba(255,102,71,.12); color:var(--ignis-deep); white-space:nowrap; }
+.order-body{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.order-product{ margin:0; font-size:14px; font-weight:700; color:var(--text-dark); }
+.order-product .sub{ display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px; }
+.order-price{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--text-dark); white-space:nowrap; }
+.order-time{ margin:10px 0 0; font-size:11px; color:var(--muted); }
+/* profile / menu */
+.profile-card{ display:flex; flex-direction:column; align-items:center; padding:26px 20px 10px; }
+.profile-avatar{ width:64px; height:64px; border-radius:50%; background:var(--line); object-fit:cover; margin-bottom:12px; }
+.profile-name{ margin:0 0 4px; font-size:17px; font-weight:700; color:var(--text-dark); }
+.profile-badge{ font-size:11px; font-weight:600; color:var(--muted); background:var(--card); border:1px solid var(--line); padding:3px 12px; border-radius:var(--r-full); }
+.menu-list{ display:flex; flex-direction:column; padding:14px 20px 24px; }
+.menu-row{ display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none; border-bottom:1px solid var(--line); padding:16px 2px; font-size:14px; font-weight:600; color:var(--text-dark); text-align:left; font-family:var(--font-body); }
+.menu-row:last-child{ border-bottom:none; }
+.menu-row.danger{ color:var(--ignis-deep); }
+.chev{ color:var(--muted); font-size:16px; }
+.empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 40px 40px; }
+.empty-icon{ width:56px; height:56px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--muted); margin-bottom:18px; font-family:var(--font-display); }
+.empty-title{ margin:0 0 6px; font-size:16px; font-weight:700; color:var(--text-dark); }
+.empty-sub{ margin:0 0 20px; font-size:13px; color:var(--muted); }
+.bottom-nav{ position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:460px; display:flex; justify-content:space-around; align-items:center; padding:10px 2px 16px; background:var(--ink); border-top:1px solid rgba(255,255,255,.08); z-index:10; }
+.nav-item{ display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; color:var(--muted-light); font-family:var(--font-body); font-size:10px; font-weight:500; padding:2px 3px; }
+.nav-icon-wrap{ position:relative; }
+.nav-item svg{ width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.7; }
+.nav-item.active{ color:var(--ignis); }
+.nav-badge{ position:absolute; top:-4px; right:-8px; background:var(--ignis); color:#fff; font-size:9px; font-weight:700; min-width:15px; height:15px; border-radius:50%; display:none; align-items:center; justify-content:center; padding:0 3px; }
+/* overlays: nickname gate + order modal */
+.gate-overlay,.modal-overlay{ position:fixed; inset:0; background:rgba(10,11,15,.7); display:none; align-items:flex-end; justify-content:center; z-index:150; }
+.gate-overlay.is-open,.modal-overlay.is-open{ display:flex; }
+.gate-card,.modal-card{ background:var(--card); border-radius:26px 26px 0 0; padding:28px 22px 30px; width:100%; max-width:460px; position:relative; }
+.gate-eyebrow{ margin:0 0 8px; font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
+.gate-card h2,.modal-card h3{ margin:0 0 8px; font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--text-dark); }
+.gate-desc{ margin:0 0 18px; font-size:13px; line-height:1.6; color:var(--muted); }
+.gate-input{ width:100%; padding:13px 16px; border-radius:var(--r-md); border:1.5px solid var(--line); font-size:15px; font-family:var(--font-body); margin-bottom:14px; }
+.verify-code-box{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-radius:var(--r-md); border:1.5px dashed var(--line); background:var(--paper); margin-bottom:14px; }
+.verify-code-box span{ font-family:var(--font-display); font-size:26px; font-weight:700; letter-spacing:.1em; color:var(--text-dark); }
+.copy-btn{ flex-shrink:0; padding:9px 16px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
+.verify-status{ margin:14px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
+.link-btn{ display:flex; align-items:center; justify-content:center; text-decoration:none; }
+.modal-close{ position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:50%; border:none; background:var(--paper); font-size:15px; color:var(--muted); }
+.modal-sub{ margin:0 0 4px; font-size:12.5px; color:var(--muted); }
+.qty-row{ display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0; }
+.qty-row button{ width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--paper); font-size:18px; font-weight:700; color:var(--text-dark); }
+.qty-row span{ font-family:var(--font-display); font-size:20px; font-weight:700; min-width:30px; text-align:center; }
+.toast{ position:fixed; bottom:96px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff; padding:12px 22px; border-radius:var(--r-full); font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease; z-index:200; white-space:nowrap; }
+.toast.is-visible{ opacity:1; transform:translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce){ .disc{ animation:none; } }
 </style>
 </head>
 <body>
-
 <div class="loading-screen" id="loadingScreen">
-  <div class="disc" style="--size:70px;--c1:var(--ignis);--c2:var(--volt)"></div>
-  <p id="loadingText">連接LINE中...</p>
-  <button class="retry-btn" id="retryBtn" onclick="window.location.reload()">重新整理</button>
+<div class="disc" style="--size:70px;--c1:var(--ignis);--c2:var(--volt)"></div>
+<p id="loadingText">連接LINE中...</p>
+<button class="retry-btn" id="retryBtn" onclick="window.location.reload()">重新整理</button>
 </div>
-
 <div class="gate-overlay" id="nicknameGate">
-  <div class="gate-card">
-    <p class="gate-eyebrow">需完成個人資料</p>
-    <h2>還差一步</h2>
-    <p class="gate-desc">為了確保喊單能順利聯繫到你，請先設定一個顯示用的暱稱</p>
-    <input type="text" class="gate-input" id="nicknameInput" placeholder="輸入暱稱" maxlength="20">
-    <button class="btn btn--dark btn--full" id="nicknameSubmit">儲存並繼續</button>
-  </div>
+<div class="gate-card">
+<p class="gate-eyebrow">需完成個人資料</p>
+<h2>還差一步</h2>
+<p class="gate-desc">為了確保喊單能順利聯繫到你，請先設定一個顯示用的暱稱</p>
+<input type="text" class="gate-input" id="nicknameInput" placeholder="輸入暱稱" maxlength="20">
+<button class="btn btn--dark btn--full" id="nicknameSubmit">儲存並繼續</button>
 </div>
-
+</div>
+<div class="gate-overlay" id="verifyGate">
+<div class="gate-card">
+<p class="gate-eyebrow">加好友已完成</p>
+<h2>還差最後一步</h2>
+<p class="gate-desc">請把下面這組驗證碼傳送給「四郎玩具箱」官方帳號，完成後就能正式成為會員</p>
+<div class="verify-code-box"><span id="verifyCodeText">------</span><button class="copy-btn" id="verifyCodeCopy">複製</button></div>
+<a class="btn btn--primary btn--full link-btn" id="verifyGoLine" href="#">前往官方帳號傳送</a>
+<button class="btn btn--ghost btn--full" id="verifyRecheck" style="margin-top:10px;color:var(--text-dark);border-color:var(--line);">已經傳送了，重新檢查</button>
+<p class="verify-status" id="verifyStatusText">傳送後這裡會自動偵測，請稍候幾秒⋯</p>
+</div>
+</div>
 <div class="modal-overlay" id="orderModal">
-  <div class="modal-card">
-    <button class="modal-close" id="orderModalClose">✕</button>
-    <h3 id="orderModalTitle"></h3>
-    <p class="modal-sub" id="orderModalSub"></p>
-    <div class="qty-row">
-      <button id="qtyMinus">−</button>
-      <span id="qtyValue">1</span>
-      <button id="qtyPlus">＋</button>
-    </div>
-    <button class="btn btn--primary btn--full" id="orderModalConfirm">加入喊單</button>
-  </div>
+<div class="modal-card">
+<button class="modal-close" id="orderModalClose">✕</button>
+<h3 id="orderModalTitle"></h3>
+<p class="modal-sub" id="orderModalSub"></p>
+<div class="qty-row">
+<button id="qtyMinus">−</button>
+<span id="qtyValue">1</span>
+<button id="qtyPlus">＋</button>
 </div>
-
+<button class="btn btn--primary btn--full" id="orderModalConfirm">加入喊單</button>
+</div>
+</div>
 <div class="toast" id="toast"></div>
-
 <div class="page" id="app" style="display:none">
-
-  <header class="topbar">
-    <div class="topbar-brand">
-      <div class="disc" style="--size:24px;--c1:var(--ignis);--c2:var(--volt)"></div>
-      <span>四郎玩具箱</span>
-    </div>
-    <div class="topbar-profile">
-      <img class="topbar-avatar" id="topbarAvatar" alt="">
-      <span id="topbarName"></span>
-    </div>
-  </header>
-
-  <!-- HOME -->
-  <section class="view is-active" data-view="home">
-    <section class="hero">
-      <div class="hero-disc-wrap"><div class="disc" style="--size:200px;--c1:var(--ignis);--c2:var(--volt);filter:drop-shadow(0 0 34px rgba(255,102,71,.35)) drop-shadow(0 0 46px rgba(47,216,201,.28))"></div></div>
-      <div class="hero-content">
-        <p class="eyebrow">SPIN · CLASH · WIN</p>
-        <p class="greeting" id="heroGreeting">陀友，您好</p>
-        <h1 class="wordmark">四郎<br>玩具箱</h1>
-        <p class="hero-desc">日本原裝玩具、公仔、扭蛋一次網羅，規格逐件核對再出貨。從東京店頭到你手上，讓每一次入手都準時抵達。</p>
-        <div class="hero-actions">
-          <button class="btn btn--primary" data-target="shop">立即選購</button>
-          <button class="btn btn--ghost" data-target="cart">查看喊單</button>
-        </div>
-      </div>
-    </section>
-
-    <p class="section-label">熱門分類</p>
-    <div class="cat-grid">
-      <button class="cat-card" data-cat="beyblade">
-        <span class="cat-card-icon"><div class="disc" style="--size:24px;--c1:var(--ignis);--c2:var(--volt)"></div></span>
-        <span>戰鬥陀螺</span>
-      </button>
-      <button class="cat-card" data-cat="doll">
-        <span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg></span>
-        <span>娃娃玩偶</span>
-      </button>
-      <button class="cat-card" data-cat="anpanman">
-        <span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7 21l5-3 5 3-2-7.5" stroke-linejoin="round"/></svg></span>
-        <span>麵包超人博物館</span>
-      </button>
-      <button class="cat-card" data-cat="gacha">
-        <span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg></span>
-        <span>扭蛋</span>
-      </button>
-    </div>
-
-    <div class="picks-header">
-      <h2>本週嚴選</h2>
-      <span class="see-more" data-target="shop">查看更多 →</span>
-    </div>
-    <div class="grid" id="homeGrid"></div>
-  </section>
-
-  <!-- SHOP -->
-  <section class="view" data-view="shop">
-    <div class="shop-topline">
-      <div><h2>所有商品</h2><span class="count-pill" id="shopCount"></span></div>
-    </div>
-    <div class="search-bar">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <input type="text" id="shopSearch" placeholder="搜尋商品...">
-    </div>
-    <div class="category-tabs">
-      <button class="cat-tab active" data-cat="all">全部</button>
-      <button class="cat-tab" data-cat="beyblade">戰鬥陀螺</button>
-      <button class="cat-tab" data-cat="doll">娃娃玩偶</button>
-      <button class="cat-tab" data-cat="anpanman">麵包超人博物館</button>
-      <button class="cat-tab" data-cat="gacha">扭蛋</button>
-    </div>
-    <div class="grid" id="shopGrid"></div>
-  </section>
-
-  <!-- CART / REAL ORDERS -->
-  <section class="view" data-view="cart" id="cartView"></section>
-
-  <!-- MENU / REAL PROFILE -->
-  <section class="view" data-view="menu">
-    <div class="profile-card">
-      <img class="profile-avatar" id="profileAvatar" alt="">
-      <p class="profile-name" id="profileName"></p>
-      <span class="profile-badge">LINE已驗證</span>
-    </div>
-    <div class="menu-list">
-      <button class="menu-row"><span>代購流程與運費說明</span><span class="chev">›</span></button>
-      <button class="menu-row"><span>常見問題</span><span class="chev">›</span></button>
-      <button class="menu-row"><span>聯絡客服（LINE）</span><span class="chev">›</span></button>
-      <button class="menu-row danger" id="logoutBtn"><span>登出</span><span class="chev">›</span></button>
-    </div>
-  </section>
-
-  <nav class="bottom-nav">
-    <button class="nav-item active" data-target="home">
-      <svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>首頁</span>
-    </button>
-    <button class="nav-item" data-target="shop">
-      <svg viewBox="0 0 24 24"><path d="M6 8h12l1 12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1L6 8Z" stroke-linejoin="round"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke-linecap="round"/></svg>
-      <span>商品</span>
-    </button>
-    <button class="nav-item" data-target="cart">
-      <span class="nav-icon-wrap">
-        <svg viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="15" rx="2"/><rect x="9" y="3.2" width="6" height="3.2" rx="1" fill="currentColor" stroke="none"/><path d="M9 11h6M9 14.5h6M9 17.5h4" stroke-linecap="round"/></svg>
-        <span class="nav-badge" id="cartBadge">0</span>
-      </span>
-      <span>喊單</span>
-    </button>
-    <button class="nav-item" data-target="menu">
-      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
-      <span>選單</span>
-    </button>
-  </nav>
-
+<header class="topbar">
+<div class="topbar-brand">
+<div class="disc" style="--size:24px;--c1:var(--ignis);--c2:var(--volt)"></div>
+<span>四郎玩具箱</span>
 </div>
-
+<div class="topbar-profile">
+<img class="topbar-avatar" id="topbarAvatar" alt="">
+<span id="topbarName"></span>
+</div>
+</header>
+<!-- HOME -->
+<section class="view is-active" data-view="home">
+<section class="hero">
+<div class="hero-disc-wrap"><div class="disc" style="--size:200px;--c1:var(--ignis);--c2:var(--volt);filter:drop-shadow(0 0 34px rgba(255,102,71,.35)) drop-shadow(0 0 46px rgba(47,216,201,.28))"></div></div>
+<div class="hero-content">
+<p class="eyebrow">SPIN · CLASH · WIN</p>
+<p class="greeting" id="heroGreeting">陀友，您好</p>
+<h1 class="wordmark">四郎<br>玩具箱</h1>
+<p class="hero-desc">日本原裝玩具、公仔、扭蛋一次網羅，規格逐件核對再出貨。從東京店頭到你手上，讓每一次入手都準時抵達。</p>
+<div class="hero-actions">
+<button class="btn btn--primary" data-target="shop">立即選購</button>
+<button class="btn btn--ghost" data-target="cart">查看喊單</button>
+</div>
+</div>
+</section>
+<p class="section-label">熱門分類</p>
+<div class="cat-grid">
+<button class="cat-card" data-cat="beyblade">
+<span class="cat-card-icon"><div class="disc" style="--size:24px;--c1:var(--ignis);--c2:var(--volt)"></div></span>
+<span>戰鬥陀螺</span>
+</button>
+<button class="cat-card" data-cat="doll">
+<span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg></span>
+<span>娃娃玩偶</span>
+</button>
+<button class="cat-card" data-cat="anpanman">
+<span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7 21l5-3 5 3-2-7.5" stroke-linejoin="round"/></svg></span>
+<span>麵包超人博物館</span>
+</button>
+<button class="cat-card" data-cat="gacha">
+<span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg></span>
+<span>扭蛋</span>
+</button>
+</div>
+<div class="picks-header">
+<h2>本週嚴選</h2>
+<span class="see-more" data-target="shop">查看更多 →</span>
+</div>
+<div class="grid" id="homeGrid"></div>
+</section>
+<!-- SHOP -->
+<section class="view" data-view="shop">
+<div class="shop-topline">
+<div><h2>所有商品</h2><span class="count-pill" id="shopCount"></span></div>
+</div>
+<div class="search-bar">
+<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+<input type="text" id="shopSearch" placeholder="搜尋商品...">
+</div>
+<div class="category-tabs">
+<button class="cat-tab active" data-cat="all">全部</button>
+<button class="cat-tab" data-cat="beyblade">戰鬥陀螺</button>
+<button class="cat-tab" data-cat="doll">娃娃玩偶</button>
+<button class="cat-tab" data-cat="anpanman">麵包超人博物館</button>
+<button class="cat-tab" data-cat="gacha">扭蛋</button>
+</div>
+<div class="grid" id="shopGrid"></div>
+</section>
+<!-- CART / REAL ORDERS -->
+<section class="view" data-view="cart" id="cartView"></section>
+<!-- MENU / REAL PROFILE -->
+<section class="view" data-view="menu">
+<div class="profile-card">
+<img class="profile-avatar" id="profileAvatar" alt="">
+<p class="profile-name" id="profileName"></p>
+<span class="profile-badge">LINE已驗證</span>
+</div>
+<div class="menu-list">
+<button class="menu-row"><span>代購流程與運費說明</span><span class="chev">›</span></button>
+<button class="menu-row"><span>常見問題</span><span class="chev">›</span></button>
+<button class="menu-row"><span>聯絡客服（LINE）</span><span class="chev">›</span></button>
+<button class="menu-row danger" id="logoutBtn"><span>登出</span><span class="chev">›</span></button>
+</div>
+</section>
+<nav class="bottom-nav">
+<button class="nav-item active" data-target="home">
+<svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span>首頁</span>
+</button>
+<button class="nav-item" data-target="shop">
+<svg viewBox="0 0 24 24"><path d="M6 8h12l1 12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1L6 8Z" stroke-linejoin="round"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke-linecap="round"/></svg>
+<span>商品</span>
+</button>
+<button class="nav-item" data-target="cart">
+<span class="nav-icon-wrap">
+<svg viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="15" rx="2"/><rect x="9" y="3.2" width="6" height="3.2" rx="1" fill="currentColor" stroke="none"/><path d="M9 11h6M9 14.5h6M9 17.5h4" stroke-linecap="round"/></svg>
+<span class="nav-badge" id="cartBadge">0</span>
+</span>
+<span>喊單</span>
+</button>
+<button class="nav-item" data-target="menu">
+<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+<span>選單</span>
+</button>
+</nav>
+</div>
 <script>
 (function(){
-  /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-  var LIFF_ID = '2011208900-FRP3QI9Q';
-  var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
-  var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
-  /* ===================================================================== */
+/* ===== CONFIG — update these after redeploying or rotating keys ===== */
+var LIFF_ID = '2011208900-FRP3QI9Q';
+var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
+var OA_ID = '@324flvar';
+/* ===================================================================== */
+var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var currentUser = { uid:null, displayName:'', pictureUrl:'', nickname:'' };
+var myOrders = [];
+var favorites = {};
+var currentCategory = 'all';
+var currentQuery = '';
+var PRODUCTS = [
+{id:'wizard-arrow', name:'Wizard Arrow', sub:'4-60F', cat:'beyblade', catLabel:'攻擊型', spin:'r', price:580, stock:'in', featured:true},
+{id:'knife-shark', name:'Knife Shark', sub:'4-60B', cat:'beyblade', catLabel:'防禦型', spin:'l', price:540, stock:'in', featured:true},
+{id:'dran-sword', name:'Dran Sword', sub:'3-60F', cat:'beyblade', catLabel:'平衡型', spin:'r', price:620, stock:'in'},
+{id:'hells-scythe', name:'Hells Scythe', sub:'4-80B', cat:'beyblade', catLabel:'耐久型', spin:'l', price:650, stock:'pre'},
+{id:'bunny-plush', name:'療癒兔兔玩偶', sub:'30cm', cat:'doll', catLabel:'娃娃玩偶', price:450, stock:'in', featured:true},
+{id:'bear-charm', name:'迷你熊寶寶吊飾', sub:'12cm', cat:'doll', catLabel:'娃娃玩偶', price:280, stock:'in'},
+{id:'anpanman-tableware', name:'博物館限定餐具組', sub:'橫濱館', cat:'anpanman', catLabel:'麵包超人博物館', price:720, stock:'in', featured:true},
+{id:'anpanman-tote', name:'館內限定托特包', sub:'神戶館', cat:'anpanman', catLabel:'麵包超人博物館', price:580, stock:'in'},
+{id:'gacha-single', name:'一番賞代抽', sub:'單抽／每抽', cat:'gacha', catLabel:'扭蛋', price:150, stock:'in'},
+{id:'gacha-set', name:'扭蛋機限定整套', sub:'代購整套', cat:'gacha', catLabel:'扭蛋', price:1200, stock:'pre'}
+];
+var ICONS = {
+heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.5-9C.8 7.2 3 4 6.3 4 8.4 4 10 5 12 7c2-2 3.6-3 5.7-3 3.3 0 5.5 3.2 3.8 7-2.5 4.65-9.5 9-9.5 9Z" stroke-linejoin="round"/></svg>',
+bear:'<svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg>',
+ribbon:'<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7 21l5-3 5 3-2-7.5" stroke-linejoin="round"/></svg>',
+capsule:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg>'
+};
+function catIcon(cat){
+if(cat==='doll') return ICONS.bear;
+if(cat==='anpanman') return ICONS.ribbon;
+if(cat==='gacha') return ICONS.capsule;
+return '';
+}
+function showLoading(msg){
+document.getElementById('loadingText').textContent = msg;
+}
+function showError(msg){
+var scr = document.getElementById('loadingScreen');
+scr.classList.add('is-error');
+document.getElementById('loadingText').textContent = msg;
+}
+function hideLoading(){
+document.getElementById('loadingScreen').style.display = 'none';
+}
+function showToast(msg){
+var t = document.getElementById('toast');
+t.textContent = msg;
+t.classList.add('is-visible');
+setTimeout(function(){ t.classList.remove('is-visible'); }, 1800);
+}
+/* ---------- LIFF init + login ---------- */
+async function initApp(){
+showLoading('連接LINE中...');
+try{
+await liff.init({ liffId: LIFF_ID });
+}catch(e){
+showError('LIFF初始化失敗，請確認網址設定是否正確（' + (e && e.message ? e.message : '未知錯誤') + '）');
+return;
+}
+if(!liff.isLoggedIn()){
+showLoading('跳轉至LINE登入...');
+liff.login();
+return;
+}
+showLoading('讀取會員資料中...');
+var profile;
+try{
+profile = await liff.getProfile();
+}catch(e){
+showError('無法取得LINE個人資料，請重新整理再試一次');
+return;
+}
+currentUser.uid = profile.userId;
+currentUser.displayName = profile.displayName;
+currentUser.pictureUrl = profile.pictureUrl || '';
+await ensureMember();
+}
+async function ensureMember(){
+var res = await supabaseClient.from('members').select('*').eq('line_uid', currentUser.uid).maybeSingle();
+if(res.error){
+showError('資料庫連線失敗：' + res.error.message);
+return;
+}
+var member = res.data;
+var isVerified = member ? !!member.is_verified : false;
+var verifyCode = member ? member.verify_code : null;
+var nickname = member ? member.nickname : null;
 
-  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  var currentUser = { uid:null, displayName:'', pictureUrl:'', nickname:'' };
-  var myOrders = [];
-  var favorites = {};
-  var currentCategory = 'all';
-  var currentQuery = '';
+if(!member){
+verifyCode = genVerifyCode();
+var ins = await supabaseClient.from('members').insert({ line_uid: currentUser.uid, display_name: currentUser.displayName, verify_code: verifyCode });
+if(ins.error){
+showError('建立會員失敗：' + ins.error.message);
+return;
+}
+} else if(!isVerified && !verifyCode){
+verifyCode = genVerifyCode();
+var upd = await supabaseClient.from('members').update({ verify_code: verifyCode }).eq('line_uid', currentUser.uid);
+if(upd.error){
+showError('產生驗證碼失敗：' + upd.error.message);
+return;
+}
+}
 
-  var PRODUCTS = [
-    {id:'wizard-arrow', name:'Wizard Arrow', sub:'4-60F', cat:'beyblade', catLabel:'攻擊型', spin:'r', price:580, stock:'in', featured:true},
-    {id:'knife-shark', name:'Knife Shark', sub:'4-60B', cat:'beyblade', catLabel:'防禦型', spin:'l', price:540, stock:'in', featured:true},
-    {id:'dran-sword', name:'Dran Sword', sub:'3-60F', cat:'beyblade', catLabel:'平衡型', spin:'r', price:620, stock:'in'},
-    {id:'hells-scythe', name:'Hells Scythe', sub:'4-80B', cat:'beyblade', catLabel:'耐久型', spin:'l', price:650, stock:'pre'},
-    {id:'bunny-plush', name:'療癒兔兔玩偶', sub:'30cm', cat:'doll', catLabel:'娃娃玩偶', price:450, stock:'in', featured:true},
-    {id:'bear-charm', name:'迷你熊寶寶吊飾', sub:'12cm', cat:'doll', catLabel:'娃娃玩偶', price:280, stock:'in'},
-    {id:'anpanman-tableware', name:'博物館限定餐具組', sub:'橫濱館', cat:'anpanman', catLabel:'麵包超人博物館', price:720, stock:'in', featured:true},
-    {id:'anpanman-tote', name:'館內限定托特包', sub:'神戶館', cat:'anpanman', catLabel:'麵包超人博物館', price:580, stock:'in'},
-    {id:'gacha-single', name:'一番賞代抽', sub:'單抽／每抽', cat:'gacha', catLabel:'扭蛋', price:150, stock:'in'},
-    {id:'gacha-set', name:'扭蛋機限定整套', sub:'代購整套', cat:'gacha', catLabel:'扭蛋', price:1200, stock:'pre'}
-  ];
-
-  var ICONS = {
-    heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.5-9C.8 7.2 3 4 6.3 4 8.4 4 10 5 12 7c2-2 3.6-3 5.7-3 3.3 0 5.5 3.2 3.8 7-2.5 4.65-9.5 9-9.5 9Z" stroke-linejoin="round"/></svg>',
-    bear:'<svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg>',
-    ribbon:'<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7 21l5-3 5 3-2-7.5" stroke-linejoin="round"/></svg>',
-    capsule:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg>'
-  };
-
-  function catIcon(cat){
-    if(cat==='doll') return ICONS.bear;
-    if(cat==='anpanman') return ICONS.ribbon;
-    if(cat==='gacha') return ICONS.capsule;
-    return '';
-  }
-
-  function showLoading(msg){
-    document.getElementById('loadingText').textContent = msg;
-  }
-  function showError(msg){
-    var scr = document.getElementById('loadingScreen');
-    scr.classList.add('is-error');
-    document.getElementById('loadingText').textContent = msg;
-  }
-  function hideLoading(){
-    document.getElementById('loadingScreen').style.display = 'none';
-  }
-  function showToast(msg){
-    var t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('is-visible');
-    setTimeout(function(){ t.classList.remove('is-visible'); }, 1800);
-  }
-
-  /* ---------- LIFF init + login ---------- */
-  async function initApp(){
-    showLoading('連接LINE中...');
-    try{
-      await liff.init({ liffId: LIFF_ID });
-    }catch(e){
-      showError('LIFF初始化失敗，請確認網址設定是否正確（' + (e && e.message ? e.message : '未知錯誤') + '）');
-      return;
-    }
-    if(!liff.isLoggedIn()){
-      showLoading('跳轉至LINE登入...');
-      liff.login();
-      return;
-    }
-    showLoading('讀取會員資料中...');
-    var profile;
-    try{
-      profile = await liff.getProfile();
-    }catch(e){
-      showError('無法取得LINE個人資料，請重新整理再試一次');
-      return;
-    }
-    currentUser.uid = profile.userId;
-    currentUser.displayName = profile.displayName;
-    currentUser.pictureUrl = profile.pictureUrl || '';
-    await ensureMember();
-  }
-
-  async function ensureMember(){
-    var res = await supabaseClient.from('members').select('*').eq('line_uid', currentUser.uid).maybeSingle();
-    if(res.error){
-      showError('資料庫連線失敗：' + res.error.message);
-      return;
-    }
-    if(!res.data){
-      var ins = await supabaseClient.from('members').insert({ line_uid: currentUser.uid, display_name: currentUser.displayName });
-      if(ins.error){
-        showError('建立會員失敗：' + ins.error.message);
-        return;
-      }
-      openNicknameGate();
-    } else if(!res.data.nickname){
-      openNicknameGate();
-    } else {
-      currentUser.nickname = res.data.nickname;
-      startApp();
-    }
-  }
-
-  function openNicknameGate(){
-    hideLoading();
-    document.getElementById('nicknameGate').classList.add('is-open');
-  }
-
-  async function submitNickname(){
-    var val = document.getElementById('nicknameInput').value.trim();
-    if(!val) return;
-    var btn = document.getElementById('nicknameSubmit');
-    btn.disabled = true; btn.textContent = '儲存中...';
-    var res = await supabaseClient.from('members').update({ nickname: val }).eq('line_uid', currentUser.uid);
-    btn.disabled = false; btn.textContent = '儲存並繼續';
-    if(res.error){ alert('儲存失敗，請再試一次'); return; }
-    currentUser.nickname = val;
-    document.getElementById('nicknameGate').classList.remove('is-open');
-    startApp();
-  }
-
-  function startApp(){
-    hideLoading();
-    document.getElementById('app').style.display = 'block';
-    var displayLabel = currentUser.nickname || currentUser.displayName;
-    document.getElementById('heroGreeting').textContent = displayLabel + '，您好';
-    document.getElementById('topbarName').textContent = displayLabel;
-    document.getElementById('profileName').textContent = displayLabel;
-    if(currentUser.pictureUrl){
-      document.getElementById('topbarAvatar').src = currentUser.pictureUrl;
-      document.getElementById('profileAvatar').src = currentUser.pictureUrl;
-    }
-    renderHome();
-    renderShop();
-    loadMyOrders();
-  }
-
-  /* ---------- product cards ---------- */
-  function visualHTML(p){
-    if(p.cat==='beyblade'){
-      var c1 = p.spin==='r' ? 'var(--ignis)' : 'var(--volt)';
-      var c2 = p.spin==='r' ? 'var(--ignis-deep)' : 'var(--volt-deep)';
-      var title = p.spin==='r' ? '右旋 Right Spin' : '左旋 Left Spin';
-      return '<div class="disc" style="--size:58px;--c1:'+c1+';--c2:'+c2+'"></div><span class="spin-badge spin-badge--'+p.spin+'" title="'+title+'">'+p.spin.toUpperCase()+'</span>';
-    }
-    return '<div class="cat-badge">'+catIcon(p.cat)+'</div>';
-  }
-
-  function cardHTML(p){
-    var favClass = favorites[p.id] ? 'is-fav' : '';
-    var stockLabel = p.stock==='in' ? '現貨' : '預購';
-    return '<article class="card">'
-      + '<div class="card-visual">' + visualHTML(p)
-      + '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
-      + '</div>'
-      + '<div class="card-body">'
-      + '<span class="type-chip">' + p.catLabel + '</span>'
-      + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
-      + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
-      + '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>'
-      + '</div></article>';
-  }
-
-  function bindCardButtons(container){
-    var favs = container.querySelectorAll('.fav-btn');
-    for(var i=0;i<favs.length;i++){
-      favs[i].addEventListener('click', (function(btn){
-        return function(){ btn.classList.toggle('is-fav'); favorites[btn.getAttribute('data-fav')] = btn.classList.contains('is-fav'); };
-      })(favs[i]));
-    }
-    var orderBtns = container.querySelectorAll('.card-order-btn');
-    for(var j=0;j<orderBtns.length;j++){
-      orderBtns[j].addEventListener('click', (function(btn){
-        return function(){
-          var id = btn.getAttribute('data-order');
-          var product = null;
-          for(var k=0;k<PRODUCTS.length;k++){ if(PRODUCTS[k].id===id) product = PRODUCTS[k]; }
-          if(product) openOrderModal(product);
-        };
-      })(orderBtns[j]));
-    }
-  }
-
-  function renderHome(){
-    var grid = document.getElementById('homeGrid');
-    var list = [];
-    for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].featured) list.push(PRODUCTS[i]); }
-    grid.innerHTML = list.map(cardHTML).join('');
-    bindCardButtons(grid);
-  }
-
-  function getFilteredShop(){
-    var q = currentQuery.toLowerCase();
-    return PRODUCTS.filter(function(p){
-      var catOk = currentCategory==='all' || p.cat===currentCategory;
-      var qOk = p.name.toLowerCase().indexOf(q) !== -1;
-      return catOk && qOk;
-    });
-  }
-
-  function renderShop(){
-    var grid = document.getElementById('shopGrid');
-    var list = getFilteredShop();
-    grid.innerHTML = list.map(cardHTML).join('');
-    bindCardButtons(grid);
-    document.getElementById('shopCount').textContent = list.length + ' 件';
-  }
-
-  function setCategory(cat){
-    currentCategory = cat;
-    var tabs = document.querySelectorAll('.cat-tab');
-    for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('active', tabs[i].getAttribute('data-cat')===cat); }
-    renderShop();
-  }
-
-  /* ---------- order modal ---------- */
-  var orderModalProduct = null;
-  var orderModalQty = 1;
-
-  function openOrderModal(product){
-    orderModalProduct = product;
-    orderModalQty = 1;
-    document.getElementById('orderModalTitle').textContent = product.name;
-    document.getElementById('orderModalSub').textContent = product.sub + ' · NT$' + product.price;
-    document.getElementById('qtyValue').textContent = '1';
-    document.getElementById('orderModal').classList.add('is-open');
-  }
-  function closeOrderModal(){
-    document.getElementById('orderModal').classList.remove('is-open');
-  }
-
-  async function confirmOrder(){
-    if(!orderModalProduct) return;
-    var btn = document.getElementById('orderModalConfirm');
-    btn.disabled = true; btn.textContent = '送出中...';
-    var res = await supabaseClient.from('orders').insert({
-      line_uid: currentUser.uid,
-      product_name: orderModalProduct.name,
-      variant: orderModalProduct.sub,
-      quantity: orderModalQty,
-      price: orderModalProduct.price
-    });
-    btn.disabled = false; btn.textContent = '加入喊單';
-    if(res.error){ alert('送出失敗：' + res.error.message); return; }
-    closeOrderModal();
-    showToast('已加入喊單！');
-    loadMyOrders();
-  }
-
-  /* ---------- real orders ---------- */
-  async function loadMyOrders(){
-    var res = await supabaseClient.from('orders').select('*').eq('line_uid', currentUser.uid).order('created_at', { ascending:false });
-    if(res.error) return;
-    myOrders = res.data || [];
-    renderOrders();
-  }
-
-  function formatDate(iso){
-    var d = new Date(iso);
-    var mm = d.getMonth()+1, dd = d.getDate();
-    var hh = String(d.getHours()).padStart(2,'0'), min = String(d.getMinutes()).padStart(2,'0');
-    return mm+'/'+dd+' '+hh+':'+min;
-  }
-
-  function orderCardHTML(o){
-    var total = o.price ? (o.price * o.quantity) : null;
-    return '<div class="order-card">'
-      + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="order-status">'+o.status+'</span></div>'
-      + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
-      + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
-      + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
-      + '</div>';
-  }
-
-  function renderOrders(){
-    var view = document.getElementById('cartView');
-    var badge = document.getElementById('cartBadge');
-    if(myOrders.length > 0){ badge.textContent = myOrders.length; badge.style.display = 'flex'; }
-    else { badge.style.display = 'none'; }
-
-    if(myOrders.length === 0){
-      view.innerHTML = '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
-      var btn = view.querySelector('.go-shop');
-      if(btn) btn.addEventListener('click', function(){ showView('shop'); });
-    } else {
-      view.innerHTML = '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
-    }
-  }
-
-  /* ---------- view switching ---------- */
-  function showView(name){
-    var views = document.querySelectorAll('.view');
-    for(var i=0;i<views.length;i++){ views[i].classList.toggle('is-active', views[i].getAttribute('data-view')===name); }
-    var navs = document.querySelectorAll('.nav-item');
-    for(var j=0;j<navs.length;j++){ navs[j].classList.toggle('active', navs[j].getAttribute('data-target')===name); }
-    window.scrollTo(0,0);
-  }
-
-  /* ---------- wire static controls ---------- */
-  document.addEventListener('DOMContentLoaded', function(){
-    var navItems = document.querySelectorAll('.nav-item');
-    for(var n=0;n<navItems.length;n++){
-      navItems[n].addEventListener('click', (function(item){ return function(){ showView(item.getAttribute('data-target')); }; })(navItems[n]));
-    }
-    var heroBtns = document.querySelectorAll('.hero-actions [data-target]');
-    for(var h=0;h<heroBtns.length;h++){
-      heroBtns[h].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(heroBtns[h]));
-    }
-    var catCards = document.querySelectorAll('.cat-card');
-    for(var c=0;c<catCards.length;c++){
-      catCards[c].addEventListener('click', (function(card){ return function(){ setCategory(card.getAttribute('data-cat')); showView('shop'); }; })(catCards[c]));
-    }
-    var seeMore = document.querySelector('.see-more');
-    if(seeMore){ seeMore.addEventListener('click', function(){ setCategory('all'); showView('shop'); }); }
-    var catTabs = document.querySelectorAll('.cat-tab');
-    for(var t=0;t<catTabs.length;t++){
-      catTabs[t].addEventListener('click', (function(tab){ return function(){ setCategory(tab.getAttribute('data-cat')); }; })(catTabs[t]));
-    }
-    var searchInput = document.getElementById('shopSearch');
-    if(searchInput){ searchInput.addEventListener('input', function(e){ currentQuery = e.target.value; renderShop(); }); }
-
-    document.getElementById('nicknameSubmit').addEventListener('click', submitNickname);
-    document.getElementById('orderModalClose').addEventListener('click', closeOrderModal);
-    document.getElementById('orderModalConfirm').addEventListener('click', confirmOrder);
-    document.getElementById('qtyMinus').addEventListener('click', function(){
-      if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; }
-    });
-    document.getElementById('qtyPlus').addEventListener('click', function(){
-      orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty;
-    });
-    document.getElementById('logoutBtn').addEventListener('click', function(){
-      liff.logout();
-      window.location.reload();
-    });
-
-    initApp();
-  });
+if(!isVerified){
+openVerifyGate(verifyCode);
+return;
+}
+if(!nickname){
+openNicknameGate();
+} else {
+currentUser.nickname = nickname;
+startApp();
+}
+}
+function genVerifyCode(){
+return String(Math.floor(100000 + Math.random()*900000));
+}
+var verifyPollTimer = null;
+function openVerifyGate(code){
+hideLoading();
+document.getElementById('verifyCodeText').textContent = code;
+document.getElementById('verifyGoLine').href = 'https://line.me/R/oaMessage/' + encodeURIComponent(OA_ID) + '/?' + encodeURIComponent(code);
+document.getElementById('verifyGate').classList.add('is-open');
+if(!verifyPollTimer){ verifyPollTimer = setInterval(checkVerifyOnce, 3000); }
+}
+async function checkVerifyOnce(){
+var res = await supabaseClient.from('members').select('is_verified,nickname').eq('line_uid', currentUser.uid).maybeSingle();
+if(res.error || !res.data || !res.data.is_verified) return;
+if(verifyPollTimer){ clearInterval(verifyPollTimer); verifyPollTimer = null; }
+document.getElementById('verifyGate').classList.remove('is-open');
+if(!res.data.nickname){
+openNicknameGate();
+} else {
+currentUser.nickname = res.data.nickname;
+startApp();
+}
+}
+function openNicknameGate(){
+hideLoading();
+document.getElementById('nicknameGate').classList.add('is-open');
+}
+async function submitNickname(){
+var val = document.getElementById('nicknameInput').value.trim();
+if(!val) return;
+var btn = document.getElementById('nicknameSubmit');
+btn.disabled = true; btn.textContent = '儲存中...';
+var res = await supabaseClient.from('members').update({ nickname: val }).eq('line_uid', currentUser.uid);
+btn.disabled = false; btn.textContent = '儲存並繼續';
+if(res.error){ alert('儲存失敗，請再試一次'); return; }
+currentUser.nickname = val;
+document.getElementById('nicknameGate').classList.remove('is-open');
+startApp();
+}
+function startApp(){
+hideLoading();
+document.getElementById('app').style.display = 'block';
+var displayLabel = currentUser.nickname || currentUser.displayName;
+document.getElementById('heroGreeting').textContent = displayLabel + '，您好';
+document.getElementById('topbarName').textContent = displayLabel;
+document.getElementById('profileName').textContent = displayLabel;
+if(currentUser.pictureUrl){
+document.getElementById('topbarAvatar').src = currentUser.pictureUrl;
+document.getElementById('profileAvatar').src = currentUser.pictureUrl;
+}
+renderHome();
+renderShop();
+loadMyOrders();
+}
+/* ---------- product cards ---------- */
+function visualHTML(p){
+if(p.cat==='beyblade'){
+var c1 = p.spin==='r' ? 'var(--ignis)' : 'var(--volt)';
+var c2 = p.spin==='r' ? 'var(--ignis-deep)' : 'var(--volt-deep)';
+var title = p.spin==='r' ? '右旋 Right Spin' : '左旋 Left Spin';
+return '<div class="disc" style="--size:58px;--c1:'+c1+';--c2:'+c2+'"></div><span class="spin-badge spin-badge--'+p.spin+'" title="'+title+'">'+p.spin.toUpperCase()+'</span>';
+}
+return '<div class="cat-badge">'+catIcon(p.cat)+'</div>';
+}
+function cardHTML(p){
+var favClass = favorites[p.id] ? 'is-fav' : '';
+var stockLabel = p.stock==='in' ? '現貨' : '預購';
+return '<article class="card">'
++ '<div class="card-visual">' + visualHTML(p)
++ '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
++ '</div>'
++ '<div class="card-body">'
++ '<span class="type-chip">' + p.catLabel + '</span>'
++ '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
++ '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
++ '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>'
++ '</div></article>';
+}
+function bindCardButtons(container){
+var favs = container.querySelectorAll('.fav-btn');
+for(var i=0;i<favs.length;i++){
+favs[i].addEventListener('click', (function(btn){
+return function(){ btn.classList.toggle('is-fav'); favorites[btn.getAttribute('data-fav')] = btn.classList.contains('is-fav'); };
+})(favs[i]));
+}
+var orderBtns = container.querySelectorAll('.card-order-btn');
+for(var j=0;j<orderBtns.length;j++){
+orderBtns[j].addEventListener('click', (function(btn){
+return function(){
+var id = btn.getAttribute('data-order');
+var product = null;
+for(var k=0;k<PRODUCTS.length;k++){ if(PRODUCTS[k].id===id) product = PRODUCTS[k]; }
+if(product) openOrderModal(product);
+};
+})(orderBtns[j]));
+}
+}
+function renderHome(){
+var grid = document.getElementById('homeGrid');
+var list = [];
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].featured) list.push(PRODUCTS[i]); }
+grid.innerHTML = list.map(cardHTML).join('');
+bindCardButtons(grid);
+}
+function getFilteredShop(){
+var q = currentQuery.toLowerCase();
+return PRODUCTS.filter(function(p){
+var catOk = currentCategory==='all' || p.cat===currentCategory;
+var qOk = p.name.toLowerCase().indexOf(q) !== -1;
+return catOk && qOk;
+});
+}
+function renderShop(){
+var grid = document.getElementById('shopGrid');
+var list = getFilteredShop();
+grid.innerHTML = list.map(cardHTML).join('');
+bindCardButtons(grid);
+document.getElementById('shopCount').textContent = list.length + ' 件';
+}
+function setCategory(cat){
+currentCategory = cat;
+var tabs = document.querySelectorAll('.cat-tab');
+for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('active', tabs[i].getAttribute('data-cat')===cat); }
+renderShop();
+}
+/* ---------- order modal ---------- */
+var orderModalProduct = null;
+var orderModalQty = 1;
+function openOrderModal(product){
+orderModalProduct = product;
+orderModalQty = 1;
+document.getElementById('orderModalTitle').textContent = product.name;
+document.getElementById('orderModalSub').textContent = product.sub + ' · NT$' + product.price;
+document.getElementById('qtyValue').textContent = '1';
+document.getElementById('orderModal').classList.add('is-open');
+}
+function closeOrderModal(){
+document.getElementById('orderModal').classList.remove('is-open');
+}
+async function confirmOrder(){
+if(!orderModalProduct) return;
+var btn = document.getElementById('orderModalConfirm');
+btn.disabled = true; btn.textContent = '送出中...';
+var res = await supabaseClient.from('orders').insert({
+line_uid: currentUser.uid,
+product_name: orderModalProduct.name,
+variant: orderModalProduct.sub,
+quantity: orderModalQty,
+price: orderModalProduct.price
+});
+btn.disabled = false; btn.textContent = '加入喊單';
+if(res.error){ alert('送出失敗：' + res.error.message); return; }
+closeOrderModal();
+showToast('已加入喊單！');
+loadMyOrders();
+}
+/* ---------- real orders ---------- */
+async function loadMyOrders(){
+var res = await supabaseClient.from('orders').select('*').eq('line_uid', currentUser.uid).order('created_at', { ascending:false });
+if(res.error) return;
+myOrders = res.data || [];
+renderOrders();
+}
+function formatDate(iso){
+var d = new Date(iso);
+var mm = d.getMonth()+1, dd = d.getDate();
+var hh = String(d.getHours()).padStart(2,'0'), min = String(d.getMinutes()).padStart(2,'0');
+return mm+'/'+dd+' '+hh+':'+min;
+}
+function orderCardHTML(o){
+var total = o.price ? (o.price * o.quantity) : null;
+return '<div class="order-card">'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="order-status">'+o.status+'</span></div>'
++ '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
++ '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
++ '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
++ '</div>';
+}
+function renderOrders(){
+var view = document.getElementById('cartView');
+var badge = document.getElementById('cartBadge');
+if(myOrders.length > 0){ badge.textContent = myOrders.length; badge.style.display = 'flex'; }
+else { badge.style.display = 'none'; }
+if(myOrders.length === 0){
+view.innerHTML = '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
+var btn = view.querySelector('.go-shop');
+if(btn) btn.addEventListener('click', function(){ showView('shop'); });
+} else {
+view.innerHTML = '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
+}
+}
+/* ---------- view switching ---------- */
+function showView(name){
+var views = document.querySelectorAll('.view');
+for(var i=0;i<views.length;i++){ views[i].classList.toggle('is-active', views[i].getAttribute('data-view')===name); }
+var navs = document.querySelectorAll('.nav-item');
+for(var j=0;j<navs.length;j++){ navs[j].classList.toggle('active', navs[j].getAttribute('data-target')===name); }
+window.scrollTo(0,0);
+}
+/* ---------- wire static controls ---------- */
+document.addEventListener('DOMContentLoaded', function(){
+var navItems = document.querySelectorAll('.nav-item');
+for(var n=0;n<navItems.length;n++){
+navItems[n].addEventListener('click', (function(item){ return function(){ showView(item.getAttribute('data-target')); }; })(navItems[n]));
+}
+var heroBtns = document.querySelectorAll('.hero-actions [data-target]');
+for(var h=0;h<heroBtns.length;h++){
+heroBtns[h].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(heroBtns[h]));
+}
+var catCards = document.querySelectorAll('.cat-card');
+for(var c=0;c<catCards.length;c++){
+catCards[c].addEventListener('click', (function(card){ return function(){ setCategory(card.getAttribute('data-cat')); showView('shop'); }; })(catCards[c]));
+}
+var seeMore = document.querySelector('.see-more');
+if(seeMore){ seeMore.addEventListener('click', function(){ setCategory('all'); showView('shop'); }); }
+var catTabs = document.querySelectorAll('.cat-tab');
+for(var t=0;t<catTabs.length;t++){
+catTabs[t].addEventListener('click', (function(tab){ return function(){ setCategory(tab.getAttribute('data-cat')); }; })(catTabs[t]));
+}
+var searchInput = document.getElementById('shopSearch');
+if(searchInput){ searchInput.addEventListener('input', function(e){ currentQuery = e.target.value; renderShop(); }); }
+document.getElementById('nicknameSubmit').addEventListener('click', submitNickname);
+document.getElementById('verifyRecheck').addEventListener('click', async function(){
+await checkVerifyOnce();
+if(document.getElementById('verifyGate').classList.contains('is-open')){ showToast('還沒偵測到，請確認驗證碼已送出'); }
+});
+document.getElementById('verifyCodeCopy').addEventListener('click', function(){
+var code = document.getElementById('verifyCodeText').textContent;
+if(navigator.clipboard && navigator.clipboard.writeText){
+navigator.clipboard.writeText(code).then(function(){ showToast('已複製驗證碼'); }).catch(function(){ showToast('複製失敗，請手動選取'); });
+} else {
+showToast('請手動選取複製');
+}
+});
+document.getElementById('orderModalClose').addEventListener('click', closeOrderModal);
+document.getElementById('orderModalConfirm').addEventListener('click', confirmOrder);
+document.getElementById('qtyMinus').addEventListener('click', function(){
+if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; }
+});
+document.getElementById('qtyPlus').addEventListener('click', function(){
+orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty;
+});
+document.getElementById('logoutBtn').addEventListener('click', function(){
+liff.logout();
+window.location.reload();
+});
+initApp();
+});
 })();
 </script>
 </body>
