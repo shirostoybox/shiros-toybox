@@ -544,10 +544,6 @@ fallbackInner = '<div class="disc" style="--size:58px;--c1:'+c1+';--c2:'+c2+'"><
 fallbackInner = '<div class="cat-badge">'+catIcon(p.cat)+'</div>';
 }
 var spinBadge = '';
-if(p.cat==='beyblade'){
-var title = p.spin==='r' ? '右旋 Right Spin' : '左旋 Left Spin';
-spinBadge = '<span class="spin-badge spin-badge--'+p.spin+'" title="'+title+'">'+p.spin.toUpperCase()+'</span>';
-}
 return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" data-zoom="'+imgUrl+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
 + '<div class="visual-fallback">' + fallbackInner + '</div>'
 + spinBadge;
