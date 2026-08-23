@@ -117,6 +117,15 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .menu-row:last-child{ border-bottom:none; }
 .menu-row.danger{ color:var(--ignis-deep); }
 .chev{ color:var(--muted); font-size:16px; }
+.sub-page-header{ display:flex; align-items:center; gap:12px; padding:20px 20px 8px; }
+.sub-page-header h2{ margin:0; font-size:20px; font-weight:700; color:var(--text-dark); }
+.back-btn{ background:none; border:none; font-size:14px; font-weight:600; color:var(--muted); padding:4px; font-family:var(--font-body); }
+.guide-content{ padding:8px 20px 32px; }
+.guide-steps{ margin:0 0 24px; padding-left:20px; color:var(--text-dark); font-size:14px; line-height:2; }
+.guide-policy h3{ margin:20px 0 8px; font-size:14px; font-weight:700; color:var(--text-dark); }
+.guide-policy h3:first-child{ margin-top:0; }
+.guide-policy p{ margin:0 0 12px; font-size:13px; line-height:1.7; color:var(--muted); }
+.guide-final{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); font-weight:600; color:var(--text-dark) !important; }
 .empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 40px 40px; }
 .empty-icon{ width:56px; height:56px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--muted); margin-bottom:18px; font-family:var(--font-display); }
 .empty-title{ margin:0 0 6px; font-size:16px; font-weight:700; color:var(--text-dark); }
@@ -269,10 +278,46 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <span class="profile-badge">LINE已驗證</span>
 </div>
 <div class="menu-list">
-<button class="menu-row"><span>代購流程與運費說明</span><span class="chev">›</span></button>
-<button class="menu-row"><span>常見問題</span><span class="chev">›</span></button>
-<button class="menu-row"><span>聯絡客服（LINE）</span><span class="chev">›</span></button>
-<button class="menu-row danger" id="logoutBtn"><span>登出</span><span class="chev">›</span></button>
+<button class="menu-row" data-target="profile"><span>個人資訊</span><span class="chev">›</span></button>
+<button class="menu-row" data-target="guide"><span>使用說明</span><span class="chev">›</span></button>
+<a class="menu-row" href="https://line.me/R/ti/p/@324flvar" target="_blank" rel="noopener" style="text-decoration:none;"><span>聯繫客服（LINE）</span><span class="chev">›</span></a>
+</div>
+</section>
+<!-- PROFILE DETAIL -->
+<section class="view" data-view="profile">
+<div class="sub-page-header"><button class="back-btn" data-back="menu">‹ 返回</button><h2>個人資訊</h2></div>
+<div class="profile-card">
+<img class="profile-avatar" id="profileAvatarDetail" alt="">
+<p class="profile-name" id="profileNameDetail"></p>
+<span class="profile-badge">LINE已驗證</span>
+</div>
+<button class="btn btn--dark btn--full" id="logoutBtn" style="margin:24px 20px; width:calc(100% - 40px);">登出</button>
+</section>
+<!-- GUIDE / POLICY -->
+<section class="view" data-view="guide">
+<div class="sub-page-header"><button class="back-btn" data-back="menu">‹ 返回</button><h2>使用說明</h2></div>
+<div class="guide-content">
+<ol class="guide-steps">
+<li>先用LINE登入</li>
+<li>到「商品」挑選想要的商品</li>
+<li>進入商品頁可加入喊單</li>
+<li>後續可在「喊單」查看紀錄</li>
+</ol>
+<div class="guide-policy">
+<h3>📌 喊單／代購須知</h3>
+<p>喊單即視同同意購買，請確認需求後再喊單，請勿棄單。</p>
+<p>喊單後訂單狀態會依序顯示：<br>待確認 → 已確認（收到訂單）→ 已購買（採買完成）<br>顯示「已確認」後即代表訂單成立，請勿任意更改或取消。</p>
+<p>商品購買成功後會通知，並需先支付商品總金額 50% 訂金。喊單商品可累積 7 天一起結算。</p>
+<p>收到匯款通知後，請於 24 小時內完成付款。訂單成立後恕不接受更改或取消。</p>
+<p>商品抵達台灣、完成整貨前會再通知支付剩餘尾款，確認款項後依序安排寄出。</p>
+<h3>📦 運費／寄送方式</h3>
+<p>・訂單滿 NT$3,500 免運<br>・7-11<br>・全家<br>・黑貓宅急便</p>
+<h3>⚠️ 退換貨說明</h3>
+<p>代購商品除商品本身有重大瑕疵外，恕不接受個人因素退換貨，例如：實品與想像不符、尺寸／顏色不喜歡、臨時改變心意等。</p>
+<h3>🚫 請勿棄單</h3>
+<p>棄單者將列入黑名單，後續不再接受交易。</p>
+<p class="guide-final">‼️ 四郎玩具箱保有規則調整及最終解釋權，如有異動將公告於社群。</p>
+</div>
 </div>
 </section>
 <nav class="bottom-nav">
@@ -463,9 +508,11 @@ var displayLabel = currentUser.nickname || currentUser.displayName;
 document.getElementById('heroGreeting').textContent = displayLabel + '，您好';
 document.getElementById('topbarName').textContent = displayLabel;
 document.getElementById('profileName').textContent = displayLabel;
+document.getElementById('profileNameDetail').textContent = displayLabel;
 if(currentUser.pictureUrl){
 document.getElementById('topbarAvatar').src = currentUser.pictureUrl;
 document.getElementById('profileAvatar').src = currentUser.pictureUrl;
+document.getElementById('profileAvatarDetail').src = currentUser.pictureUrl;
 }
 renderHome();
 renderShop();
@@ -562,6 +609,7 @@ var btn = document.getElementById('orderModalConfirm');
 btn.disabled = true; btn.textContent = '送出中...';
 var res = await supabaseClient.from('orders').insert({
 line_uid: currentUser.uid,
+nickname: currentUser.nickname,
 product_name: orderModalProduct.name,
 variant: orderModalProduct.sub,
 quantity: orderModalQty,
@@ -633,6 +681,14 @@ catCards[c].addEventListener('click', (function(card){ return function(){ setCat
 }
 var seeMore = document.querySelector('.see-more');
 if(seeMore){ seeMore.addEventListener('click', function(){ setCategory('all'); showView('shop'); }); }
+var menuLinks = document.querySelectorAll('.menu-row[data-target]');
+for(var ml=0;ml<menuLinks.length;ml++){
+menuLinks[ml].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(menuLinks[ml]));
+}
+var backBtns = document.querySelectorAll('.back-btn[data-back]');
+for(var bk=0;bk<backBtns.length;bk++){
+backBtns[bk].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-back')); }; })(backBtns[bk]));
+}
 var catTabs = document.querySelectorAll('.cat-tab');
 for(var t=0;t<catTabs.length;t++){
 catTabs[t].addEventListener('click', (function(tab){ return function(){ setCategory(tab.getAttribute('data-cat')); }; })(catTabs[t]));
