@@ -101,6 +101,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .order-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .order-no{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--muted); }
 .order-status{ font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:var(--r-full); background:rgba(255,102,71,.12); color:var(--ignis-deep); white-space:nowrap; }
+.order-status--confirmed{ background:rgba(33,132,82,.12); color:#1E7A4C; }
 .order-body{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .order-product{ margin:0; font-size:14px; font-weight:700; color:var(--text-dark); }
 .order-product .sub{ display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px; }
@@ -587,8 +588,9 @@ return mm+'/'+dd+' '+hh+':'+min;
 }
 function orderCardHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
+var statusClass = o.status === '已確認' ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="order-status">'+o.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
