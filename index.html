@@ -47,8 +47,18 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .eyebrow{ margin:0 0 14px; font-family:var(--font-display); font-weight:600; font-size:11.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--volt); }
 .greeting{ margin:0 0 6px; font-size:14.5px; color:var(--muted-light); font-weight:500; }
 .wordmark{ margin:0 0 14px; font-family:var(--font-display); font-weight:700; font-size:clamp(28px,8vw,36px); line-height:1.08; letter-spacing:-.01em; color:var(--text-light); }
-.hero-desc{ margin:0 0 24px; font-size:13.5px; line-height:1.65; color:var(--muted-light); }
-.hero-actions{ display:flex; gap:10px; }
+.hero-desc{ margin:0 0 14px; font-size:13.5px; line-height:1.75; color:var(--muted-light); }
+.hero-next-trip{ display:inline-block; margin:0 0 14px; padding:6px 14px; border-radius:var(--r-full); background:rgba(47,216,201,.15); border:1px solid rgba(47,216,201,.35); color:var(--volt); font-size:12px; font-weight:700; }
+.hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
+.gacha-info{ margin:6px 20px 4px; padding:16px; border-radius:var(--r-md); background:var(--card); border:1px solid var(--line); }
+.gacha-info-title{ margin:0 0 10px; font-size:13px; font-weight:700; color:var(--text-dark); }
+.gacha-price-row{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); padding:3px 0; }
+.gacha-price-row span:first-child{ font-weight:600; color:var(--text-dark); min-width:52px; }
+.gacha-price-row span:last-child{ font-weight:700; color:var(--text-dark); }
+.gacha-info-note{ margin:10px 0 0; font-size:12px; color:var(--muted); }
+.gacha-shell-choice{ display:none; gap:8px; margin:0 0 18px; }
+.shell-option{ flex:1; padding:10px 6px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:12.5px; font-weight:600; color:var(--muted); font-family:var(--font-body); }
+.shell-option.active{ border-color:var(--ink); background:var(--ink); color:#fff; }
 .btn{ font-family:var(--font-body); font-weight:700; font-size:14px; padding:13px 22px; border-radius:var(--r-full); border:none; cursor:pointer; transition:transform .15s ease; }
 .btn:active{ transform:scale(.96); }
 .btn--primary{ background:linear-gradient(135deg,var(--ignis),var(--ignis-deep)); color:#fff; box-shadow:0 10px 22px -8px rgba(255,102,71,.6); }
@@ -100,7 +110,8 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .price{ font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-dark); }
 .stock{ font-size:10px; font-weight:700; padding:3px 8px; border-radius:var(--r-full); }
 .stock--in{ background:rgba(33,132,82,.12); color:#1E7A4C; }
-.stock--pre{ background:rgba(176,106,22,.14); color:#A5650F; }
+.stock--live{ background:rgba(176,106,22,.14); color:#A5650F; }
+.stock--sold_out{ background:rgba(125,130,145,.14); color:#7D8291; }
 .card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
 .card-order-btn:active{ transform:scale(.97); }
 /* orders */
@@ -199,6 +210,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <img class="modal-photo zoomable" id="orderModalPhoto" src="" alt="" onerror="this.style.display='none'">
 <h3 id="orderModalTitle"></h3>
 <p class="modal-sub" id="orderModalSub"></p>
+<div class="gacha-shell-choice" id="gachaShellChoice">
+<button class="shell-option active" type="button" data-shell="no">不留蛋殼</button>
+<button class="shell-option" type="button" data-shell="yes">留蛋殼 +NT$10</button>
+</div>
 <div class="qty-row">
 <button id="qtyMinus">−</button>
 <span id="qtyValue">1</span>
@@ -231,10 +246,13 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <p class="eyebrow">SPIN · CLASH · WIN</p>
 <p class="greeting" id="heroGreeting">陀友，您好</p>
 <h1 class="wordmark">四郎<br>玩具箱</h1>
-<p class="hero-desc">日本原裝玩具、公仔、扭蛋一次網羅，規格逐件核對再出貨。從東京店頭到你手上，讓每一次入手都準時抵達。</p>
+<p class="hero-desc">找一個上班的理由<br>每年都要往日本跑個一兩次 🇯🇵<br>逛二手店逛到有點強迫症 👀<br>扭蛋看到就想轉<br>行程排滿，剩下就是買買買買買～</p>
+<span class="hero-next-trip">✈︎ 下一站｜2027.03 岡山・四國</span>
+<p class="hero-desc">有想找的，也可以來許個願 ♡<br>旅途中剛好遇見，就一起把它帶回來。</p>
 <div class="hero-actions">
 <button class="btn btn--primary" data-target="shop">立即選購</button>
 <button class="btn btn--ghost" data-target="cart">查看喊單</button>
+<button class="btn btn--ghost" data-target="wish">許願說明</button>
 </div>
 </div>
 </section>
@@ -278,6 +296,14 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <button class="cat-tab" data-cat="doll">娃娃玩偶</button>
 <button class="cat-tab" data-cat="anpanman">麵包超人博物館</button>
 <button class="cat-tab" data-cat="gacha">扭蛋</button>
+</div>
+<div class="gacha-info" id="gachaInfo" style="display:none;">
+<p class="gacha-info-title">🪙 日本扭蛋順路價</p>
+<div class="gacha-price-row"><span>¥200</span><span>→</span><span>NT$80</span></div>
+<div class="gacha-price-row"><span>¥300</span><span>→</span><span>NT$100</span></div>
+<div class="gacha-price-row"><span>¥400</span><span>→</span><span>NT$130</span></div>
+<div class="gacha-price-row"><span>¥500</span><span>→</span><span>NT$160</span></div>
+<p class="gacha-info-note">🥚 想留蛋殼 +NT$10</p>
 </div>
 <div class="grid" id="shopGrid"></div>
 </section>
@@ -333,6 +359,19 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </div>
 </div>
 </section>
+<!-- WISH -->
+<section class="view" data-view="wish">
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>許願說明</h2></div>
+<div class="guide-content">
+<p style="font-size:14px; color:var(--text-dark); line-height:1.8; margin:0 0 20px;">找不到想要的商品嗎？<br>把想找的東西告訴我，下次去日本掃貨時順便幫你留意，找到馬上通知你！</p>
+<ol class="guide-steps">
+<li>點下方「立即許願」，會跳轉到LINE</li>
+<li>告訴我商品照片或名稱、想要的款式</li>
+<li>找到後會直接在LINE通知你，確認後就能加入喊單</li>
+</ol>
+<a class="btn btn--primary btn--full link-btn" href="https://line.me/R/ti/p/@324flvar" target="_blank" rel="noopener">立即許願</a>
+</div>
+</section>
 <nav class="bottom-nav">
 <button class="nav-item active" data-target="home">
 <svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -348,6 +387,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <span class="nav-badge" id="cartBadge">0</span>
 </span>
 <span>喊單</span>
+</button>
+<button class="nav-item" data-target="wish">
+<svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2 2M16.4 16.4l2 2M5.6 18.4l2-2M16.4 7.6l2-2" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2"/></svg>
+<span>許願</span>
 </button>
 <button class="nav-item" data-target="menu">
 <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
@@ -369,19 +412,14 @@ var myOrders = [];
 var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
-var PRODUCTS = [
-{id:'cx10-wolfhunt', name:'銀狼狩獵', sub:'CX-10 · F0-60DB', cat:'beyblade', catLabel:'戰鬥陀螺', spin:'r', price:790, stock:'in', qty:3, featured:true},
-{id:'ux20-valkyrie', name:'榮耀女武神', sub:'UX-20 · LF', cat:'beyblade', catLabel:'戰鬥陀螺', spin:'r', price:1490, stock:'in', qty:1},
-{id:'ux17-dragoon', name:'隕星龍騎士', sub:'UX-17 · 3-70J', cat:'beyblade', catLabel:'戰鬥陀螺', spin:'l', price:1430, stock:'in', qty:1},
-{id:'bx00-suzaku', name:'朱雀戰神／烈焰飛鳳', sub:'BX-00 · 3-80T 闇黑版', cat:'beyblade', catLabel:'戰鬥陀螺', spin:'r', price:1590, stock:'in', qty:1, featured:true},
-{id:'bx00-hellscythe-gold', name:'地獄鐮刀', sub:'BX-00 · 4-60T 金色限定版', cat:'beyblade', catLabel:'戰鬥陀螺', spin:'l', price:2790, stock:'in', qty:1},
-{id:'bunny-plush', name:'療癒兔兔玩偶', sub:'30cm', cat:'doll', catLabel:'娃娃玩偶', price:450, stock:'in', featured:true},
-{id:'bear-charm', name:'迷你熊寶寶吊飾', sub:'12cm', cat:'doll', catLabel:'娃娃玩偶', price:280, stock:'in'},
-{id:'anpanman-tableware', name:'博物館限定餐具組', sub:'橫濱館', cat:'anpanman', catLabel:'麵包超人博物館', price:720, stock:'in', featured:true},
-{id:'anpanman-tote', name:'館內限定托特包', sub:'神戶館', cat:'anpanman', catLabel:'麵包超人博物館', price:580, stock:'in'},
-{id:'gacha-single', name:'一番賞代抽', sub:'單抽／每抽', cat:'gacha', catLabel:'扭蛋', price:150, stock:'in'},
-{id:'gacha-set', name:'扭蛋機限定整套', sub:'代購整套', cat:'gacha', catLabel:'扭蛋', price:1200, stock:'pre'}
-];
+var PRODUCTS = [];
+async function loadProducts(){
+var res = await supabaseClient.from('products').select('*').order('featured', { ascending:false });
+if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
+PRODUCTS = res.data.map(function(p){
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured };
+});
+}
 var ICONS = {
 heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.5-9C.8 7.2 3 4 6.3 4 8.4 4 10 5 12 7c2-2 3.6-3 5.7-3 3.3 0 5.5 3.2 3.8 7-2.5 4.65-9.5 9-9.5 9Z" stroke-linejoin="round"/></svg>',
 bear:'<svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg>',
@@ -515,9 +553,7 @@ currentUser.nickname = val;
 document.getElementById('nicknameGate').classList.remove('is-open');
 startApp();
 }
-function startApp(){
-hideLoading();
-document.getElementById('app').style.display = 'block';
+async function startApp(){
 var displayLabel = currentUser.nickname || currentUser.displayName;
 document.getElementById('heroGreeting').textContent = displayLabel + '，您好';
 document.getElementById('topbarName').textContent = displayLabel;
@@ -528,6 +564,10 @@ document.getElementById('topbarAvatar').src = currentUser.pictureUrl;
 document.getElementById('profileAvatar').src = currentUser.pictureUrl;
 document.getElementById('profileAvatarDetail').src = currentUser.pictureUrl;
 }
+showLoading('讀取商品中...');
+await loadProducts();
+document.getElementById('app').style.display = 'block';
+hideLoading();
 renderHome();
 renderShop();
 loadMyOrders();
@@ -550,8 +590,14 @@ return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" da
 }
 function cardHTML(p){
 var favClass = favorites[p.id] ? 'is-fav' : '';
-var stockLabel = p.stock==='in' ? '現貨' : '預購';
-if(p.stock==='in' && p.qty){ stockLabel += '・剩' + p.qty; }
+var isSoldOut = p.stock === 'sold_out';
+var stockLabel;
+if(isSoldOut){ stockLabel = '已售完（尋寶中）'; }
+else if(p.stock === 'in'){ stockLabel = '現貨'; if(p.qty){ stockLabel += '・剩' + p.qty; } }
+else { stockLabel = '連線'; }
+var orderBtnHTML = isSoldOut
+? '<button class="card-order-btn" disabled style="opacity:.45;">已售完</button>'
+: '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 return '<article class="card">'
 + '<div class="card-visual">' + visualHTML(p)
 + '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
@@ -560,7 +606,7 @@ return '<article class="card">'
 + '<span class="type-chip">' + p.catLabel + '</span>'
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
-+ '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>'
++ orderBtnHTML
 + '</div></article>';
 }
 function bindCardButtons(container){
@@ -617,21 +663,37 @@ function setCategory(cat){
 currentCategory = cat;
 var tabs = document.querySelectorAll('.cat-tab');
 for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('active', tabs[i].getAttribute('data-cat')===cat); }
+var gachaInfo = document.getElementById('gachaInfo');
+if(gachaInfo){ gachaInfo.style.display = (cat === 'gacha') ? 'block' : 'none'; }
 renderShop();
 }
 /* ---------- order modal ---------- */
 var orderModalProduct = null;
 var orderModalQty = 1;
+var orderModalMax = null;
+var orderModalShell = 'no';
+function updateOrderModalSub(){
+var extra = orderModalShell === 'yes' ? 10 : 0;
+var unitPrice = orderModalProduct.price + extra;
+document.getElementById('orderModalSub').textContent = orderModalProduct.sub + ' · NT$' + unitPrice;
+}
 function openOrderModal(product){
 orderModalProduct = product;
 orderModalQty = 1;
+orderModalShell = 'no';
+orderModalMax = (product.stock === 'in' && product.qty) ? product.qty : null;
 var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + '.jpg';
 var photoEl = document.getElementById('orderModalPhoto');
 photoEl.style.display = '';
 photoEl.src = imgUrl;
 photoEl.setAttribute('data-zoom', imgUrl);
 document.getElementById('orderModalTitle').textContent = product.name;
-document.getElementById('orderModalSub').textContent = product.sub + ' · NT$' + product.price;
+var shellBox = document.getElementById('gachaShellChoice');
+var isGacha = product.cat === 'gacha';
+shellBox.style.display = isGacha ? 'flex' : 'none';
+var shellBtns = shellBox.querySelectorAll('.shell-option');
+for(var i=0;i<shellBtns.length;i++){ shellBtns[i].classList.toggle('active', shellBtns[i].getAttribute('data-shell')==='no'); }
+updateOrderModalSub();
 document.getElementById('qtyValue').textContent = '1';
 document.getElementById('orderModal').classList.add('is-open');
 }
@@ -649,17 +711,27 @@ async function confirmOrder(){
 if(!orderModalProduct) return;
 var btn = document.getElementById('orderModalConfirm');
 btn.disabled = true; btn.textContent = '送出中...';
+var isGacha = orderModalProduct.cat === 'gacha';
+var extra = (isGacha && orderModalShell === 'yes') ? 10 : 0;
+var finalPrice = orderModalProduct.price + extra;
+var variantText = orderModalProduct.sub;
+if(isGacha){ variantText += orderModalShell === 'yes' ? '・留蛋殼' : '・不留蛋殼'; }
 var res = await supabaseClient.from('orders').insert({
 line_uid: currentUser.uid,
+nickname: currentUser.nickname,
+product_id: orderModalProduct.id,
 product_name: orderModalProduct.name,
-variant: orderModalProduct.sub,
+variant: variantText,
 quantity: orderModalQty,
-price: orderModalProduct.price
+price: finalPrice
 });
 btn.disabled = false; btn.textContent = '加入喊單';
 if(res.error){ alert('送出失敗：' + res.error.message); return; }
 closeOrderModal();
 showToast('已加入喊單！');
+await loadProducts();
+renderHome();
+renderShop();
 loadMyOrders();
 }
 /* ---------- real orders ---------- */
@@ -751,6 +823,17 @@ showToast('請手動選取複製');
 });
 document.getElementById('orderModalClose').addEventListener('click', closeOrderModal);
 document.getElementById('orderModalConfirm').addEventListener('click', confirmOrder);
+var shellOptBtns = document.querySelectorAll('.shell-option');
+for(var so=0; so<shellOptBtns.length; so++){
+shellOptBtns[so].addEventListener('click', (function(b){
+return function(){
+orderModalShell = b.getAttribute('data-shell');
+var all = document.querySelectorAll('.shell-option');
+for(var x=0;x<all.length;x++){ all[x].classList.toggle('active', all[x]===b); }
+updateOrderModalSub();
+};
+})(shellOptBtns[so]));
+}
 document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
 document.getElementById('lightboxOverlay').addEventListener('click', function(e){ if(e.target === this) closeLightbox(); });
 document.getElementById('orderModalPhoto').addEventListener('click', function(){
@@ -761,6 +844,7 @@ document.getElementById('qtyMinus').addEventListener('click', function(){
 if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; }
 });
 document.getElementById('qtyPlus').addEventListener('click', function(){
+if(orderModalMax && orderModalQty >= orderModalMax){ showToast('已達現有庫存上限'); return; }
 orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty;
 });
 document.getElementById('logoutBtn').addEventListener('click', function(){
