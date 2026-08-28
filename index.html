@@ -405,9 +405,21 @@ var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
 var OA_ID = '@324flvar';
+var MEMBER_API_URL = SUPABASE_URL + '/functions/v1/member-api';
 /* ===================================================================== */
 var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-var currentUser = { uid:null, displayName:'', pictureUrl:'', nickname:'' };
+var currentUser = { uid:null, displayName:'', pictureUrl:'', nickname:'', idToken:null };
+async function callMemberApi(action, extra){
+var payload = Object.assign({ action:action, idToken:currentUser.idToken }, extra || {});
+var res = await fetch(MEMBER_API_URL, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+body: JSON.stringify(payload)
+});
+var data = await res.json();
+if(!res.ok){ throw new Error(data.error || '連線失敗'); }
+return data;
+}
 var myOrders = [];
 var favorites = {};
 var currentCategory = 'all';
@@ -467,6 +479,7 @@ showLoading('讀取會員資料中...');
 var profile;
 try{
 profile = await liff.getProfile();
+currentUser.idToken = liff.getIDToken();
 }catch(e){
 showError('無法取得LINE個人資料，請重新整理再試一次');
 return;
@@ -477,40 +490,21 @@ currentUser.pictureUrl = profile.pictureUrl || '';
 await ensureMember();
 }
 async function ensureMember(){
-var res = await supabaseClient.from('members').select('*').eq('line_uid', currentUser.uid).maybeSingle();
-if(res.error){
-showError('資料庫連線失敗：' + res.error.message);
+var data;
+try{
+data = await callMemberApi('ensure-member');
+}catch(e){
+showError('資料庫連線失敗：' + e.message);
 return;
 }
-var member = res.data;
-var isVerified = member ? !!member.is_verified : false;
-var verifyCode = member ? member.verify_code : null;
-var nickname = member ? member.nickname : null;
-
-if(!member){
-verifyCode = genVerifyCode();
-var ins = await supabaseClient.from('members').insert({ line_uid: currentUser.uid, display_name: currentUser.displayName, verify_code: verifyCode });
-if(ins.error){
-showError('建立會員失敗：' + ins.error.message);
+if(!data.isVerified){
+openVerifyGate(data.verifyCode);
 return;
 }
-} else if(!isVerified && !verifyCode){
-verifyCode = genVerifyCode();
-var upd = await supabaseClient.from('members').update({ verify_code: verifyCode }).eq('line_uid', currentUser.uid);
-if(upd.error){
-showError('產生驗證碼失敗：' + upd.error.message);
-return;
-}
-}
-
-if(!isVerified){
-openVerifyGate(verifyCode);
-return;
-}
-if(!nickname){
+if(!data.nickname){
 openNicknameGate();
 } else {
-currentUser.nickname = nickname;
+currentUser.nickname = data.nickname;
 startApp();
 }
 }
@@ -526,14 +520,17 @@ document.getElementById('verifyGate').classList.add('is-open');
 if(!verifyPollTimer){ verifyPollTimer = setInterval(checkVerifyOnce, 3000); }
 }
 async function checkVerifyOnce(){
-var res = await supabaseClient.from('members').select('is_verified,nickname').eq('line_uid', currentUser.uid).maybeSingle();
-if(res.error || !res.data || !res.data.is_verified) return;
+var data;
+try{
+data = await callMemberApi('check-verify');
+}catch(e){ return; }
+if(!data.isVerified) return;
 if(verifyPollTimer){ clearInterval(verifyPollTimer); verifyPollTimer = null; }
 document.getElementById('verifyGate').classList.remove('is-open');
-if(!res.data.nickname){
+if(!data.nickname){
 openNicknameGate();
 } else {
-currentUser.nickname = res.data.nickname;
+currentUser.nickname = data.nickname;
 startApp();
 }
 }
@@ -546,9 +543,14 @@ var val = document.getElementById('nicknameInput').value.trim();
 if(!val) return;
 var btn = document.getElementById('nicknameSubmit');
 btn.disabled = true; btn.textContent = '儲存中...';
-var res = await supabaseClient.from('members').update({ nickname: val }).eq('line_uid', currentUser.uid);
+try{
+await callMemberApi('submit-nickname', { nickname: val });
+}catch(e){
 btn.disabled = false; btn.textContent = '儲存並繼續';
-if(res.error){ alert('儲存失敗，請再試一次'); return; }
+alert('儲存失敗，請再試一次');
+return;
+}
+btn.disabled = false; btn.textContent = '儲存並繼續';
 currentUser.nickname = val;
 document.getElementById('nicknameGate').classList.remove('is-open');
 startApp();
@@ -716,17 +718,20 @@ var extra = (isGacha && orderModalShell === 'yes') ? 10 : 0;
 var finalPrice = orderModalProduct.price + extra;
 var variantText = orderModalProduct.sub;
 if(isGacha){ variantText += orderModalShell === 'yes' ? '・留蛋殼' : '・不留蛋殼'; }
-var res = await supabaseClient.from('orders').insert({
-line_uid: currentUser.uid,
-nickname: currentUser.nickname,
+try{
+await callMemberApi('submit-order', {
 product_id: orderModalProduct.id,
 product_name: orderModalProduct.name,
 variant: variantText,
 quantity: orderModalQty,
 price: finalPrice
 });
+}catch(e){
 btn.disabled = false; btn.textContent = '加入喊單';
-if(res.error){ alert('送出失敗：' + res.error.message); return; }
+alert('送出失敗：' + e.message);
+return;
+}
+btn.disabled = false; btn.textContent = '加入喊單';
 closeOrderModal();
 showToast('已加入喊單！');
 await loadProducts();
@@ -736,9 +741,11 @@ loadMyOrders();
 }
 /* ---------- real orders ---------- */
 async function loadMyOrders(){
-var res = await supabaseClient.from('orders').select('*').eq('line_uid', currentUser.uid).order('created_at', { ascending:false });
-if(res.error) return;
-myOrders = res.data || [];
+var data;
+try{
+data = await callMemberApi('get-orders');
+}catch(e){ return; }
+myOrders = data.orders || [];
 renderOrders();
 }
 function formatDate(iso){
