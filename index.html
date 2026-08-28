@@ -184,6 +184,14 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <p id="loadingText">連接LINE中...</p>
 <button class="retry-btn" id="retryBtn" onclick="window.location.reload()">重新整理</button>
 </div>
+<div class="gate-overlay" id="loginGate">
+<div class="gate-card">
+<p class="gate-eyebrow">歡迎回來</p>
+<h2>四郎玩具箱</h2>
+<p class="gate-desc">請使用LINE帳號登入，開始選購與查看喊單紀錄</p>
+<button class="btn btn--dark btn--full" id="loginGateBtn">使用LINE登入</button>
+</div>
+</div>
 <div class="gate-overlay" id="nicknameGate">
 <div class="gate-card">
 <p class="gate-eyebrow">需完成個人資料</p>
@@ -471,8 +479,8 @@ showError('LIFF初始化失敗，請確認網址設定是否正確（' + (e && e
 return;
 }
 if(!liff.isLoggedIn()){
-showLoading('跳轉至LINE登入...');
-liff.login();
+hideLoading();
+document.getElementById('loginGate').classList.add('is-open');
 return;
 }
 showLoading('讀取會員資料中...');
@@ -853,6 +861,9 @@ if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').text
 document.getElementById('qtyPlus').addEventListener('click', function(){
 if(orderModalMax && orderModalQty >= orderModalMax){ showToast('已達現有庫存上限'); return; }
 orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty;
+});
+document.getElementById('loginGateBtn').addEventListener('click', function(){
+liff.login();
 });
 document.getElementById('logoutBtn').addEventListener('click', function(){
 liff.logout();
