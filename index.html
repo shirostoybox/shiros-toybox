@@ -50,6 +50,8 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .hero-desc{ margin:0 0 14px; font-size:13.5px; line-height:1.75; color:var(--muted-light); }
 .hero-next-trip{ display:inline-block; margin:0 0 14px; padding:6px 14px; border-radius:var(--r-full); background:rgba(47,216,201,.15); border:1px solid rgba(47,216,201,.35); color:var(--volt); font-size:12px; font-weight:700; }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
+.hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
 .gacha-info{ margin:6px 20px 4px; padding:16px; border-radius:var(--r-md); background:var(--card); border:1px solid var(--line); }
 .gacha-info-title{ margin:0 0 10px; font-size:13px; font-weight:700; color:var(--text-dark); }
 .gacha-price-row{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); padding:3px 0; }
@@ -145,6 +147,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .guide-policy h3:first-child{ margin-top:0; }
 .guide-policy p{ margin:0 0 12px; font-size:13px; line-height:1.7; color:var(--muted); }
 .guide-final{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); font-weight:600; color:var(--text-dark) !important; }
+.qa-item{ margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.qa-item:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
+.qa-q{ margin:0 0 6px; font-size:13.5px; font-weight:700; color:var(--text-dark); line-height:1.6; }
+.qa-a{ margin:0; font-size:13px; line-height:1.7; color:var(--muted); }
 .empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 40px 40px; }
 .empty-icon{ width:56px; height:56px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--muted); margin-bottom:18px; font-family:var(--font-display); }
 .empty-title{ margin:0 0 6px; font-size:16px; font-weight:700; color:var(--text-dark); }
@@ -254,13 +260,17 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <p class="eyebrow">SPIN · CLASH · WIN</p>
 <p class="greeting" id="heroGreeting">陀友，您好</p>
 <h1 class="wordmark">四郎<br>玩具箱</h1>
-<p class="hero-desc">找一個上班的理由<br>每年都要往日本跑個一兩次 🇯🇵<br>逛二手店逛到有點強迫症 👀<br>扭蛋看到就想轉<br>行程排滿，剩下就是買買買買買～</p>
+<p class="hero-desc">日本選物・角色周邊・二手挖寶 🇯🇵<br>新品、老物、偶爾遇到的限定款<br>出國期間限定開放扭蛋連線 🎰</p>
 <span class="hero-next-trip">✈︎ 下一站｜2027.03 岡山・四國</span>
 <p class="hero-desc">有想找的，也可以來許個願 ♡<br>旅途中剛好遇見，就一起把它帶回來。</p>
 <div class="hero-actions">
-<button class="btn btn--primary" data-target="shop">立即選購</button>
-<button class="btn btn--ghost" data-target="cart">查看喊單</button>
-<button class="btn btn--ghost" data-target="wish">許願說明</button>
+<button class="btn btn--primary btn--full" data-target="shop">立即選購</button>
+</div>
+<div class="hero-links">
+<button class="hero-link-chip" data-target="guide">使用說明</button>
+<button class="hero-link-chip" data-target="payment">💰 付款方式</button>
+<button class="hero-link-chip" data-target="shipping">📦 合併寄送／免運Q&A</button>
+<button class="hero-link-chip" data-target="cart">查看喊單</button>
 </div>
 </div>
 </section>
@@ -342,28 +352,54 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </section>
 <!-- GUIDE / POLICY -->
 <section class="view" data-view="guide">
-<div class="sub-page-header"><button class="back-btn" data-back="menu">‹ 返回</button><h2>使用說明</h2></div>
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>使用說明</h2></div>
 <div class="guide-content">
 <ol class="guide-steps">
-<li>先用LINE登入</li>
+<li>使用LINE登入</li>
 <li>到「商品」挑選想要的商品</li>
-<li>進入商品頁可加入喊單</li>
-<li>後續可在「喊單」查看紀錄</li>
+<li>進入商品頁即可加入喊單</li>
+<li>後續可至「喊單」查看訂單紀錄與狀態</li>
 </ol>
 <div class="guide-policy">
 <h3>📌 喊單／代購須知</h3>
-<p>喊單即視同同意購買，請確認需求後再喊單，請勿棄單。</p>
-<p>喊單後訂單狀態會依序顯示：<br>待確認 → 已確認（收到訂單）→ 已購買（採買完成）<br>顯示「已確認」後即代表訂單成立，請勿任意更改或取消。</p>
-<p>商品購買成功後會通知，並需先支付商品總金額 50% 訂金。喊單商品可累積 7 天一起結算。</p>
-<p>收到匯款通知後，請於 24 小時內完成付款。訂單成立後恕不接受更改或取消。</p>
-<p>商品抵達台灣、完成整貨前會再通知支付剩餘尾款，確認款項後依序安排寄出。</p>
-<h3>📦 運費／寄送方式</h3>
-<p>・訂單滿 NT$3,500 免運<br>・7-11<br>・全家<br>・黑貓宅急便</p>
+<p>喊單即視同同意購買，請確認商品及需求後再進行喊單，請勿棄單。</p>
+<p>喊單後，訂單狀態會依序顯示：</p>
+<p>・預購商品：待確認 → 已確認<br>・連線商品：待確認 → 已購買</p>
+<p>當訂單顯示「已確認」或「已購買」後，即代表訂單成立，恕不接受任意更改或取消。</p>
+<p>若訂單仍顯示「待確認」，如需修改或取消，請私訊官方LINE協助處理。</p>
 <h3>⚠️ 退換貨說明</h3>
 <p>代購商品除商品本身有重大瑕疵外，恕不接受個人因素退換貨，例如：實品與想像不符、尺寸／顏色不喜歡、臨時改變心意等。</p>
-<h3>🚫 請勿棄單</h3>
-<p>棄單者將列入黑名單，後續不再接受交易。</p>
-<p class="guide-final">‼️ 四郎玩具箱保有規則調整及最終解釋權，如有異動將公告於社群。</p>
+<p class="guide-final">如對商品、付款方式或訂單內容有任何疑問，請於喊單前或訂單仍為「待確認」時提出；訂單成立後恕不接受因個人因素要求更改或取消。</p>
+</div>
+</div>
+</section>
+<!-- PAYMENT -->
+<section class="view" data-view="payment">
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>付款方式</h2></div>
+<div class="guide-content">
+<div class="guide-policy">
+<h3>💰 付款方式</h3>
+<p>♡ 自第一筆商品確認成功日起，可累積3天內的商品一起結算。</p>
+<p>♡ 第3天將統一發送付款通知，收到通知後請於24小時內完成付款。</p>
+<p>♡ 結單後新增的商品，將重新計算下一個3天累積週期。</p>
+<p>♡ 結單付款不代表立即出貨，已完成付款的商品仍可與後續訂單合併寄送。</p>
+<p>⚠️ 請務必於付款期限內完成款項。若未於期限內付款，將視同棄單並取消訂單；如已有支付訂金，訂金恕不退還。</p>
+<p class="guide-final">⚠️ 棄單者將列入黑名單並移出社群，後續不再接受交易，亦不再開放重新加入。</p>
+</div>
+</div>
+</section>
+<!-- SHIPPING QA -->
+<section class="view" data-view="shipping">
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>合併寄送／免運Q&A</h2></div>
+<div class="guide-content">
+<div class="qa-list">
+<div class="qa-item"><p class="qa-q">Q：免運累積從什麼時候開始？</p><p class="qa-a">A：從第一筆已付款訂單當日起開始計算，30天內完成付款的訂單都可以一起累積。</p></div>
+<div class="qa-item"><p class="qa-q">Q：怎麼達到免運？</p><p class="qa-a">A：30天內累積商品金額滿NT$2,000，即可解鎖該期一次超商取貨免運 ✨</p></div>
+<div class="qa-item"><p class="qa-q">Q：商品已到貨，但還沒滿NT$2,000怎麼辦？</p><p class="qa-a">A：如果仍在30天免運累積期間內，我們會主動詢問是否要先安排寄出，或繼續保留商品累積免運。</p></div>
+<div class="qa-item"><p class="qa-q">Q：已經滿NT$2,000，之後還能繼續加商品嗎？</p><p class="qa-a">A：可以。同一累積期間內新增的訂單仍可繼續加入，之後可待商品到齊再一起合併免運寄送。</p></div>
+<div class="qa-item"><p class="qa-q">Q：已到貨商品已滿NT$2,000，可以先免運寄出嗎？</p><p class="qa-a">A：可以，可選擇提前使用本期免運資格，先安排一次超商免運寄出。</p></div>
+<div class="qa-item"><p class="qa-q">Q：提前使用免運後，後續到貨的商品怎麼辦？</p><p class="qa-a">A：每個30天累積期僅享有1次免運資格。若已提前使用，本期免運即視為使用完畢；之後同一期內到貨或新增的商品，如需再次寄送，運費需自行負擔。</p></div>
+<div class="qa-item"><p class="qa-q">Q：30天累積期結束後怎麼計算？</p><p class="qa-a">A：本期免運累積結束後，下一筆新訂單會重新開啟新的30天免運累積期。</p></div>
 </div>
 </div>
 </section>
@@ -799,7 +835,7 @@ var navItems = document.querySelectorAll('.nav-item');
 for(var n=0;n<navItems.length;n++){
 navItems[n].addEventListener('click', (function(item){ return function(){ showView(item.getAttribute('data-target')); }; })(navItems[n]));
 }
-var heroBtns = document.querySelectorAll('.hero-actions [data-target]');
+var heroBtns = document.querySelectorAll('.hero-actions [data-target], .hero-links [data-target]');
 for(var h=0;h<heroBtns.length;h++){
 heroBtns[h].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(heroBtns[h]));
 }
