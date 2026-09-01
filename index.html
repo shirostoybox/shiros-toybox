@@ -450,6 +450,7 @@ var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
 var OA_ID = '@324flvar';
 var MEMBER_API_URL = SUPABASE_URL + '/functions/v1/member-api';
+var LIFF_URL = 'https://liff.line.me/' + LIFF_ID;
 /* ===================================================================== */
 var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 var currentUser = { uid:null, displayName:'', pictureUrl:'', nickname:'', idToken:null };
@@ -460,8 +461,14 @@ method: 'POST',
 headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
 body: JSON.stringify(payload)
 });
+if(res.status === 401 && !sessionStorage.getItem('authRecoveryDone')){
+sessionStorage.setItem('authRecoveryDone', '1');
+window.location.href = LIFF_URL;
+return new Promise(function(){});
+}
 var data = await res.json();
 if(!res.ok){ throw new Error(data.error || '連線失敗'); }
+sessionStorage.removeItem('authRecoveryDone');
 return data;
 }
 var myOrders = [];
