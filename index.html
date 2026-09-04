@@ -151,6 +151,18 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .qa-item:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
 .qa-q{ margin:0 0 6px; font-size:13.5px; font-weight:700; color:var(--text-dark); line-height:1.6; }
 .qa-a{ margin:0; font-size:13px; line-height:1.7; color:var(--muted); }
+.balance-card{ background:linear-gradient(160deg,var(--ink),var(--ink-2)); border-radius:var(--r-lg); padding:20px; margin-bottom:16px; }
+.balance-label{ margin:0 0 4px; font-size:12px; font-weight:600; color:var(--muted-light); }
+.balance-amount{ margin:0; font-family:var(--font-display); font-size:30px; font-weight:700; color:var(--text-light); }
+.balance-progress-track{ height:8px; border-radius:var(--r-full); background:rgba(255,255,255,.14); margin:14px 0 8px; overflow:hidden; }
+.balance-progress-fill{ height:100%; border-radius:var(--r-full); background:linear-gradient(90deg,var(--volt),var(--volt-deep)); }
+.balance-progress-note{ margin:0 0 14px; font-size:12px; color:var(--muted-light); }
+.balance-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.balance-coupon-count{ margin:0; font-size:13px; font-weight:600; color:var(--text-light); }
+#redeemCouponBtn{ flex-shrink:0; }
+.coupon-use-card{ background:linear-gradient(135deg,rgba(255,102,71,.12),rgba(47,216,201,.10)); border:1.5px dashed rgba(255,102,71,.4); border-radius:var(--r-md); padding:16px; margin-top:6px; margin-bottom:18px; }
+.coupon-use-title{ margin:0 0 4px; font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-dark); }
+.coupon-use-desc{ margin:0 0 12px; font-size:12.5px; color:var(--muted); }
 .empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 40px 40px; }
 .empty-icon{ width:56px; height:56px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--muted); margin-bottom:18px; font-family:var(--font-display); }
 .empty-title{ margin:0 0 6px; font-size:16px; font-weight:700; color:var(--text-dark); }
@@ -269,7 +281,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="hero-links">
 <button class="hero-link-chip" data-target="guide">使用說明</button>
 <button class="hero-link-chip" data-target="payment">💰 付款方式</button>
-<button class="hero-link-chip" data-target="shipping">📦 合併寄送／免運Q&A</button>
+<button class="hero-link-chip" data-target="shipping">📦 免運券回饋Q&A</button>
 <button class="hero-link-chip" data-target="cart">查看喊單</button>
 </div>
 </div>
@@ -390,16 +402,19 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </section>
 <!-- SHIPPING QA -->
 <section class="view" data-view="shipping">
-<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>合併寄送／免運Q&A</h2></div>
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>免運券回饋Q&A</h2></div>
 <div class="guide-content">
 <div class="qa-list">
-<div class="qa-item"><p class="qa-q">Q：免運累積從什麼時候開始？</p><p class="qa-a">A：從第一筆已付款訂單當日起開始計算，30天內完成付款的訂單都可以一起累積。</p></div>
-<div class="qa-item"><p class="qa-q">Q：怎麼達到免運？</p><p class="qa-a">A：30天內累積商品金額滿NT$2,000，即可解鎖該期一次超商取貨免運 ✨</p></div>
-<div class="qa-item"><p class="qa-q">Q：商品已到貨，但還沒滿NT$2,000怎麼辦？</p><p class="qa-a">A：如果仍在30天免運累積期間內，我們會主動詢問是否要先安排寄出，或繼續保留商品累積免運。</p></div>
-<div class="qa-item"><p class="qa-q">Q：已經滿NT$2,000，之後還能繼續加商品嗎？</p><p class="qa-a">A：可以。同一累積期間內新增的訂單仍可繼續加入，之後可待商品到齊再一起合併免運寄送。</p></div>
-<div class="qa-item"><p class="qa-q">Q：已到貨商品已滿NT$2,000，可以先免運寄出嗎？</p><p class="qa-a">A：可以，可選擇提前使用本期免運資格，先安排一次超商免運寄出。</p></div>
-<div class="qa-item"><p class="qa-q">Q：提前使用免運後，後續到貨的商品怎麼辦？</p><p class="qa-a">A：每個30天累積期僅享有1次免運資格。若已提前使用，本期免運即視為使用完畢；之後同一期內到貨或新增的商品，如需再次寄送，運費需自行負擔。</p></div>
-<div class="qa-item"><p class="qa-q">Q：30天累積期結束後怎麼計算？</p><p class="qa-a">A：本期免運累積結束後，下一筆新訂單會重新開啟新的30天免運累積期。</p></div>
+<div class="qa-item"><p class="qa-q">Q：怎麼獲得免運券？</p><p class="qa-a">A：累積消費每滿NT$2,000，即贈送1張NT$60免運券 ✨<br>・累積NT$2,000 → 1張<br>・累積NT$4,000 → 2張<br>・累積NT$6,000 → 3張<br>以此類推。</p></div>
+<div class="qa-item"><p class="qa-q">Q：超過NT$2,000的金額會浪費嗎？</p><p class="qa-a">A：不會。每滿NT$2,000取得1張免運券後，剩餘消費金額會繼續保留累積。<br>例如：累積消費NT$3,200 → 可獲得1張NT$60免運券，剩餘NT$1,200會繼續累積下一張。</p></div>
+<div class="qa-item"><p class="qa-q">Q：免運券只能拿來折運費嗎？</p><p class="qa-a">A：不只可以折運費 ♡ 每張NT$60免運券也可以選擇折抵商品消費金額，使用方式可依自己的需求決定。</p></div>
+<div class="qa-item"><p class="qa-q">Q：一次可以使用幾張免運券？</p><p class="qa-a">A：不限張數，可依目前持有的免運券自由使用。例如持有3張，可選擇使用1張折抵NT$60、2張折抵NT$120、3張折抵NT$180，也可以先保留之後再一起使用。</p></div>
+<div class="qa-item"><p class="qa-q">Q：如果免運券金額超過這次消費金額怎麼辦？</p><p class="qa-a">A：折抵金額最高以該筆實際應付金額為限，超過的部分不找零，也不兌換現金。例如商品金額NT$150、持有3張共NT$180，本次最多折抵NT$150，剩餘NT$30不另外退還，也可以選擇只使用2張折抵NT$120，保留剩下的下次再用。</p></div>
+<div class="qa-item"><p class="qa-q">Q：免運券可以留著下次再用嗎？</p><p class="qa-a">A：可以，不需要取得後立即使用，可依自己的需求選擇使用時機。</p></div>
+<div class="qa-item"><p class="qa-q">Q：免運券可以換現金嗎？</p><p class="qa-a">A：免運券僅限折抵商品消費或寄送運費使用，恕不兌換現金。</p></div>
+<div class="qa-item"><p class="qa-q">Q：哪些消費會列入累積？</p><p class="qa-a">A：以實際購買成功並完成付款的商品金額計算；運費、缺貨、取消或退款商品不列入消費累積。</p></div>
+<div class="qa-item"><p class="qa-q">Q：使用免運券折抵後，消費金額怎麼累積？</p><p class="qa-a">A：消費累積以「折抵後實際支付的商品金額」計算。<br>例如商品NT$2,000，使用1張NT$60免運券折抵商品，本次消費累積為NT$1,940。<br>若免運券用於折抵寄送運費，則不影響商品消費累積。</p></div>
+<div class="qa-item"><p class="qa-q">Q：使用免運券後還可以繼續累積嗎？</p><p class="qa-a">A：可以 ♡ 使用免運券不影響後續消費累積，每累積滿NT$2,000，就會再獲得1張NT$60免運券。</p></div>
 </div>
 </div>
 </section>
@@ -472,6 +487,7 @@ sessionStorage.removeItem('authRecoveryDone');
 return data;
 }
 var myOrders = [];
+var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, canRedeem:false };
 var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
@@ -797,6 +813,12 @@ try{
 data = await callMemberApi('get-orders');
 }catch(e){ return; }
 myOrders = data.orders || [];
+myBalance = {
+cumulativeSpend: data.cumulativeSpend || 0,
+redeemable: data.redeemable || 0,
+couponBalance: data.couponBalance || 0,
+canRedeem: !!data.canRedeem
+};
 renderOrders();
 }
 function formatDate(iso){
@@ -815,18 +837,71 @@ return '<div class="order-card">'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
 + '</div>';
 }
+function balanceCardHTML(){
+var b = myBalance;
+var cyclePos = Math.min(b.redeemable, 2000);
+var percent = Math.round(cyclePos / 2000 * 100);
+var note = b.canRedeem ? '已可兌換1張免運券 🎉' : '距離下一張免運券還差 NT$' + (2000 - cyclePos);
+var redeemBtn = b.canRedeem ? '<button class="btn btn--primary" id="redeemCouponBtn">兌換免運券（-NT$2,000）</button>' : '';
+return '<div class="balance-card">'
++ '<p class="balance-label">累積消費</p>'
++ '<p class="balance-amount">NT$'+b.cumulativeSpend+'</p>'
++ '<div class="balance-progress-track"><div class="balance-progress-fill" style="width:'+percent+'%"></div></div>'
++ '<p class="balance-progress-note">'+note+'</p>'
++ '<div class="balance-row"><p class="balance-coupon-count">🎟️ 持有 '+b.couponBalance+' 張免運券</p>'+redeemBtn+'</div>'
++ '</div>';
+}
+function couponUseCardHTML(){
+if(myBalance.couponBalance < 1) return '';
+return '<div class="coupon-use-card">'
++ '<p class="coupon-use-title">🎟️ 使用免運券</p>'
++ '<p class="coupon-use-desc">目前持有 '+myBalance.couponBalance+' 張，每張可折抵NT$60，使用後會加入喊單紀錄</p>'
++ '<button class="btn btn--dark btn--full" id="useCouponBtn">使用一張免運券喊單</button>'
++ '</div>';
+}
+async function handleRedeemCoupon(){
+var btn = document.getElementById('redeemCouponBtn');
+if(btn){ btn.disabled = true; btn.textContent = '兌換中...'; }
+try{
+await callMemberApi('redeem-coupon');
+showToast('兌換成功，獲得1張免運券！');
+await loadMyOrders();
+}catch(e){
+alert('兌換失敗：' + e.message);
+if(btn){ btn.disabled = false; btn.textContent = '兌換免運券（-NT$2,000）'; }
+}
+}
+async function handleUseCoupon(){
+var btn = document.getElementById('useCouponBtn');
+if(btn){ btn.disabled = true; btn.textContent = '處理中...'; }
+try{
+await callMemberApi('use-coupon');
+showToast('已使用1張免運券！');
+await loadMyOrders();
+}catch(e){
+alert('使用失敗：' + e.message);
+if(btn){ btn.disabled = false; btn.textContent = '使用一張免運券喊單'; }
+}
+}
 function renderOrders(){
 var view = document.getElementById('cartView');
 var badge = document.getElementById('cartBadge');
 if(myOrders.length > 0){ badge.textContent = myOrders.length; badge.style.display = 'flex'; }
 else { badge.style.display = 'none'; }
+var html = balanceCardHTML();
 if(myOrders.length === 0){
-view.innerHTML = '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
-var btn = view.querySelector('.go-shop');
-if(btn) btn.addEventListener('click', function(){ showView('shop'); });
+html += '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
 } else {
-view.innerHTML = '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
+html += '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
 }
+html += couponUseCardHTML();
+view.innerHTML = html;
+var goShopBtn = view.querySelector('.go-shop');
+if(goShopBtn) goShopBtn.addEventListener('click', function(){ showView('shop'); });
+var redeemBtn = document.getElementById('redeemCouponBtn');
+if(redeemBtn) redeemBtn.addEventListener('click', handleRedeemCoupon);
+var useBtn = document.getElementById('useCouponBtn');
+if(useBtn) useBtn.addEventListener('click', handleUseCoupon);
 }
 /* ---------- view switching ---------- */
 function showView(name){
