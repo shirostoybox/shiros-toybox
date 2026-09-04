@@ -910,6 +910,7 @@ for(var i=0;i<views.length;i++){ views[i].classList.toggle('is-active', views[i]
 var navs = document.querySelectorAll('.nav-item');
 for(var j=0;j<navs.length;j++){ navs[j].classList.toggle('active', navs[j].getAttribute('data-target')===name); }
 window.scrollTo(0,0);
+if(name === 'cart'){ loadMyOrders(); }
 }
 /* ---------- wire static controls ---------- */
 document.addEventListener('DOMContentLoaded', function(){
