@@ -161,6 +161,27 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .balance-coupon-count{ margin:0; font-size:13px; font-weight:600; color:var(--text-light); }
 #redeemCouponBtn{ flex-shrink:0; }
 .coupon-use-card{ background:linear-gradient(135deg,rgba(255,102,71,.12),rgba(47,216,201,.10)); border:1.5px dashed rgba(255,102,71,.4); border-radius:var(--r-md); padding:16px; margin-top:6px; margin-bottom:18px; }
+@keyframes cyclePulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.18); } }
+.cycle-banner{ border-radius:var(--r-md); padding:16px; margin-bottom:16px; }
+.cycle-banner--day1{ background:var(--card); border:1.5px solid var(--line); }
+.cycle-banner--day2{ background:rgba(255,102,71,.1); border:1.5px solid rgba(255,102,71,.35); }
+.cycle-banner--day3{ background:rgba(226,71,42,.12); border:1.5px solid var(--ignis-deep); }
+.cycle-banner-top{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.cycle-icon-pulse{ display:inline-block; font-size:18px; animation:cyclePulse 1.1s ease-in-out infinite; }
+.cycle-day-label{ font-family:var(--font-display); font-weight:700; font-size:14px; color:var(--text-dark); margin:0; }
+.cycle-main-text{ font-size:13.5px; font-weight:600; color:var(--text-dark); margin:0 0 4px; }
+.cycle-sub-text{ font-size:12px; color:var(--muted); margin:0 0 12px; }
+.settle-item-list{ margin-bottom:6px; }
+.settle-item-row{ display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.settle-item-row:last-child{ border-bottom:none; }
+.settle-section{ border-top:1px solid var(--line); margin-top:14px; padding-top:14px; }
+.settle-section-title{ font-size:13px; font-weight:700; color:var(--text-dark); margin:0 0 10px; }
+.settle-radio{ display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text-dark); padding:8px 0; }
+.settle-radio input{ width:16px; height:16px; }
+.settle-radio--disabled{ color:var(--muted-light); }
+.settle-totals{ border-top:1px solid var(--line); margin-top:14px; padding-top:14px; }
+.settle-total-row{ display:flex; justify-content:space-between; font-size:13px; color:var(--muted); padding:3px 0; }
+.settle-total-final{ font-weight:700; font-size:16px; color:var(--text-dark); margin-top:6px; padding-top:8px; border-top:1px solid var(--line); }
 .coupon-use-title{ margin:0 0 4px; font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-dark); }
 .coupon-use-desc{ margin:0 0 12px; font-size:12.5px; color:var(--muted); }
 .empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 40px 40px; }
@@ -252,6 +273,41 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="lightbox-overlay" id="lightboxOverlay">
 <button class="lightbox-close" id="lightboxClose">✕</button>
 <img class="lightbox-img" id="lightboxImg" src="" alt="">
+</div>
+<div class="modal-overlay" id="settlementModal">
+<div class="modal-card" style="max-height:82vh;overflow-y:auto;">
+<button class="modal-close" id="settlementClose">✕</button>
+<h3>確認結單</h3>
+<div id="settlementItemList" class="settle-item-list"></div>
+<div class="settle-section">
+<p class="settle-section-title">寄送方式</p>
+<label class="settle-radio"><input type="radio" name="shipMethod" value="7-11" class="ship-method-input"> 7-11（運費NT$60）</label>
+<label class="settle-radio"><input type="radio" name="shipMethod" value="全家" class="ship-method-input"> 全家（運費NT$60）</label>
+<label class="settle-radio"><input type="radio" name="shipMethod" value="黑貓宅急便" class="ship-method-input"> 黑貓宅急便（運費NT$130）</label>
+</div>
+<div class="settle-section">
+<input type="text" class="gate-input" id="settleRecipientName" placeholder="收件姓名" style="margin-bottom:10px;">
+<input type="tel" class="gate-input" id="settlePhone" placeholder="手機號碼" style="margin-bottom:10px;">
+<div id="settleConvenienceFields">
+<input type="text" class="gate-input" id="settleStoreInfo" placeholder="門市名稱＋店號">
+</div>
+<div id="settleHomeDeliveryFields" style="display:none;">
+<input type="text" class="gate-input" id="settleAddress" placeholder="完整地址" style="margin-bottom:10px;">
+<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">指定收貨時段</p>
+<label class="settle-radio"><input type="radio" name="deliveryTime" value="上午"> 上午</label>
+<label class="settle-radio"><input type="radio" name="deliveryTime" value="下午"> 下午</label>
+</div>
+</div>
+<div class="settle-section" id="settleCouponSection"></div>
+<div class="settle-totals">
+<div class="settle-total-row"><span>商品小計</span><span id="settleSubtotal">NT$0</span></div>
+<div class="settle-total-row"><span>運費</span><span id="settleShipFee">NT$0</span></div>
+<div class="settle-total-row" id="settleDiscountRow" style="display:none;"><span>優惠折抵</span><span id="settleDiscount" style="color:var(--ignis-deep);">-NT$0</span></div>
+<div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
+</div>
+<p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
+<button class="btn btn--primary btn--full" id="settlementSubmit" style="margin-top:16px;">送出結單</button>
+</div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="page" id="app" style="display:none">
@@ -398,7 +454,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="guide-content">
 <div class="guide-policy">
 <h3>💰 付款方式</h3>
-<p>♡ 自第一筆商品確認成功日起，可累積3天內的商品一起結算；同一個3天累積週期內確認成功的商品，視為「同一筆訂單」。</p>
+<p>♡ 自第一筆商品喊單日起，可累積3天內的商品一起結算；同一個3天累積週期內喊單的商品，視為「同一筆訂單」。</p>
 <p>♡ 第3天將統一發送付款通知，並於通知中註明本筆訂單的商品金額及應付運費，請於第3天當日24:00（午夜12點）前完成付款。</p>
 <p>♡ 每筆訂單將依實際寄送方式收取運費，並於付款時一併支付。</p>
 <p>♡ 結單後新增的商品，將重新開始下一個3天累積週期，並成立為「下一筆新訂單」。</p>
@@ -494,7 +550,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260906-4';
+var APP_VERSION = '20260906-5';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -523,6 +579,8 @@ return data;
 }
 var myOrders = [];
 var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, referralCouponBalance:0, canRedeem:false };
+var pendingCycle = { hasPending:false };
+var settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
 var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
@@ -872,6 +930,11 @@ couponBalance: data.couponBalance || 0,
 referralCouponBalance: data.referralCouponBalance || 0,
 canRedeem: !!data.canRedeem
 };
+try{
+pendingCycle = await callMemberApi('get-cycle-status');
+}catch(e){
+pendingCycle = { hasPending:false };
+}
 renderOrders();
 }
 function formatDate(iso){
@@ -906,24 +969,6 @@ return '<div class="balance-card">'
 + referralRow
 + '</div>';
 }
-function couponUseCardHTML(){
-var cards = '';
-if(myBalance.couponBalance > 0){
-cards += '<div class="coupon-use-card">'
-+ '<p class="coupon-use-title">🎟️ 使用回饋券</p>'
-+ '<p class="coupon-use-desc">目前持有 '+myBalance.couponBalance+' 張，每張可折抵NT$60，使用後會加入喊單紀錄</p>'
-+ '<button class="btn btn--dark btn--full" id="useCouponBtn">使用一張回饋券喊單</button>'
-+ '</div>';
-}
-if(myBalance.referralCouponBalance > 0){
-cards += '<div class="coupon-use-card">'
-+ '<p class="coupon-use-title">🎫 使用免運券</p>'
-+ '<p class="coupon-use-desc">目前持有 '+myBalance.referralCouponBalance+' 張（好友邀請獲得），每張可折抵NT$60，使用後會加入喊單紀錄</p>'
-+ '<button class="btn btn--dark btn--full" id="useReferralCouponBtn">使用一張免運券喊單</button>'
-+ '</div>';
-}
-return cards;
-}
 async function handleRedeemCoupon(){
 var btn = document.getElementById('redeemCouponBtn');
 if(btn){ btn.disabled = true; btn.textContent = '兌換中...'; }
@@ -936,51 +981,158 @@ alert('兌換失敗：' + e.message);
 if(btn){ btn.disabled = false; btn.textContent = '兌換回饋券（-NT$2,000）'; }
 }
 }
-async function handleUseCoupon(){
-var btn = document.getElementById('useCouponBtn');
-if(btn){ btn.disabled = true; btn.textContent = '處理中...'; }
+function cycleBannerHTML(){
+if(!pendingCycle.hasPending) return '';
+var day = pendingCycle.dayNumber;
+var deadline = new Date(pendingCycle.deadline);
+var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
+var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
+if(day === 2){
+cls = 'cycle-banner--day2'; icon = '⏰';
+mainText = '第2天・明天是最後一天！';
+} else if(day >= 3){
+cls = 'cycle-banner--day3'; icon = '🚨';
+mainText = '第3天（最後一天）！請於今天24:00前結單並完成付款';
+}
+return '<div class="cycle-banner '+cls+'">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">結單倒數</p></div>'
++ '<p class="cycle-main-text">'+mainText+'</p>'
++ '<p class="cycle-sub-text">結單期限：'+deadlineStr+'前・共'+pendingCycle.itemCount+'件商品，小計NT$'+pendingCycle.subtotal+'<br>建議提早完成結單，才有充裕時間完成匯款</p>'
++ '<button class="btn btn--primary btn--full" id="openSettlementBtn">前往結單</button>'
++ '</div>';
+}
+function settlementCouponSectionHTML(){
+var subtotal = pendingCycle.subtotal || 0;
+var html = '';
+if(myBalance.referralCouponBalance > 0 || myBalance.couponBalance > 0){
+html += '<p class="settle-section-title">使用優惠券</p>';
+}
+if(myBalance.referralCouponBalance > 0){
+var canReferral = subtotal > 1500;
+html += '<label class="settle-radio'+(canReferral?'':' settle-radio--disabled')+'">'
++ '<input type="checkbox" id="settleUseReferral"'+(canReferral?'':' disabled')+'>'
++ '使用1張免運券（-NT$60，持有'+myBalance.referralCouponBalance+'張）'
++ (canReferral?'':'<br><span style="font-size:11.5px;">需商品小計超過NT$1,500才能使用</span>')
++ '</label>';
+}
+if(myBalance.couponBalance > 0){
+var canReward = subtotal >= 500;
+html += '<div style="margin-top:10px;'+(canReward?'':'opacity:.5;')+'">'
++ '<p style="font-size:13px;margin:0 0 6px;color:var(--text-dark);">回饋券（持有'+myBalance.couponBalance+'張）'+(canReward?'':'<br><span style="font-size:11.5px;color:var(--muted);">需商品小計滿NT$500才能使用</span>')+'</p>'
++ '<div class="qty-row" style="justify-content:flex-start;gap:16px;margin:8px 0;">'
++ '<button type="button" id="settleRewardMinus"'+(canReward?'':' disabled')+'>−</button>'
++ '<span id="settleRewardCount">0</span>'
++ '<button type="button" id="settleRewardPlus"'+(canReward?'':' disabled')+'>＋</button>'
++ '</div></div>';
+}
+return html;
+}
+function recalcSettlement(){
+var subtotal = pendingCycle.subtotal || 0;
+var shipFee = settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0);
+var discount = (settlementState.useReferral ? 60 : 0) + settlementState.rewardCount * 60;
+var payable = subtotal + shipFee;
+var overflow = discount > payable;
+if(overflow) discount = payable;
+var total = payable - discount;
+document.getElementById('settleSubtotal').textContent = 'NT$'+subtotal;
+document.getElementById('settleShipFee').textContent = 'NT$'+shipFee;
+var discountRow = document.getElementById('settleDiscountRow');
+if(discount > 0){
+discountRow.style.display = 'flex';
+document.getElementById('settleDiscount').textContent = '-NT$'+discount;
+} else { discountRow.style.display = 'none'; }
+document.getElementById('settleTotal').textContent = 'NT$'+total;
+var note = document.getElementById('settleOverflowNote');
+if(overflow){
+note.style.display = 'block';
+note.textContent = '⚠️ 券的總價值超過應付金額，超過部分不找零也不退還，可以減少使用張數保留到下次';
+} else { note.style.display = 'none'; }
+}
+function openSettlementModal(){
+if(!pendingCycle.hasPending) return;
+settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
+var list = document.getElementById('settlementItemList');
+list.innerHTML = pendingCycle.items.map(function(o){
+return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
+}).join('');
+document.getElementById('settleRecipientName').value = '';
+document.getElementById('settlePhone').value = '';
+document.getElementById('settleStoreInfo').value = '';
+document.getElementById('settleAddress').value = '';
+document.getElementById('settleConvenienceFields').style.display = 'block';
+document.getElementById('settleHomeDeliveryFields').style.display = 'none';
+var radios = document.querySelectorAll('input[name="shipMethod"], input[name="deliveryTime"]');
+for(var i=0;i<radios.length;i++){ radios[i].checked = false; }
+document.getElementById('settleCouponSection').innerHTML = settlementCouponSectionHTML();
+wireSettlementCouponControls();
+recalcSettlement();
+document.getElementById('settlementModal').classList.add('is-open');
+}
+function wireSettlementCouponControls(){
+var ref = document.getElementById('settleUseReferral');
+if(ref) ref.addEventListener('change', function(){ settlementState.useReferral = this.checked; recalcSettlement(); });
+var minus = document.getElementById('settleRewardMinus');
+var plus = document.getElementById('settleRewardPlus');
+if(minus) minus.addEventListener('click', function(){
+if(settlementState.rewardCount > 0){ settlementState.rewardCount--; document.getElementById('settleRewardCount').textContent = settlementState.rewardCount; recalcSettlement(); }
+});
+if(plus) plus.addEventListener('click', function(){
+if(settlementState.rewardCount < myBalance.couponBalance){ settlementState.rewardCount++; document.getElementById('settleRewardCount').textContent = settlementState.rewardCount; recalcSettlement(); }
+});
+}
+async function handleSubmitSettlement(){
+var recipientName = document.getElementById('settleRecipientName').value.trim();
+var phone = document.getElementById('settlePhone').value.trim();
+if(!settlementState.shippingMethod){ alert('請選擇寄送方式'); return; }
+if(!recipientName || !phone){ alert('請填寫收件姓名與手機號碼'); return; }
+var payload = {
+shippingMethod: settlementState.shippingMethod,
+recipientName: recipientName, phone: phone,
+useReferralCoupon: settlementState.useReferral,
+rewardCouponCount: settlementState.rewardCount
+};
+if(settlementState.shippingMethod === '黑貓宅急便'){
+var address = document.getElementById('settleAddress').value.trim();
+var timeInput = document.querySelector('input[name="deliveryTime"]:checked');
+if(!address){ alert('請填寫完整地址'); return; }
+if(!timeInput){ alert('請選擇指定收貨時段'); return; }
+payload.address = address; payload.deliveryTime = timeInput.value;
+} else {
+var storeInfo = document.getElementById('settleStoreInfo').value.trim();
+if(!storeInfo){ alert('請填寫門市名稱＋店號'); return; }
+payload.storeInfo = storeInfo;
+}
+var btn = document.getElementById('settlementSubmit');
+btn.disabled = true; btn.textContent = '送出中...';
 try{
-await callMemberApi('use-coupon');
-showToast('已使用1張回饋券！');
+await callMemberApi('submit-settlement', payload);
+document.getElementById('settlementModal').classList.remove('is-open');
+showToast('結單完成，請等待付款通知！');
 await loadMyOrders();
 }catch(e){
-alert('使用失敗：' + e.message);
-if(btn){ btn.disabled = false; btn.textContent = '使用一張回饋券喊單'; }
+alert('送出失敗：' + e.message);
 }
-}
-async function handleUseReferralCoupon(){
-var btn = document.getElementById('useReferralCouponBtn');
-if(btn){ btn.disabled = true; btn.textContent = '處理中...'; }
-try{
-await callMemberApi('use-referral-coupon');
-showToast('已使用1張免運券！');
-await loadMyOrders();
-}catch(e){
-alert('使用失敗：' + e.message);
-if(btn){ btn.disabled = false; btn.textContent = '使用一張免運券喊單'; }
-}
+btn.disabled = false; btn.textContent = '送出結單';
 }
 function renderOrders(){
 var view = document.getElementById('cartView');
 var badge = document.getElementById('cartBadge');
 if(myOrders.length > 0){ badge.textContent = myOrders.length; badge.style.display = 'flex'; }
 else { badge.style.display = 'none'; }
-var html = balanceCardHTML();
+var html = cycleBannerHTML() + balanceCardHTML();
 if(myOrders.length === 0){
 html += '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
 } else {
 html += '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
 }
-html += couponUseCardHTML();
 view.innerHTML = html;
 var goShopBtn = view.querySelector('.go-shop');
 if(goShopBtn) goShopBtn.addEventListener('click', function(){ showView('shop'); });
+var settleBtn = document.getElementById('openSettlementBtn');
+if(settleBtn) settleBtn.addEventListener('click', openSettlementModal);
 var redeemBtn = document.getElementById('redeemCouponBtn');
 if(redeemBtn) redeemBtn.addEventListener('click', handleRedeemCoupon);
-var useBtn = document.getElementById('useCouponBtn');
-if(useBtn) useBtn.addEventListener('click', handleUseCoupon);
-var useReferralBtn = document.getElementById('useReferralCouponBtn');
-if(useReferralBtn) useReferralBtn.addEventListener('click', handleUseReferralCoupon);
 }
 /* ---------- view switching ---------- */
 function showView(name){
@@ -1054,6 +1206,23 @@ updateOrderModalSub();
 })(shellOptBtns[so]));
 }
 document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+document.getElementById('settlementClose').addEventListener('click', function(){
+document.getElementById('settlementModal').classList.remove('is-open');
+});
+document.getElementById('settlementModal').addEventListener('click', function(e){
+if(e.target === this) this.classList.remove('is-open');
+});
+var shipInputs = document.querySelectorAll('.ship-method-input');
+for(var si=0;si<shipInputs.length;si++){
+shipInputs[si].addEventListener('change', function(){
+settlementState.shippingMethod = this.value;
+var isHome = this.value === '黑貓宅急便';
+document.getElementById('settleConvenienceFields').style.display = isHome ? 'none' : 'block';
+document.getElementById('settleHomeDeliveryFields').style.display = isHome ? 'block' : 'none';
+recalcSettlement();
+});
+}
+document.getElementById('settlementSubmit').addEventListener('click', handleSubmitSettlement);
 document.getElementById('lightboxOverlay').addEventListener('click', function(e){ if(e.target === this) closeLightbox(); });
 document.getElementById('orderModalPhoto').addEventListener('click', function(){
 var url = this.getAttribute('data-zoom');
