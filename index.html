@@ -461,6 +461,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
+var APP_VERSION = '20260905-1';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -989,6 +990,18 @@ document.getElementById('logoutBtn').addEventListener('click', function(){
 liff.logout();
 window.location.reload();
 });
+async function checkForUpdate(){
+try{
+var res = await fetch(window.location.pathname, { cache: 'no-store' });
+var text = await res.text();
+var match = text.match(/APP_VERSION\s*=\s*'([^']+)'/);
+if(match && match[1] !== APP_VERSION){ window.location.reload(); }
+}catch(e){}
+}
+document.addEventListener('visibilitychange', function(){
+if(document.visibilityState === 'visible'){ checkForUpdate(); }
+});
+setInterval(checkForUpdate, 180000);
 initApp();
 });
 })();
