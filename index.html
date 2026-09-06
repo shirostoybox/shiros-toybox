@@ -282,7 +282,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <button class="hero-link-chip" data-target="guide">使用說明</button>
 <button class="hero-link-chip" data-target="payment">💰 付款方式</button>
 <button class="hero-link-chip" data-target="shipping">📦 免運券回饋Q&A</button>
-<button class="hero-link-chip" data-target="cart">查看喊單</button>
+<button class="hero-link-chip" data-target="activity">🍀 活動</button>
 </div>
 </div>
 </section>
@@ -419,6 +419,31 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </div>
 </div>
 </section>
+<!-- ACTIVITY -->
+<section class="view" data-view="activity">
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>活動</h2></div>
+<div class="guide-content">
+<div class="guide-policy">
+<p style="font-weight:700;color:var(--text-dark);margin-bottom:14px;">🍀 好友邀請小活動</p>
+<h3>新成員加入禮</h3>
+<p>第一次加入四郎玩具箱社群的新成員，只要完成以下任務，即可獲得免運券1張 ♡</p>
+<p>▸ 追蹤四郎玩具箱Instagram＋Threads<br>▸ 於IG或Threads任一篇近期貼文按讚<br>▸ 完成以上任務並經確認後，即可獲得免運券1張<br>▸ 領取及使用免運券時，需仍為社群成員</p>
+<h3>好友邀請獎勵</h3>
+<p>成功邀請1位新朋友加入社群，即可再獲得免運券1張 ♡ 邀請人數不限，邀越多、拿越多！</p>
+<p>每位受邀的新成員皆需完成以下條件，才會計入成功邀請：</p>
+<p>▸ 需為從未加入過社群的新成員<br>▸ 追蹤四郎玩具箱Instagram＋Threads<br>▸ 於IG或Threads任一篇近期貼文按讚<br>▸ 新成員申請加入社群時，可於入群問題填寫「邀請人的LINE群暱稱」，方便核對邀請資格<br>▸ 完成以上任務並經確認後，即視為邀請成功</p>
+<p>符合以上條件後：<br>♡ 新成員可獲得免運券1張<br>♡ 邀請人也可獲得免運券1張</p>
+<p>▸ 同一位新成員僅能計算1次，不得重複計入邀請名額<br>▸ 邀請完成後，請私訊官方LINE／留言告知「新成員LINE群暱稱」，方便登記</p>
+<h3>免運券使用規則</h3>
+<p>▸ 商品消費金額滿NT$1,500可使用1張<br>▸ 每筆訂單限使用1張<br>▸ 每張最高折抵運費$60<br>▸ 超過$60的運費需補差額<br>▸ 不得與其他免運優惠重複使用<br>▸ 使用免運券時，持券人需仍為社群成員<br>▸ 免運券沒有使用期限<br>▸ 免運券可於四郎玩具箱訂單使用 🇯🇵</p>
+<h3>活動期限</h3>
+<p>活動至社群人數滿150人截止。</p>
+<h3>注意事項</h3>
+<p>▸ 為維護社群及活動公平性，退出社群後將不再開放重新加入<br>▸ 退群後，尚未使用的免運券一併失效<br>▸ 免運券不得折現、轉讓或找零</p>
+<p class="guide-final">▸ 活動辦法如有調整，將提前於社群公告</p>
+</div>
+</div>
+</section>
 <!-- WISH -->
 <section class="view" data-view="wish">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>許願說明</h2></div>
@@ -461,7 +486,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260905-1';
+var APP_VERSION = '20260905-2';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -642,6 +667,15 @@ hideLoading();
 renderHome();
 renderShop();
 loadMyOrders();
+checkDeepLink();
+}
+function checkDeepLink(){
+var params = new URLSearchParams(window.location.search);
+var target = params.get('view');
+var validTargets = ['home','shop','cart','wish','guide','payment','shipping','activity'];
+if(target && validTargets.indexOf(target) !== -1){
+showView(target);
+}
 }
 /* ---------- product cards ---------- */
 function visualHTML(p){
