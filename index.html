@@ -399,7 +399,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="guide-policy">
 <h3>💰 付款方式</h3>
 <p>♡ 自第一筆商品確認成功日起，可累積3天內的商品一起結算；同一個3天累積週期內確認成功的商品，視為「同一筆訂單」。</p>
-<p>♡ 第3天將統一發送付款通知，並於通知中註明本筆訂單的商品金額及應付運費，收到通知後請於24小時內完成付款。</p>
+<p>♡ 第3天將統一發送付款通知，並於通知中註明本筆訂單的商品金額及應付運費，請於第3天當日24:00（午夜12點）前完成付款。</p>
 <p>♡ 每筆訂單將依實際寄送方式收取運費，並於付款時一併支付。</p>
 <p>♡ 結單後新增的商品，將重新開始下一個3天累積週期，並成立為「下一筆新訂單」。</p>
 <p>♡ 每筆訂單皆獨立計算商品金額與運費，不與前後訂單合併計算或合併寄送。</p>
@@ -422,6 +422,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="qa-item"><p class="qa-q">Q：回饋券可以換現金嗎？</p><p class="qa-a">A：回饋券僅限折抵商品消費使用，恕不兌換現金。</p></div>
 <div class="qa-item"><p class="qa-q">Q：哪些消費會列入累積？</p><p class="qa-a">A：以實際購買成功並完成付款的「商品金額」計算。運費、缺貨、取消商品皆不列入消費累積。</p></div>
 <div class="qa-item"><p class="qa-q">Q：使用回饋券折抵後，消費金額怎麼累積？</p><p class="qa-a">A：消費累積以「折抵後實際支付的商品金額」計算。<br>例如：商品NT$2,000，使用1張NT$60回饋券折抵商品，本次實際支付NT$1,940，因此本次累積消費金額為NT$1,940。</p></div>
+<div class="qa-item"><p class="qa-q">Q：使用免運券、回饋券或其他優惠後，消費金額怎麼累積？</p><p class="qa-a">A：免運券、回饋券及其他折扣皆屬於優惠回饋，因此已享有優惠折抵的金額，不會再重複計入下一階段的回饋累積。<br>回饋累積將以「商品金額扣除本次實際優惠折抵金額」後的有效消費金額計算 ♡<br>例如：商品金額NT$2,000，使用1張NT$60免運券，本次享有NT$60優惠，回饋累積金額為NT$1,940；使用1張NT$60回饋券折抵商品，回饋累積金額同樣為NT$1,940。<br>也就是說，優惠折抵多少，就從本次回饋累積金額中扣除多少；其餘未折抵的商品金額仍會正常累積，不會歸零，也不會浪費。</p></div>
 </div>
 </div>
 </section>
@@ -493,7 +494,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260906-3';
+var APP_VERSION = '20260906-4';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -521,7 +522,7 @@ sessionStorage.removeItem('authRecoveryDone');
 return data;
 }
 var myOrders = [];
-var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, canRedeem:false };
+var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, referralCouponBalance:0, canRedeem:false };
 var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
@@ -868,6 +869,7 @@ myBalance = {
 cumulativeSpend: data.cumulativeSpend || 0,
 redeemable: data.redeemable || 0,
 couponBalance: data.couponBalance || 0,
+referralCouponBalance: data.referralCouponBalance || 0,
 canRedeem: !!data.canRedeem
 };
 renderOrders();
@@ -894,21 +896,33 @@ var cyclePos = Math.min(b.redeemable, 2000);
 var percent = Math.round(cyclePos / 2000 * 100);
 var note = b.canRedeem ? '已可兌換1張回饋券 🎉' : '距離下一張回饋券還差 NT$' + (2000 - cyclePos);
 var redeemBtn = b.canRedeem ? '<button class="btn btn--primary" id="redeemCouponBtn">兌換回饋券（-NT$2,000）</button>' : '';
+var referralRow = b.referralCouponBalance > 0 ? '<p class="balance-coupon-count" style="margin-top:8px;">🎫 持有 '+b.referralCouponBalance+' 張免運券（好友邀請獲得）</p>' : '';
 return '<div class="balance-card">'
 + '<p class="balance-label">累積消費</p>'
 + '<p class="balance-amount">NT$'+b.cumulativeSpend+'</p>'
 + '<div class="balance-progress-track"><div class="balance-progress-fill" style="width:'+percent+'%"></div></div>'
 + '<p class="balance-progress-note">'+note+'</p>'
 + '<div class="balance-row"><p class="balance-coupon-count">🎟️ 持有 '+b.couponBalance+' 張回饋券</p>'+redeemBtn+'</div>'
++ referralRow
 + '</div>';
 }
 function couponUseCardHTML(){
-if(myBalance.couponBalance < 1) return '';
-return '<div class="coupon-use-card">'
+var cards = '';
+if(myBalance.couponBalance > 0){
+cards += '<div class="coupon-use-card">'
 + '<p class="coupon-use-title">🎟️ 使用回饋券</p>'
 + '<p class="coupon-use-desc">目前持有 '+myBalance.couponBalance+' 張，每張可折抵NT$60，使用後會加入喊單紀錄</p>'
 + '<button class="btn btn--dark btn--full" id="useCouponBtn">使用一張回饋券喊單</button>'
 + '</div>';
+}
+if(myBalance.referralCouponBalance > 0){
+cards += '<div class="coupon-use-card">'
++ '<p class="coupon-use-title">🎫 使用免運券</p>'
++ '<p class="coupon-use-desc">目前持有 '+myBalance.referralCouponBalance+' 張（好友邀請獲得），每張可折抵NT$60，使用後會加入喊單紀錄</p>'
++ '<button class="btn btn--dark btn--full" id="useReferralCouponBtn">使用一張免運券喊單</button>'
++ '</div>';
+}
+return cards;
 }
 async function handleRedeemCoupon(){
 var btn = document.getElementById('redeemCouponBtn');
@@ -934,6 +948,18 @@ alert('使用失敗：' + e.message);
 if(btn){ btn.disabled = false; btn.textContent = '使用一張回饋券喊單'; }
 }
 }
+async function handleUseReferralCoupon(){
+var btn = document.getElementById('useReferralCouponBtn');
+if(btn){ btn.disabled = true; btn.textContent = '處理中...'; }
+try{
+await callMemberApi('use-referral-coupon');
+showToast('已使用1張免運券！');
+await loadMyOrders();
+}catch(e){
+alert('使用失敗：' + e.message);
+if(btn){ btn.disabled = false; btn.textContent = '使用一張免運券喊單'; }
+}
+}
 function renderOrders(){
 var view = document.getElementById('cartView');
 var badge = document.getElementById('cartBadge');
@@ -953,6 +979,8 @@ var redeemBtn = document.getElementById('redeemCouponBtn');
 if(redeemBtn) redeemBtn.addEventListener('click', handleRedeemCoupon);
 var useBtn = document.getElementById('useCouponBtn');
 if(useBtn) useBtn.addEventListener('click', handleUseCoupon);
+var useReferralBtn = document.getElementById('useReferralCouponBtn');
+if(useReferralBtn) useReferralBtn.addEventListener('click', handleUseReferralCoupon);
 }
 /* ---------- view switching ---------- */
 function showView(name){
