@@ -215,6 +215,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <p class="gate-eyebrow">需完成個人資料</p>
 <h2>還差一步</h2>
 <p class="gate-desc">請填寫妳的LINE社群暱稱，方便之後對照訂單與聯繫</p>
+<p style="margin:-6px 0 14px;font-size:12px;line-height:1.6;color:var(--ignis-deep);">⚠️ 請先加入LINE社群並取得社群暱稱，務必填寫正確的LINE社群暱稱</p>
 <input type="text" class="gate-input" id="nicknameInput" placeholder="輸入LINE社群暱稱" maxlength="20">
 <button class="btn btn--dark btn--full" id="nicknameSubmit">儲存並繼續</button>
 </div>
@@ -360,6 +361,12 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <p class="profile-name" id="profileNameDetail"></p>
 <span class="profile-badge">LINE已驗證</span>
 </div>
+<div style="margin:20px 20px 0;">
+<p style="font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;">LINE社群暱稱</p>
+<input type="text" class="gate-input" id="profileNicknameInput" placeholder="輸入LINE社群暱稱" maxlength="20">
+<button class="btn btn--dark btn--full" id="profileNicknameSave">更新暱稱</button>
+<p style="margin:8px 0 0;font-size:11.5px;line-height:1.6;color:var(--muted);">填錯了嗎？在這裡更新即可，請務必填寫正確的LINE社群暱稱。</p>
+</div>
 <button class="btn btn--dark btn--full" id="logoutBtn" style="margin:24px 20px; width:calc(100% - 40px);">登出</button>
 </section>
 <!-- GUIDE / POLICY -->
@@ -486,7 +493,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260906-1';
+var APP_VERSION = '20260906-2';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -655,6 +662,7 @@ document.getElementById('heroGreeting').textContent = displayLabel + '，您好'
 document.getElementById('topbarName').textContent = displayLabel;
 document.getElementById('profileName').textContent = displayLabel;
 document.getElementById('profileNameDetail').textContent = displayLabel;
+document.getElementById('profileNicknameInput').value = currentUser.nickname || '';
 if(currentUser.pictureUrl){
 document.getElementById('topbarAvatar').src = currentUser.pictureUrl;
 document.getElementById('profileAvatar').src = currentUser.pictureUrl;
@@ -1023,6 +1031,25 @@ liff.login();
 document.getElementById('logoutBtn').addEventListener('click', function(){
 liff.logout();
 window.location.reload();
+});
+document.getElementById('profileNicknameSave').addEventListener('click', async function(){
+var val = document.getElementById('profileNicknameInput').value.trim();
+if(!val){ alert('暱稱不可為空'); return; }
+var btn = document.getElementById('profileNicknameSave');
+btn.disabled = true; btn.textContent = '更新中...';
+try{
+await callMemberApi('submit-nickname', { nickname: val });
+currentUser.nickname = val;
+var displayLabel = currentUser.nickname || currentUser.displayName;
+document.getElementById('heroGreeting').textContent = displayLabel + '，您好';
+document.getElementById('topbarName').textContent = displayLabel;
+document.getElementById('profileName').textContent = displayLabel;
+document.getElementById('profileNameDetail').textContent = displayLabel;
+showToast('暱稱已更新！');
+}catch(e){
+alert('更新失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = '更新暱稱';
 });
 async function checkForUpdate(){
 try{
