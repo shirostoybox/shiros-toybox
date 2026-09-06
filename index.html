@@ -493,7 +493,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260906-2';
+var APP_VERSION = '20260906-3';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -683,6 +683,13 @@ var target = params.get('view');
 var validTargets = ['home','shop','cart','wish','guide','payment','shipping','activity'];
 if(target && validTargets.indexOf(target) !== -1){
 showView(target);
+}
+if(target === 'shop'){
+var cat = params.get('cat');
+var validCats = ['all','beyblade','doll','anpanman','gacha'];
+if(cat && validCats.indexOf(cat) !== -1){
+setCategory(cat);
+}
 }
 }
 /* ---------- product cards ---------- */
@@ -955,6 +962,12 @@ var navs = document.querySelectorAll('.nav-item');
 for(var j=0;j<navs.length;j++){ navs[j].classList.toggle('active', navs[j].getAttribute('data-target')===name); }
 window.scrollTo(0,0);
 if(name === 'cart'){ loadMyOrders(); }
+if(name === 'shop'){ refreshShop(); }
+}
+async function refreshShop(){
+await loadProducts();
+renderHome();
+renderShop();
 }
 /* ---------- wire static controls ---------- */
 document.addEventListener('DOMContentLoaded', function(){
@@ -1060,7 +1073,10 @@ if(match && match[1] !== APP_VERSION){ window.location.reload(); }
 }catch(e){}
 }
 document.addEventListener('visibilitychange', function(){
-if(document.visibilityState === 'visible'){ checkForUpdate(); }
+if(document.visibilityState === 'visible'){
+checkForUpdate();
+refreshShop();
+}
 });
 setInterval(checkForUpdate, 180000);
 initApp();
