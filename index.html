@@ -396,6 +396,8 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </section>
 <!-- CART / REAL ORDERS -->
 <section class="view" data-view="cart" id="cartView"></section>
+<!-- ADMIN (owner-only, not linked from nav) -->
+<section class="view" data-view="admin" id="adminView"></section>
 <!-- MENU / REAL PROFILE -->
 <section class="view" data-view="menu">
 <div class="profile-card">
@@ -739,6 +741,10 @@ checkDeepLink();
 function checkDeepLink(){
 var params = new URLSearchParams(window.location.search);
 var target = params.get('view');
+if(target === 'admin'){
+checkAdminAndMaybeShow();
+return;
+}
 var validTargets = ['home','shop','cart','wish','guide','payment','shipping','activity'];
 if(target && validTargets.indexOf(target) !== -1){
 showView(target);
@@ -750,6 +756,28 @@ if(cat && validCats.indexOf(cat) !== -1){
 setCategory(cat);
 }
 }
+}
+/* ---------- admin (owner-only) ---------- */
+async function checkAdminAndMaybeShow(){
+var data;
+try{
+data = await callMemberApi('admin-check');
+}catch(e){
+return;
+}
+if(data && data.isAdmin){
+renderAdminShell();
+showView('admin');
+} else {
+showToast('沒有權限');
+}
+}
+function renderAdminShell(){
+var el = document.getElementById('adminView');
+el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>後台</h2></div>'
++ '<div class="guide-content"><p style="font-size:14px;color:var(--text-dark);line-height:1.8;">身分確認完成，妳是管理員。這裡之後會放訂單確認、結單收款、庫存管理。</p></div>';
+var backBtn = el.querySelector('.back-btn');
+if(backBtn){ backBtn.addEventListener('click', function(){ showView('home'); }); }
 }
 /* ---------- product cards ---------- */
 function visualHTML(p){
