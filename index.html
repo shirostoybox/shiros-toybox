@@ -774,44 +774,103 @@ showToast('沒有權限');
 }
 async function renderAdminShell(){
 var el = document.getElementById('adminView');
-el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>待確認訂單</h2></div>'
-+ '<div class="guide-content" id="adminPendingList"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
+el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>訂單總覽</h2></div>'
++ '<div class="guide-content" id="adminGroupList"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
 var backBtn = el.querySelector('.back-btn');
 if(backBtn){ backBtn.addEventListener('click', function(){ showView('home'); }); }
-await loadAdminPendingOrders();
+await loadAdminGroups();
 }
-async function loadAdminPendingOrders(){
-var listEl = document.getElementById('adminPendingList');
+async function loadAdminGroups(){
+var listEl = document.getElementById('adminGroupList');
 var data;
 try{
-data = await callMemberApi('admin-list-pending-orders');
+data = await callMemberApi('admin-list-order-groups');
 }catch(e){
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
 return;
 }
-var orders = data.orders || [];
+var groups = data.groups || [];
 if(!listEl) return;
-if(orders.length === 0){
-listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">目前沒有待確認的訂單。</p>';
+if(groups.length === 0){
+listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
 return;
 }
-listEl.innerHTML = orders.map(adminOrderCardHTML).join('');
-var btns = listEl.querySelectorAll('.admin-confirm-btn');
-for(var i=0;i<btns.length;i++){
-btns[i].addEventListener('click', (function(btn){
-return function(){ handleAdminConfirmOrder(btn); };
-})(btns[i]));
+listEl.innerHTML = groups.map(adminGroupHTML).join('');
+bindAdminGroupActions(listEl);
 }
+function adminCycleBannerHTML(cycle, itemCount){
+if(!cycle) return '';
+var day = cycle.dayNumber;
+var deadline = new Date(cycle.deadline);
+var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
+var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
+if(day === 2){ cls = 'cycle-banner--day2'; icon = '⏰'; mainText = '第2天・明天是最後一天！'; }
+else if(day >= 3){ cls = 'cycle-banner--day3'; icon = '🚨'; mainText = '第3天（最後一天）！'; }
+return '<div class="cycle-banner '+cls+'">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">結單倒數</p></div>'
++ '<p class="cycle-main-text">'+mainText+'</p>'
++ '<p class="cycle-sub-text">結單期限：'+deadlineStr+'前・共'+itemCount+'件商品，小計NT$'+cycle.subtotal+'</p>'
++ '</div>';
 }
-function adminOrderCardHTML(o){
+function adminOpenOrderRowHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
+var statusClass = o.status === '已確認' ? 'order-status order-status--confirmed' : 'order-status';
+var actionBtn = o.status === '待確認'
+? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">確認</button>'
+: '';
 return '<div class="order-card">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="order-status">'+(o.nickname||'客人')+'</span></div>'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
-+ '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:10px;">確認</button>'
++ actionBtn
 + '</div>';
+}
+function adminSettlementCardHTML(s){
+var itemLines = (s.items||[]).map(function(o){
+return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
+}).join('');
+var shipDetail = s.shipping_method === '黑貓宅急便'
+? '地址：'+s.address+'（'+s.delivery_time+'）'
+: '門市：'+s.store_info;
+var isPaid = s.status === '已付款';
+var actionBtn = isPaid
+? '<button class="btn btn--dark btn--full admin-shot-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">下載此訂單截圖</button>'
+: '<button class="btn btn--primary btn--full admin-paid-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">整筆訂單已付款</button>';
+var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
+return '<div class="order-card" data-settlement-card="'+s.id+'" style="margin-top:10px;">'
++ '<div class="order-top"><span class="order-no">結單 '+formatDate(s.created_at||s.cycle_deadline)+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ itemLines
++ '<div class="settle-totals" style="margin-top:10px;">'
++ '<div class="settle-item-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
++ '<div class="settle-item-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
++ (s.coupon_discount > 0 ? '<div class="settle-item-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
++ '<div class="settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ '</div>'
++ '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
++ actionBtn
++ '</div>';
+}
+function adminGroupHTML(g){
+var header = '<div class="view-heading"><h2>'+(g.nickname||'客人')+'</h2></div>';
+var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
+var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
+var settleHtml = g.settlements.map(adminSettlementCardHTML).join('');
+return '<div class="admin-group" style="margin-bottom:28px;">' + header + cycleHtml + openHtml + settleHtml + '</div>';
+}
+function bindAdminGroupActions(container){
+var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
+for(var i=0;i<confirmBtns.length;i++){
+confirmBtns[i].addEventListener('click', (function(btn){ return function(){ handleAdminConfirmOrder(btn); }; })(confirmBtns[i]));
+}
+var paidBtns = container.querySelectorAll('.admin-paid-btn');
+for(var j=0;j<paidBtns.length;j++){
+paidBtns[j].addEventListener('click', (function(btn){ return function(){ handleAdminMarkPaid(btn); }; })(paidBtns[j]));
+}
+var shotBtns = container.querySelectorAll('.admin-shot-btn');
+for(var k=0;k<shotBtns.length;k++){
+shotBtns[k].addEventListener('click', (function(btn){ return function(){ handleAdminScreenshot(btn); }; })(shotBtns[k]));
+}
 }
 async function handleAdminConfirmOrder(btn){
 btn.disabled = true; btn.textContent = '確認中...';
@@ -819,11 +878,55 @@ var orderId = btn.getAttribute('data-order-id');
 try{
 await callMemberApi('admin-confirm-order', { orderId: orderId });
 showToast('已確認');
-await loadAdminPendingOrders();
+await loadAdminGroups();
 }catch(e){
 alert('確認失敗：' + e.message);
 btn.disabled = false; btn.textContent = '確認';
 }
+}
+async function handleAdminMarkPaid(btn){
+if(!window.confirm('確定這筆已經收到匯款了嗎？這會把底下所有商品標記為已付款、計入累積消費。')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+var settlementId = btn.getAttribute('data-settlement-id');
+try{
+await callMemberApi('admin-mark-settlement-paid', { settlementId: settlementId });
+showToast('已標記付款完成');
+await loadAdminGroups();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = '整筆訂單已付款';
+}
+}
+function loadHtml2Canvas(){
+return new Promise(function(resolve, reject){
+if(window.html2canvas){ resolve(); return; }
+var s = document.createElement('script');
+s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+s.onload = function(){ resolve(); };
+s.onerror = function(){ reject(new Error('圖片工具載入失敗，請檢查網路連線')); };
+document.head.appendChild(s);
+});
+}
+async function handleAdminScreenshot(btn){
+var settlementId = btn.getAttribute('data-settlement-id');
+var card = document.querySelector('[data-settlement-card="'+settlementId+'"]');
+if(!card) return;
+var oldText = btn.textContent;
+btn.disabled = true; btn.textContent = '產生圖片中...';
+try{
+await loadHtml2Canvas();
+btn.style.display = 'none';
+var canvas = await window.html2canvas(card, { backgroundColor:'#ffffff', scale:2 });
+btn.style.display = '';
+var link = document.createElement('a');
+link.download = 'order-'+settlementId+'.png';
+link.href = canvas.toDataURL('image/png');
+link.click();
+}catch(e){
+btn.style.display = '';
+alert('截圖產生失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = oldText;
 }
 /* ---------- product cards ---------- */
 function visualHTML(p){
