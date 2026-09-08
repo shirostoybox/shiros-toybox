@@ -123,6 +123,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .order-no{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--muted); }
 .order-status{ font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:var(--r-full); background:rgba(255,102,71,.12); color:var(--ignis-deep); white-space:nowrap; }
 .order-status--confirmed{ background:rgba(33,132,82,.12); color:#1E7A4C; }
+.order-status--cancelled{ background:rgba(0,0,0,.06); color:var(--muted); }
 .order-body{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .order-product{ margin:0; font-size:14px; font-weight:700; color:var(--text-dark); }
 .order-product .sub{ display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px; }
@@ -174,6 +175,9 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .settle-item-list{ margin-bottom:6px; }
 .settle-item-row{ display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
 .settle-item-row:last-child{ border-bottom:none; }
+.settle-item-row--pending{ background:rgba(255,102,71,.06); border-radius:10px; padding:8px 10px; align-items:flex-start; }
+.settle-item-pending-note{ font-size:11px; color:var(--ignis-deep); font-weight:600; }
+.settle-item-delete{ font-size:11px; color:var(--ignis-deep); background:none; border:1px solid var(--ignis-deep); border-radius:var(--r-full); padding:3px 10px; margin-top:6px; white-space:nowrap; }
 .settle-section{ border-top:1px solid var(--line); margin-top:14px; padding-top:14px; }
 .settle-section-title{ font-size:13px; font-weight:700; color:var(--text-dark); margin:0 0 10px; }
 .settle-radio{ display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text-dark); padding:8px 0; }
@@ -306,6 +310,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
 </div>
 <p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
+<p id="settleBlockNote" style="display:none;font-size:12.5px;color:var(--ignis-deep);font-weight:600;margin:8px 0 0;background:rgba(255,102,71,.08);padding:10px 12px;border-radius:10px;"></p>
 <button class="btn btn--primary btn--full" id="settlementSubmit" style="margin-top:16px;">送出結單</button>
 </div>
 </div>
@@ -815,15 +820,17 @@ return '<div class="cycle-banner '+cls+'">'
 function adminOpenOrderRowHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
 var statusClass = o.status === '已確認' ? 'order-status order-status--confirmed' : 'order-status';
-var actionBtn = o.status === '待確認'
+var confirmBtn = o.status === '待確認'
 ? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">確認</button>'
 : '';
+var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
 return '<div class="order-card">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
-+ actionBtn
++ confirmBtn
++ cancelBtn
 + '</div>';
 }
 function adminSettlementCardHTML(s){
@@ -840,12 +847,13 @@ var actionBtn = isPaid
 var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card" data-settlement-card="'+s.id+'" style="margin-top:10px;">'
 + '<div class="order-top"><span class="order-no">結單 '+formatDate(s.created_at||s.cycle_deadline)+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + itemLines
 + '<div class="settle-totals" style="margin-top:10px;">'
-+ '<div class="settle-item-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
-+ '<div class="settle-item-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
-+ (s.coupon_discount > 0 ? '<div class="settle-item-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
-+ '<div class="settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
++ '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
++ (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
++ '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
 + actionBtn
@@ -862,6 +870,10 @@ function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
 for(var i=0;i<confirmBtns.length;i++){
 confirmBtns[i].addEventListener('click', (function(btn){ return function(){ handleAdminConfirmOrder(btn); }; })(confirmBtns[i]));
+}
+var cancelBtns = container.querySelectorAll('.admin-cancel-btn');
+for(var m=0;m<cancelBtns.length;m++){
+cancelBtns[m].addEventListener('click', (function(btn){ return function(){ handleAdminCancelOrder(btn); }; })(cancelBtns[m]));
 }
 var paidBtns = container.querySelectorAll('.admin-paid-btn');
 for(var j=0;j<paidBtns.length;j++){
@@ -882,6 +894,19 @@ await loadAdminGroups();
 }catch(e){
 alert('確認失敗：' + e.message);
 btn.disabled = false; btn.textContent = '確認';
+}
+}
+async function handleAdminCancelOrder(btn){
+if(!window.confirm('確定要標記這件商品缺貨、取消這筆訂單嗎？客人會在自己的訂單紀錄看到「缺貨已幫您取消」，不會影響他其他已確認的商品結單。')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+var orderId = btn.getAttribute('data-order-id');
+try{
+await callMemberApi('admin-cancel-order', { orderId: orderId });
+showToast('已標記缺貨取消');
+await loadAdminGroups();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = '缺貨已幫您取消';
 }
 }
 async function handleAdminMarkPaid(btn){
@@ -1122,7 +1147,9 @@ return mm+'/'+dd+' '+hh+':'+min;
 }
 function orderCardHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
-var statusClass = o.status === '已確認' ? 'order-status order-status--confirmed' : 'order-status';
+var statusClass = 'order-status';
+if(o.status === '已確認') statusClass = 'order-status order-status--confirmed';
+else if(o.status === '缺貨已幫您取消') statusClass = 'order-status order-status--cancelled';
 return '<div class="order-card">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
@@ -1205,7 +1232,7 @@ html += '<div style="margin-top:10px;'+(canReward?'':'opacity:.5;')+'">'
 return html;
 }
 function recalcSettlement(){
-var subtotal = pendingCycle.subtotal || 0;
+var subtotal = pendingCycle._confirmedSubtotal != null ? pendingCycle._confirmedSubtotal : (pendingCycle.subtotal || 0);
 var shipFee = settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0);
 var discount = (settlementState.useReferral ? 60 : 0) + settlementState.rewardCount * 60;
 var payable = subtotal + shipFee;
@@ -1226,13 +1253,62 @@ note.style.display = 'block';
 note.textContent = '⚠️ 券的總價值超過應付金額，超過部分不找零也不退還，可以減少使用張數保留到下次';
 } else { note.style.display = 'none'; }
 }
+function renderSettlementItemList(){
+var list = document.getElementById('settlementItemList');
+var confirmedSubtotal = 0, unconfirmedCount = 0;
+list.innerHTML = pendingCycle.items.map(function(o){
+var isConfirmed = o.status === '已確認';
+var lineTotal = o.price * o.quantity;
+if(isConfirmed){ confirmedSubtotal += lineTotal; } else { unconfirmedCount++; }
+var rowClass = isConfirmed ? 'settle-item-row' : 'settle-item-row settle-item-row--pending';
+var nameHtml = o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity
++ (isConfirmed ? '' : '<br><span class="settle-item-pending-note">尚未確認，這次無法結單</span>');
+var rightHtml = '<span style="display:flex;flex-direction:column;align-items:flex-end;">NT$'+lineTotal
++ (isConfirmed ? '' : '<button type="button" class="settle-item-delete" data-order-id="'+o.id+'">移除</button>')
++ '</span>';
+return '<div class="'+rowClass+'"><span>'+nameHtml+'</span>'+rightHtml+'</div>';
+}).join('');
+pendingCycle._confirmedSubtotal = confirmedSubtotal;
+pendingCycle._unconfirmedCount = unconfirmedCount;
+var delBtns = list.querySelectorAll('.settle-item-delete');
+for(var i=0;i<delBtns.length;i++){
+delBtns[i].addEventListener('click', function(){ handleDeleteOrder(this.getAttribute('data-order-id')); });
+}
+updateSettlementBlockState();
+}
+function updateSettlementBlockState(){
+var btn = document.getElementById('settlementSubmit');
+var note = document.getElementById('settleBlockNote');
+if(pendingCycle._unconfirmedCount > 0){
+btn.disabled = true;
+note.style.display = 'block';
+note.textContent = '還有 '+pendingCycle._unconfirmedCount+' 件商品尚未確認，請稍候，或點上面「移除」先拿掉，才能送出結單';
+} else {
+btn.disabled = false;
+note.style.display = 'none';
+}
+}
+async function handleDeleteOrder(orderId){
+if(!window.confirm('確定要移除這件商品嗎？移除後這次結單不會包含它。')) return;
+try{
+await callMemberApi('delete-order', { orderId: orderId });
+showToast('已移除');
+pendingCycle = await callMemberApi('get-cycle-status');
+if(!pendingCycle.hasPending){
+document.getElementById('settlementModal').classList.remove('is-open');
+} else {
+renderSettlementItemList();
+recalcSettlement();
+}
+await loadMyOrders();
+}catch(e){
+alert('移除失敗：' + e.message);
+}
+}
 function openSettlementModal(){
 if(!pendingCycle.hasPending) return;
 settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
-var list = document.getElementById('settlementItemList');
-list.innerHTML = pendingCycle.items.map(function(o){
-return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
-}).join('');
+renderSettlementItemList();
 document.getElementById('settleRecipientName').value = '';
 document.getElementById('settlePhone').value = '';
 document.getElementById('settleStoreInfo').value = '';
