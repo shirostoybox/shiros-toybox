@@ -113,6 +113,9 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .stock{ font-size:10px; font-weight:700; padding:3px 8px; border-radius:var(--r-full); }
 .stock--in{ background:rgba(33,132,82,.12); color:#1E7A4C; }
 .stock--live{ background:rgba(176,106,22,.14); color:#A5650F; }
+.stock--preorder{ background:rgba(176,106,22,.14); color:#A5650F; }
+.stock--live_limited{ background:rgba(176,106,22,.14); color:#A5650F; }
+.stock--live_ended{ background:rgba(125,130,145,.14); color:#7D8291; }
 .stock--sold_out{ background:rgba(125,130,145,.14); color:#7D8291; }
 .card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
 .card-order-btn:active{ transform:scale(.97); }
@@ -557,7 +560,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260906-5';
+var APP_VERSION = '20260908-2154';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -779,14 +782,26 @@ showToast('沒有權限');
 }
 async function renderAdminShell(){
 var el = document.getElementById('adminView');
-el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>訂單總覽</h2></div>'
-+ '<div class="guide-content" id="adminGroupList"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
+el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>後台</h2></div>'
++ '<div style="display:flex;gap:8px;padding:0 20px 12px;">'
++ '<button type="button" class="cat-tab active admin-tab-btn" data-tab="orders">訂單</button>'
++ '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>'
++ '</div>'
++ '<div class="guide-content" id="adminTabContent"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
 var backBtn = el.querySelector('.back-btn');
 if(backBtn){ backBtn.addEventListener('click', function(){ showView('home'); }); }
+var tabBtns = el.querySelectorAll('.admin-tab-btn');
+for(var t=0;t<tabBtns.length;t++){
+tabBtns[t].addEventListener('click', function(){
+for(var j=0;j<tabBtns.length;j++){ tabBtns[j].classList.remove('active'); }
+this.classList.add('active');
+if(this.getAttribute('data-tab') === 'orders'){ loadAdminGroups(); } else { loadAdminProducts(); }
+});
+}
 await loadAdminGroups();
 }
 async function loadAdminGroups(){
-var listEl = document.getElementById('adminGroupList');
+var listEl = document.getElementById('adminTabContent');
 var data;
 try{
 data = await callMemberApi('admin-list-order-groups');
@@ -953,6 +968,142 @@ alert('截圖產生失敗：' + e.message);
 }
 btn.disabled = false; btn.textContent = oldText;
 }
+async function loadAdminProducts(){
+var listEl = document.getElementById('adminTabContent');
+var data;
+try{
+data = await callMemberApi('admin-list-products');
+}catch(e){
+if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
+return;
+}
+var products = data.products || [];
+if(!listEl) return;
+var html = adminNewProductFormHTML();
+if(products.length === 0){
+html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">目前沒有商品。</p>';
+} else {
+html += '<div style="margin-top:16px;">' + products.map(adminProductRowHTML).join('') + '</div>';
+}
+listEl.innerHTML = html;
+bindAdminProductActions(listEl);
+}
+function adminNewProductFormHTML(){
+return '<button type="button" class="btn btn--dark btn--full" id="adminNewProductToggle">+ 新增商品</button>'
++ '<div id="adminNewProductForm" style="display:none;margin-top:12px;">'
++ '<input type="text" class="gate-input" id="npName" placeholder="商品名稱">'
++ '<input type="text" class="gate-input" id="npSub" placeholder="規格說明（例如：30cm）">'
++ '<select class="gate-input" id="npCat">'
++ '<option value="beyblade">戰鬥陀螺</option><option value="doll">娃娃玩偶</option><option value="anpanman">麵包超人博物館</option><option value="gacha">扭蛋</option>'
++ '</select>'
++ '<input type="number" class="gate-input" id="npPrice" placeholder="價格">'
++ '<select class="gate-input" id="npStock">'
++ '<option value="in">現貨</option><option value="preorder">預購連線</option><option value="live_limited">限時連線</option>'
++ '</select>'
++ '<input type="number" class="gate-input" id="npQty" placeholder="現貨數量（非現貨可留空）">'
++ '<input type="file" accept="image/*" class="gate-input" id="npImage" style="padding:8px;">'
++ '<button type="button" class="btn btn--primary btn--full" id="npSubmit">建立商品</button>'
++ '</div>';
+}
+var ADMIN_STOCK_OPTIONS = [
+['in','現貨'], ['preorder','預購連線'], ['live_limited','限時連線'], ['live_ended','連線已結束'], ['sold_out','缺貨']
+];
+function adminProductRowHTML(p){
+var options = ADMIN_STOCK_OPTIONS.map(function(o){
+return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
+}).join('');
+return '<div class="order-card">'
++ '<div class="order-top"><span class="order-no">'+p.name+(p.sub?'（'+p.sub+'）':'')+'</span></div>'
++ '<p class="order-time">NT$'+p.price+'</p>'
++ '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-top:8px;margin-bottom:8px;">'+options+'</select>'
++ '<div style="display:flex;gap:8px;align-items:center;">'
++ '<input type="number" class="gate-input admin-qty-input" data-product-id="'+p.id+'" value="'+(p.qty!=null?p.qty:'')+'" placeholder="庫存數量" style="margin-bottom:0;flex:1;">'
++ '<button type="button" class="btn btn--dark admin-qty-btn" data-product-id="'+p.id+'" style="white-space:nowrap;">更新庫存</button>'
++ '</div>'
++ '</div>';
+}
+function bindAdminProductActions(container){
+var toggle = document.getElementById('adminNewProductToggle');
+if(toggle){ toggle.addEventListener('click', function(){
+var form = document.getElementById('adminNewProductForm');
+form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}); }
+var submit = document.getElementById('npSubmit');
+if(submit){ submit.addEventListener('click', handleCreateProduct); }
+var selects = container.querySelectorAll('.admin-stock-select');
+for(var i=0;i<selects.length;i++){
+selects[i].addEventListener('change', function(){ handleAdminUpdateStock(this); });
+}
+var qtyBtns = container.querySelectorAll('.admin-qty-btn');
+for(var q=0;q<qtyBtns.length;q++){
+qtyBtns[q].addEventListener('click', function(){ handleAdminUpdateQty(this); });
+}
+}
+function catLabelFor(cat){
+var map = {beyblade:'戰鬥陀螺', doll:'娃娃玩偶', anpanman:'麵包超人博物館', gacha:'扭蛋'};
+return map[cat] || cat;
+}
+function fileToBase64(file){
+return new Promise(function(resolve, reject){
+var reader = new FileReader();
+reader.onload = function(){ resolve(reader.result); };
+reader.onerror = reject;
+reader.readAsDataURL(file);
+});
+}
+async function handleCreateProduct(){
+var name = document.getElementById('npName').value.trim();
+var sub = document.getElementById('npSub').value.trim();
+var cat = document.getElementById('npCat').value;
+var price = parseInt(document.getElementById('npPrice').value);
+var stock = document.getElementById('npStock').value;
+var qtyRaw = document.getElementById('npQty').value;
+var qty = qtyRaw ? parseInt(qtyRaw) : null;
+var fileInput = document.getElementById('npImage');
+if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+var btn = document.getElementById('npSubmit');
+btn.disabled = true; btn.textContent = '建立中...';
+try{
+var res = await callMemberApi('admin-create-product', {
+name: name, sub: sub, cat: cat, catLabel: catLabelFor(cat), price: price, stockStatus: stock, qty: qty
+});
+if(fileInput.files && fileInput.files[0]){
+var base64 = await fileToBase64(fileInput.files[0]);
+await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: base64 });
+}
+showToast('商品建立完成');
+await loadAdminProducts();
+}catch(e){
+alert('建立失敗：' + e.message);
+btn.disabled = false; btn.textContent = '建立商品';
+}
+}
+async function handleAdminUpdateQty(btn){
+var productId = btn.getAttribute('data-product-id');
+var input = document.querySelector('.admin-qty-input[data-product-id="'+productId+'"]');
+var qtyVal = input.value.trim();
+var qty = qtyVal === '' ? null : parseInt(qtyVal);
+btn.disabled = true;
+try{
+await callMemberApi('admin-update-qty', { productId: productId, qty: qty });
+showToast('庫存已更新');
+}catch(e){
+alert('更新失敗：' + e.message);
+}
+btn.disabled = false;
+}
+async function handleAdminUpdateStock(select){
+var productId = select.getAttribute('data-product-id');
+var status = select.value;
+select.disabled = true;
+try{
+await callMemberApi('admin-update-stock', { productId: productId, status: status });
+showToast('已更新');
+}catch(e){
+alert('更新失敗：' + e.message);
+}
+select.disabled = false;
+}
 /* ---------- product cards ---------- */
 function visualHTML(p){
 var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id + '.jpg';
@@ -971,12 +1122,14 @@ return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" da
 }
 function cardHTML(p){
 var favClass = favorites[p.id] ? 'is-fav' : '';
-var isSoldOut = p.stock === 'sold_out';
+var isUnavailable = (p.stock === 'sold_out' || p.stock === 'live_ended');
 var stockLabel;
-if(isSoldOut){ stockLabel = '已售完（尋寶中）'; }
+if(isUnavailable){ stockLabel = '已售完（尋寶中）'; }
 else if(p.stock === 'in'){ stockLabel = '現貨'; if(p.qty){ stockLabel += '・剩' + p.qty; } }
+else if(p.stock === 'preorder'){ stockLabel = '預購連線'; }
+else if(p.stock === 'live_limited'){ stockLabel = '限時連線'; }
 else { stockLabel = '連線'; }
-var orderBtnHTML = isSoldOut
+var orderBtnHTML = isUnavailable
 ? '<button class="card-order-btn" disabled style="opacity:.45;">已售完</button>'
 : '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 return '<article class="card">'
