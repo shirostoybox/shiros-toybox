@@ -560,7 +560,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260908-2239';
+var APP_VERSION = '20260908-2249';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1024,8 +1024,12 @@ function adminProductRowHTML(p){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
 }).join('');
+var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id + '.jpg?t=' + Date.now();
 return '<div class="order-card">'
-+ '<div class="order-top"><span class="order-no">'+p.name+(p.sub?'（'+p.sub+'）':'')+'</span></div>'
++ '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">'
++ '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;" onerror="this.style.visibility=\'hidden\';">'
++ '<span style="font-size:14px;font-weight:700;color:var(--text-dark);">'+p.name+(p.sub?'（'+p.sub+'）':'')+'</span>'
++ '</div>'
 + '<p class="order-time">NT$'+p.price+'</p>'
 + '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-top:8px;margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
@@ -1095,6 +1099,11 @@ var compressed = await compressImage(input.files[0]);
 await callMemberApi('admin-upload-product-image', { productId: productId, imageData: compressed });
 showToast('圖片已更新');
 input.value = '';
+var thumb = document.querySelector('.admin-product-thumb[data-product-id="'+productId+'"]');
+if(thumb){
+thumb.style.visibility = 'visible';
+thumb.src = SUPABASE_URL + '/storage/v1/object/public/product-images/' + productId + '.jpg?t=' + Date.now();
+}
 }catch(e){
 alert('上傳失敗：' + e.message);
 }
