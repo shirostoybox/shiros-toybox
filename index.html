@@ -404,6 +404,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </section>
 <!-- CART / REAL ORDERS -->
 <section class="view" data-view="cart" id="cartView"></section>
+<section class="view" data-view="history" id="historyView"></section>
 <!-- ADMIN (owner-only, not linked from nav) -->
 <section class="view" data-view="admin" id="adminView"></section>
 <!-- MENU / REAL PROFILE -->
@@ -560,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260908-2249';
+var APP_VERSION = '20260908-2258';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1588,7 +1589,8 @@ var view = document.getElementById('cartView');
 var badge = document.getElementById('cartBadge');
 if(myOrders.length > 0){ badge.textContent = myOrders.length; badge.style.display = 'flex'; }
 else { badge.style.display = 'none'; }
-var html = cycleBannerHTML() + balanceCardHTML();
+var html = '<div style="display:flex;justify-content:flex-end;padding:0 20px;"><button type="button" class="history-link-btn" id="openHistoryBtn" style="background:none;border:none;font-size:13px;color:var(--muted);font-family:var(--font-body);padding:6px 0;">歷史訂單 ›</button></div>';
+html += cycleBannerHTML() + balanceCardHTML();
 if(myOrders.length === 0){
 html += '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
 } else {
@@ -1605,6 +1607,49 @@ var myDelBtns = view.querySelectorAll('.my-order-delete');
 for(var d=0; d<myDelBtns.length; d++){
 myDelBtns[d].addEventListener('click', (function(btn){ return function(){ handleDeleteOrder(btn.getAttribute('data-order-id')); }; })(myDelBtns[d]));
 }
+var historyBtn = document.getElementById('openHistoryBtn');
+if(historyBtn) historyBtn.addEventListener('click', function(){ showView('history'); });
+}
+function myHistorySettlementHTML(s){
+var itemLines = (s.items||[]).map(function(o){
+return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
+}).join('');
+var shipDetail = s.shipping_method === '黑貓宅急便'
+? '地址：'+s.address+'（'+s.delivery_time+'）'
+: '門市：'+s.store_info;
+var statusClass = s.status === '已付款' ? 'order-status order-status--confirmed' : 'order-status';
+return '<div class="order-card" style="margin-top:10px;">'
++ '<div class="order-top"><span class="order-no">結單 '+formatDate(s.created_at||s.cycle_deadline)+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ itemLines
++ '<div class="settle-totals" style="margin-top:10px;">'
++ '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
++ '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
++ (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
++ '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ '</div>'
++ '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
++ '</div>';
+}
+async function loadMySettlements(){
+var view = document.getElementById('historyView');
+view.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="cart">‹ 返回</button><h2>歷史訂單</h2></div>'
++ '<div class="guide-content" id="myHistoryList"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
+var backBtn = view.querySelector('.back-btn');
+if(backBtn){ backBtn.addEventListener('click', function(){ showView('cart'); }); }
+var listEl = document.getElementById('myHistoryList');
+var data;
+try{
+data = await callMemberApi('get-my-settlements');
+}catch(e){
+if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
+return;
+}
+var settlements = data.settlements || [];
+if(settlements.length === 0){
+listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">還沒有結單紀錄。</p>';
+return;
+}
+listEl.innerHTML = settlements.map(myHistorySettlementHTML).join('');
 }
 /* ---------- view switching ---------- */
 function showView(name){
@@ -1615,6 +1660,7 @@ for(var j=0;j<navs.length;j++){ navs[j].classList.toggle('active', navs[j].getAt
 window.scrollTo(0,0);
 if(name === 'cart'){ loadMyOrders(); }
 if(name === 'shop'){ refreshShop(); }
+if(name === 'history'){ loadMySettlements(); }
 }
 async function refreshShop(){
 await loadProducts();
