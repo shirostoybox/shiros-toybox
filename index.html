@@ -560,7 +560,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260908-2154';
+var APP_VERSION = '20260908-2239';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -983,10 +983,22 @@ var html = adminNewProductFormHTML();
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">目前沒有商品。</p>';
 } else {
-html += '<div style="margin-top:16px;">' + products.map(adminProductRowHTML).join('') + '</div>';
+html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + '</div>';
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
+}
+function adminProductsGroupedHTML(products){
+var html = '', lastCat = null;
+for(var i=0;i<products.length;i++){
+var p = products[i];
+if(p.cat !== lastCat){
+html += '<div class="view-heading" style="margin-top:'+(lastCat===null?'0':'20px')+';"><h2>'+(p.cat_label || catLabelFor(p.cat))+'</h2></div>';
+lastCat = p.cat;
+}
+html += adminProductRowHTML(p);
+}
+return html;
 }
 function adminNewProductFormHTML(){
 return '<button type="button" class="btn btn--dark btn--full" id="adminNewProductToggle">+ 新增商品</button>'
@@ -1020,6 +1032,10 @@ return '<div class="order-card">'
 + '<input type="number" class="gate-input admin-qty-input" data-product-id="'+p.id+'" value="'+(p.qty!=null?p.qty:'')+'" placeholder="庫存數量" style="margin-bottom:0;flex:1;">'
 + '<button type="button" class="btn btn--dark admin-qty-btn" data-product-id="'+p.id+'" style="white-space:nowrap;">更新庫存</button>'
 + '</div>'
++ '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;">'
++ '<input type="file" accept="image/*" class="gate-input admin-image-input" data-product-id="'+p.id+'" style="margin-bottom:0;flex:1;padding:8px;">'
++ '<button type="button" class="btn btn--dark admin-image-btn" data-product-id="'+p.id+'" style="white-space:nowrap;">上傳圖片</button>'
++ '</div>'
 + '</div>';
 }
 function bindAdminProductActions(container){
@@ -1038,18 +1054,51 @@ var qtyBtns = container.querySelectorAll('.admin-qty-btn');
 for(var q=0;q<qtyBtns.length;q++){
 qtyBtns[q].addEventListener('click', function(){ handleAdminUpdateQty(this); });
 }
+var imgBtns = container.querySelectorAll('.admin-image-btn');
+for(var m=0;m<imgBtns.length;m++){
+imgBtns[m].addEventListener('click', function(){ handleAdminUploadImage(this); });
+}
 }
 function catLabelFor(cat){
 var map = {beyblade:'戰鬥陀螺', doll:'娃娃玩偶', anpanman:'麵包超人博物館', gacha:'扭蛋'};
 return map[cat] || cat;
 }
-function fileToBase64(file){
+function compressImage(file){
 return new Promise(function(resolve, reject){
-var reader = new FileReader();
-reader.onload = function(){ resolve(reader.result); };
-reader.onerror = reject;
-reader.readAsDataURL(file);
+var img = new Image();
+var url = URL.createObjectURL(file);
+img.onload = function(){
+URL.revokeObjectURL(url);
+var maxDim = 1200;
+var w = img.width, h = img.height;
+if(w > maxDim || h > maxDim){
+if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+else { w = Math.round(w * maxDim / h); h = maxDim; }
+}
+var canvas = document.createElement('canvas');
+canvas.width = w; canvas.height = h;
+var ctx = canvas.getContext('2d');
+ctx.drawImage(img, 0, 0, w, h);
+resolve(canvas.toDataURL('image/jpeg', 0.8));
+};
+img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('圖片讀取失敗')); };
+img.src = url;
 });
+}
+async function handleAdminUploadImage(btn){
+var productId = btn.getAttribute('data-product-id');
+var input = document.querySelector('.admin-image-input[data-product-id="'+productId+'"]');
+if(!input.files || !input.files[0]){ alert('請先選擇圖片'); return; }
+btn.disabled = true; var oldText = btn.textContent; btn.textContent = '上傳中...';
+try{
+var compressed = await compressImage(input.files[0]);
+await callMemberApi('admin-upload-product-image', { productId: productId, imageData: compressed });
+showToast('圖片已更新');
+input.value = '';
+}catch(e){
+alert('上傳失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = oldText;
 }
 async function handleCreateProduct(){
 var name = document.getElementById('npName').value.trim();
@@ -1068,7 +1117,7 @@ var res = await callMemberApi('admin-create-product', {
 name: name, sub: sub, cat: cat, catLabel: catLabelFor(cat), price: price, stockStatus: stock, qty: qty
 });
 if(fileInput.files && fileInput.files[0]){
-var base64 = await fileToBase64(fileInput.files[0]);
+var base64 = await compressImage(fileInput.files[0]);
 await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: base64 });
 }
 showToast('商品建立完成');
