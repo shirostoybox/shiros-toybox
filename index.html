@@ -1150,11 +1150,15 @@ var total = o.price ? (o.price * o.quantity) : null;
 var statusClass = 'order-status';
 if(o.status === '已確認') statusClass = 'order-status order-status--confirmed';
 else if(o.status === '缺貨已幫您取消') statusClass = 'order-status order-status--cancelled';
+var deleteBtn = o.status === '待確認'
+? '<button type="button" class="settle-item-delete my-order-delete" data-order-id="'+o.id+'" style="margin-top:8px;">移除</button>'
+: '';
 return '<div class="order-card">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
++ deleteBtn
 + '</div>';
 }
 function balanceCardHTML(){
@@ -1386,6 +1390,10 @@ var settleBtn = document.getElementById('openSettlementBtn');
 if(settleBtn) settleBtn.addEventListener('click', openSettlementModal);
 var redeemBtn = document.getElementById('redeemCouponBtn');
 if(redeemBtn) redeemBtn.addEventListener('click', handleRedeemCoupon);
+var myDelBtns = view.querySelectorAll('.my-order-delete');
+for(var d=0; d<myDelBtns.length; d++){
+myDelBtns[d].addEventListener('click', (function(btn){ return function(){ handleDeleteOrder(btn.getAttribute('data-order-id')); }; })(myDelBtns[d]));
+}
 }
 /* ---------- view switching ---------- */
 function showView(name){
