@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260909-2104';
+var APP_VERSION = '20260909-2137';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -840,7 +840,7 @@ var confirmBtn = o.status === '待確認'
 ? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">確認</button>'
 : '';
 var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
-return '<div class="order-card">'
+return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
@@ -860,8 +860,9 @@ var isPaid = s.status === '已付款';
 var actionBtn = isPaid
 ? '<button class="btn btn--dark btn--full admin-shot-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">下載此訂單截圖</button>'
 : '<button class="btn btn--primary btn--full admin-paid-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">整筆訂單已付款</button>';
+var deleteBtn = '<button type="button" class="btn btn--full admin-delete-settlement-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);">刪除這筆結單</button>';
 var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
-return '<div class="order-card" data-settlement-card="'+s.id+'" style="margin-top:10px;">'
+return '<div data-settlement-card="'+s.id+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + itemLines
@@ -873,14 +874,15 @@ return '<div class="order-card" data-settlement-card="'+s.id+'" style="margin-to
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
 + actionBtn
++ deleteBtn
 + '</div>';
 }
 function adminGroupHTML(g){
-var header = '<div class="view-heading"><h2>'+(g.nickname||'客人')+'</h2></div>';
+var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">'+(g.nickname||'客人')+'</h2>';
 var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
 var settleHtml = g.settlements.map(adminSettlementCardHTML).join('');
-return '<div class="admin-group" style="margin-bottom:28px;">' + header + cycleHtml + openHtml + settleHtml + '</div>';
+return '<div class="order-card admin-group" style="margin-bottom:20px;">' + header + cycleHtml + openHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
@@ -898,6 +900,10 @@ paidBtns[j].addEventListener('click', (function(btn){ return function(){ handleA
 var shotBtns = container.querySelectorAll('.admin-shot-btn');
 for(var k=0;k<shotBtns.length;k++){
 shotBtns[k].addEventListener('click', (function(btn){ return function(){ handleAdminScreenshot(btn); }; })(shotBtns[k]));
+}
+var delSettleBtns = container.querySelectorAll('.admin-delete-settlement-btn');
+for(var n=0;n<delSettleBtns.length;n++){
+delSettleBtns[n].addEventListener('click', (function(btn){ return function(){ handleAdminDeleteSettlement(btn); }; })(delSettleBtns[n]));
 }
 }
 async function handleAdminConfirmOrder(btn){
@@ -938,6 +944,19 @@ alert('操作失敗：' + e.message);
 btn.disabled = false; btn.textContent = '整筆訂單已付款';
 }
 }
+async function handleAdminDeleteSettlement(btn){
+if(!window.confirm('確定要刪除這筆結單嗎？底下的商品訂單會一起刪除，這個動作沒辦法復原。')) return;
+btn.disabled = true; btn.textContent = '刪除中...';
+var settlementId = btn.getAttribute('data-settlement-id');
+try{
+await callMemberApi('admin-delete-settlement', { settlementId: settlementId });
+showToast('已刪除');
+await loadAdminGroups();
+}catch(e){
+alert('刪除失敗：' + e.message);
+btn.disabled = false; btn.textContent = '刪除這筆結單';
+}
+}
 function loadHtml2Canvas(){
 return new Promise(function(resolve, reject){
 if(window.html2canvas){ resolve(); return; }
@@ -956,9 +975,12 @@ var oldText = btn.textContent;
 btn.disabled = true; btn.textContent = '產生圖片中...';
 try{
 await loadHtml2Canvas();
+var delBtn = card.querySelector('.admin-delete-settlement-btn');
 btn.style.display = 'none';
+if(delBtn) delBtn.style.display = 'none';
 var canvas = await window.html2canvas(card, { backgroundColor:'#ffffff', scale:2 });
 btn.style.display = '';
+if(delBtn) delBtn.style.display = '';
 var orderNoText = card.querySelector('.order-no');
 var fileLabel = orderNoText ? orderNoText.textContent.replace(/\s+/g,'') : settlementId;
 var link = document.createElement('a');
@@ -967,6 +989,7 @@ link.href = canvas.toDataURL('image/png');
 link.click();
 }catch(e){
 btn.style.display = '';
+if(delBtn) delBtn.style.display = '';
 alert('截圖產生失敗：' + e.message);
 }
 btn.disabled = false; btn.textContent = oldText;
