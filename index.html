@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260908-2258';
+var APP_VERSION = '20260909-2104';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -862,7 +862,7 @@ var actionBtn = isPaid
 : '<button class="btn btn--primary btn--full admin-paid-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">整筆訂單已付款</button>';
 var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card" data-settlement-card="'+s.id+'" style="margin-top:10px;">'
-+ '<div class="order-top"><span class="order-no">結單 '+formatDate(s.created_at||s.cycle_deadline)+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + itemLines
 + '<div class="settle-totals" style="margin-top:10px;">'
@@ -959,8 +959,10 @@ await loadHtml2Canvas();
 btn.style.display = 'none';
 var canvas = await window.html2canvas(card, { backgroundColor:'#ffffff', scale:2 });
 btn.style.display = '';
+var orderNoText = card.querySelector('.order-no');
+var fileLabel = orderNoText ? orderNoText.textContent.replace(/\s+/g,'') : settlementId;
 var link = document.createElement('a');
-link.download = 'order-'+settlementId+'.png';
+link.download = fileLabel+'.png';
 link.href = canvas.toDataURL('image/png');
 link.click();
 }catch(e){
@@ -1619,7 +1621,7 @@ var shipDetail = s.shipping_method === '黑貓宅急便'
 : '門市：'+s.store_info;
 var statusClass = s.status === '已付款' ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card" style="margin-top:10px;">'
-+ '<div class="order-top"><span class="order-no">結單 '+formatDate(s.created_at||s.cycle_deadline)+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
 + itemLines
 + '<div class="settle-totals" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
