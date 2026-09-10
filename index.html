@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260909-2137';
+var APP_VERSION = '20260910-2115';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1046,18 +1046,23 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 var ADMIN_STOCK_OPTIONS = [
 ['in','現貨'], ['preorder','預購連線'], ['live_limited','限時連線'], ['live_ended','連線已結束'], ['sold_out','缺貨']
 ];
+function escAttr(s){
+return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
 function adminProductRowHTML(p){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
 }).join('');
 var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id + '.jpg?t=' + Date.now();
 return '<div class="order-card">'
-+ '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">'
++ '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;" onerror="this.style.visibility=\'hidden\';">'
-+ '<span style="font-size:14px;font-weight:700;color:var(--text-dark);">'+p.name+(p.sub?'（'+p.sub+'）':'')+'</span>'
++ '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin-bottom:0;flex:1;font-weight:700;">'
 + '</div>'
-+ '<p class="order-time">NT$'+p.price+'</p>'
-+ '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-top:8px;margin-bottom:8px;">'+options+'</select>'
++ '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
++ '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
++ '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
++ '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
 + '<input type="number" class="gate-input admin-qty-input" data-product-id="'+p.id+'" value="'+(p.qty!=null?p.qty:'')+'" placeholder="庫存數量" style="margin-bottom:0;flex:1;">'
 + '<button type="button" class="btn btn--dark admin-qty-btn" data-product-id="'+p.id+'" style="white-space:nowrap;">更新庫存</button>'
@@ -1068,6 +1073,23 @@ return '<div class="order-card">'
 + '</div>'
 + '</div>';
 }
+async function handleAdminSaveProductInfo(btn){
+var productId = btn.getAttribute('data-product-id');
+var nameInput = document.querySelector('.admin-name-input[data-product-id="'+productId+'"]');
+var subInput = document.querySelector('.admin-sub-input[data-product-id="'+productId+'"]');
+var priceInput = document.querySelector('.admin-price-input[data-product-id="'+productId+'"]');
+var name = nameInput.value.trim();
+var price = parseInt(priceInput.value);
+if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
+try{
+await callMemberApi('admin-update-product-info', { productId: productId, name: name, sub: subInput.value.trim(), price: price });
+showToast('已儲存');
+}catch(e){
+alert('儲存失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = oldText;
+}
 function bindAdminProductActions(container){
 var toggle = document.getElementById('adminNewProductToggle');
 if(toggle){ toggle.addEventListener('click', function(){
@@ -1076,6 +1098,10 @@ form.style.display = form.style.display === 'none' ? 'block' : 'none';
 }); }
 var submit = document.getElementById('npSubmit');
 if(submit){ submit.addEventListener('click', handleCreateProduct); }
+var saveInfoBtns = container.querySelectorAll('.admin-save-info-btn');
+for(var s=0;s<saveInfoBtns.length;s++){
+saveInfoBtns[s].addEventListener('click', function(){ handleAdminSaveProductInfo(this); });
+}
 var selects = container.querySelectorAll('.admin-stock-select');
 for(var i=0;i<selects.length;i++){
 selects[i].addEventListener('change', function(){ handleAdminUpdateStock(this); });
