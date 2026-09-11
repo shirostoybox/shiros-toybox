@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260910-2209';
+var APP_VERSION = '20260911-2101';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -861,7 +861,7 @@ return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top
 + cancelBtn
 + '</div>';
 }
-function adminSettlementCardHTML(s){
+function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
 return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
 }).join('');
@@ -874,7 +874,8 @@ var actionBtn = isPaid
 : '<button class="btn btn--primary btn--full admin-paid-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">整筆訂單已付款</button>';
 var deleteBtn = '<button type="button" class="btn btn--full admin-delete-settlement-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);">刪除這筆結單</button>';
 var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
-return '<div data-settlement-card="'+s.id+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
+var fillColor = color ? color.mid : '#F3F4F6';
+return '<div data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + itemLines
@@ -890,14 +891,14 @@ return '<div data-settlement-card="'+s.id+'" style="border-top:1px solid var(--l
 + '</div>';
 }
 var ADMIN_CUSTOMER_COLORS = [
-{bg:'#FFF7ED', border:'#F59E0B'},
-{bg:'#F0FDF4', border:'#22C55E'},
-{bg:'#EFF6FF', border:'#3B82F6'},
-{bg:'#FDF2F8', border:'#EC4899'},
-{bg:'#FAF5FF', border:'#A855F7'},
-{bg:'#F0FDFA', border:'#14B8A6'},
-{bg:'#FFFBEB', border:'#CA8A04'},
-{bg:'#FEF2F2', border:'#EF4444'}
+{bg:'#FFF7ED', mid:'#FED7AA', border:'#F59E0B'},
+{bg:'#F0FDF4', mid:'#BBF7D0', border:'#22C55E'},
+{bg:'#EFF6FF', mid:'#BFDBFE', border:'#3B82F6'},
+{bg:'#FDF2F8', mid:'#FBCFE8', border:'#EC4899'},
+{bg:'#FAF5FF', mid:'#E9D5FF', border:'#A855F7'},
+{bg:'#F0FDFA', mid:'#99F6E4', border:'#14B8A6'},
+{bg:'#FFFBEB', mid:'#FDE68A', border:'#CA8A04'},
+{bg:'#FEF2F2', mid:'#FECACA', border:'#EF4444'}
 ];
 function colorForCustomer(key){
 var str = String(key||'');
@@ -910,7 +911,7 @@ var color = colorForCustomer(g.lineUid || g.nickname || '');
 var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">'+(g.nickname||'客人')+'</h2>';
 var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
-var settleHtml = g.settlements.map(adminSettlementCardHTML).join('');
+var settleHtml = g.settlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
 return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.border+';">' + header + cycleHtml + openHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
