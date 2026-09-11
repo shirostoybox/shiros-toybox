@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260911-2101';
+var APP_VERSION = '20260911-2122';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -912,7 +912,7 @@ var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);m
 var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
 var settleHtml = g.settlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
-return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.border+';">' + header + cycleHtml + openHtml + settleHtml + '</div>';
+return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + cycleHtml + openHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
