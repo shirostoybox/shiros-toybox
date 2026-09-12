@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260912-2120';
+var APP_VERSION = '20260912-2125';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1105,7 +1105,7 @@ var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id +
 var borderStyle = catColor ? 'border-left:3px solid '+catColor.tagText+';' : '';
 return '<div class="order-card" style="'+borderStyle+'">'
 + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">'
-+ '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;" onerror="this.style.visibility=\'hidden\';">'
++ '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin-bottom:0;flex:1;font-weight:700;">'
 + '</div>'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
@@ -1162,6 +1162,12 @@ qtyBtns[q].addEventListener('click', function(){ handleAdminUpdateQty(this); });
 var imgBtns = container.querySelectorAll('.admin-image-btn');
 for(var m=0;m<imgBtns.length;m++){
 imgBtns[m].addEventListener('click', function(){ handleAdminUploadImage(this); });
+}
+var thumbImgs = container.querySelectorAll('.admin-product-thumb');
+for(var t=0;t<thumbImgs.length;t++){
+thumbImgs[t].addEventListener('click', (function(img){
+return function(){ openLightbox(img.src); };
+})(thumbImgs[t]));
 }
 }
 var ADMIN_CATEGORY_COLORS = [
