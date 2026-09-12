@@ -561,7 +561,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260911-2155';
+var APP_VERSION = '20260912-2120';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1101,7 +1101,7 @@ function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
 }).join('');
-var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id + '.jpg?t=' + Date.now();
+var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id + '.jpg';
 var borderStyle = catColor ? 'border-left:3px solid '+catColor.tagText+';' : '';
 return '<div class="order-card" style="'+borderStyle+'">'
 + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">'
