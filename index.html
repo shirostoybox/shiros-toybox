@@ -572,7 +572,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260913-2235';
+var APP_VERSION = '20260913-2310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -879,6 +879,15 @@ return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top
 + cancelBtn
 + '</div>';
 }
+function adminCancelledOrderRowHTML(o){
+var total = o.price ? (o.price * o.quantity) : null;
+return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;opacity:.55;">'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="order-status">'+o.status+'</span></div>'
++ '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
++ '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
++ '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
++ '</div>';
+}
 function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
 return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
@@ -938,8 +947,11 @@ var restrictBtnHtml = (!g.orderRestricted && g.cycle && g.cycle.dayNumber >= 4)
 ? '<button class="admin-restrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格＋清空優惠券</button>'
 : '';
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
+var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
+? '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
+: '';
 var settleHtml = g.settlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
-return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + settleHtml + '</div>';
+return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
