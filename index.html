@@ -11,7 +11,7 @@
 <style>
 :root{
 --ink:#171A24; --ink-2:#20242F; --paper:#EFF1F4; --card:#FFFFFF;
---ignis:#FF6647; --ignis-deep:#E2472A; --volt:#2FD8C9; --volt-deep:#17B5A8;
+--ignis:#FF6647; --ignis-deep:#E2472A; --volt:#2FD8C9; --volt-deep:#17B5A8; --danger:#FF3B3B;
 --text-light:#F3F4F8; --text-dark:#1B1E27; --muted:#7D8291; --muted-light:#9AA0B4; --line:#E2E4EA;
 --r-lg:26px; --r-md:18px; --r-full:999px;
 --font-display:'Rajdhani',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
@@ -174,6 +174,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .cycle-banner--day1{ background:var(--card); border:1.5px solid var(--line); }
 .cycle-banner--day2{ background:rgba(255,102,71,.1); border:1.5px solid rgba(255,102,71,.35); }
 .cycle-banner--day3{ background:rgba(226,71,42,.12); border:1.5px solid var(--ignis-deep); }
+.cycle-banner--overdue{ background:var(--ink); border:1.5px solid var(--ink-2); }
+.cycle-banner--overdue .cycle-day-label, .cycle-banner--overdue .cycle-main-text{ color:var(--text-light); }
+.cycle-banner--overdue .cycle-sub-text{ color:var(--muted-light); }
+.cycle-warning-text{ font-size:12.5px; font-weight:600; line-height:1.55; color:var(--danger); margin:0 0 10px; }
 .cycle-banner-top{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
 .cycle-icon-pulse{ display:inline-block; font-size:18px; animation:cyclePulse 1.1s ease-in-out infinite; }
 .cycle-day-label{ font-family:var(--font-display); font-weight:700; font-size:14px; color:var(--text-dark); margin:0; }
@@ -568,7 +572,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260913-2136';
+var APP_VERSION = '20260913-2220';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -597,6 +601,7 @@ return data;
 }
 var myOrders = [];
 var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, referralCouponBalance:0, canRedeem:false };
+var myOrderRestricted = false;
 var pendingCycle = { hasPending:false };
 var settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
 var favorites = {};
@@ -844,12 +849,18 @@ var day = cycle.dayNumber;
 var deadline = new Date(cycle.deadline);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
 var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
+var subText = '結單期限：'+deadlineStr+'前・共'+itemCount+'件商品，小計NT$'+cycle.subtotal;
 if(day === 2){ cls = 'cycle-banner--day2'; icon = '⏰'; mainText = '第2天・明天是最後一天！'; }
-else if(day >= 3){ cls = 'cycle-banner--day3'; icon = '🚨'; mainText = '第3天（最後一天）！'; }
+else if(day === 3){ cls = 'cycle-banner--day3'; icon = '🚨'; mainText = '第3天（最後一天）！'; }
+else if(day >= 4){
+cls = 'cycle-banner--overdue'; icon = '⛔';
+mainText = '已逾期（第'+day+'天）';
+subText = '共'+itemCount+'件商品，小計NT$'+cycle.subtotal+'・請盡快私訊客人確認狀況';
+}
 return '<div class="cycle-banner '+cls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
-+ '<p class="cycle-sub-text">結單期限：'+deadlineStr+'前・共'+itemCount+'件商品，小計NT$'+cycle.subtotal+'</p>'
++ '<p class="cycle-sub-text">'+subText+'</p>'
 + '</div>';
 }
 function adminOpenOrderRowHTML(o){
@@ -916,10 +927,16 @@ return ADMIN_CUSTOMER_COLORS[hash % ADMIN_CUSTOMER_COLORS.length];
 function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
 var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">'+(g.nickname||'客人')+'</h2>';
+var restrictedBadge = g.orderRestricted
+? '<p style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin:0 0 10px;">🚫 已限制下單資格</p>'
+: '';
 var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
+var restrictBtnHtml = (!g.orderRestricted && g.cycle && g.cycle.dayNumber >= 4)
+? '<button class="admin-restrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格＋清空優惠券</button>'
+: '';
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
 var settleHtml = g.settlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
-return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + cycleHtml + openHtml + settleHtml + '</div>';
+return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
@@ -941,6 +958,10 @@ shotBtns[k].addEventListener('click', (function(btn){ return function(){ handleA
 var delSettleBtns = container.querySelectorAll('.admin-delete-settlement-btn');
 for(var n=0;n<delSettleBtns.length;n++){
 delSettleBtns[n].addEventListener('click', (function(btn){ return function(){ handleAdminDeleteSettlement(btn); }; })(delSettleBtns[n]));
+}
+var restrictBtns = container.querySelectorAll('.admin-restrict-btn');
+for(var r=0;r<restrictBtns.length;r++){
+restrictBtns[r].addEventListener('click', (function(btn){ return function(){ handleAdminRestrictCustomer(btn); }; })(restrictBtns[r]));
 }
 }
 async function handleAdminConfirmOrder(btn){
@@ -992,6 +1013,19 @@ await loadAdminGroups();
 }catch(e){
 alert('刪除失敗：' + e.message);
 btn.disabled = false; btn.textContent = '刪除這筆結單';
+}
+}
+async function handleAdminRestrictCustomer(btn){
+if(!window.confirm('確定要限制這位客人的下單資格嗎？\n\n執行後：\n・目前所有未使用的回饋券／免運券會清空\n・客人之後將無法再喊單\n・現有訂單不會被刪除或取消\n\n此動作無法復原，建議私訊客人未獲回應後再執行。')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+var lineUid = btn.getAttribute('data-line-uid');
+try{
+await callMemberApi('admin-restrict-customer', { lineUid: lineUid });
+showToast('已限制下單資格');
+await loadAdminGroups();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = '限制下單資格＋清空優惠券';
 }
 }
 function loadHtml2Canvas(){
@@ -1391,9 +1425,14 @@ else if(p.stock === 'in'){ stockLabel = '現貨'; if(p.qty){ stockLabel += '・�
 else if(p.stock === 'preorder'){ stockLabel = '預購連線'; }
 else if(p.stock === 'live_limited'){ stockLabel = '限時連線'; }
 else { stockLabel = '連線'; }
-var orderBtnHTML = isUnavailable
-? '<button class="card-order-btn" disabled style="opacity:.45;">已售完</button>'
-: '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
+var orderBtnHTML;
+if(myOrderRestricted){
+orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已暫停下單</button>';
+} else if(isUnavailable){
+orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已售完</button>';
+} else {
+orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
+}
 return '<article class="card">'
 + '<div class="card-visual">' + visualHTML(p)
 + '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
@@ -1606,12 +1645,15 @@ couponBalance: data.couponBalance || 0,
 referralCouponBalance: data.referralCouponBalance || 0,
 canRedeem: !!data.canRedeem
 };
+myOrderRestricted = !!data.orderRestricted;
 try{
 pendingCycle = await callMemberApi('get-cycle-status');
 }catch(e){
 pendingCycle = { hasPending:false };
 }
 renderOrders();
+renderHome();
+renderShop();
 }
 function formatDate(iso){
 var d = new Date(iso);
@@ -1669,17 +1711,25 @@ var day = pendingCycle.dayNumber;
 var deadline = new Date(pendingCycle.deadline);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
 var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
+var warningHTML = '';
+var subText = '結單期限：'+deadlineStr+'前・共'+pendingCycle.itemCount+'件商品，小計NT$'+pendingCycle.subtotal+'<br>建議提早完成結單，才有充裕時間完成匯款';
 if(day === 2){
 cls = 'cycle-banner--day2'; icon = '⏰';
 mainText = '第2天・明天是最後一天！';
-} else if(day >= 3){
+} else if(day === 3){
 cls = 'cycle-banner--day3'; icon = '🚨';
 mainText = '第3天（最後一天）！請於今天24:00前結單並完成付款';
+} else if(day >= 4){
+cls = 'cycle-banner--overdue'; icon = '⛔';
+mainText = '已逾期';
+warningHTML = '<p class="cycle-warning-text">已逾期，請立即私訊官方LINE說明原因，否則將清空優惠券、移出社團並永久封鎖，恕不再開放加入。</p>';
+subText = '共'+pendingCycle.itemCount+'件商品，小計NT$'+pendingCycle.subtotal;
 }
 return '<div class="cycle-banner '+cls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
-+ '<p class="cycle-sub-text">結單期限：'+deadlineStr+'前・共'+pendingCycle.itemCount+'件商品，小計NT$'+pendingCycle.subtotal+'<br>建議提早完成結單，才有充裕時間完成匯款</p>'
++ warningHTML
++ '<p class="cycle-sub-text">'+subText+'</p>'
 + '<button class="btn btn--primary btn--full" id="openSettlementBtn">前往結單</button>'
 + '</div>';
 }
