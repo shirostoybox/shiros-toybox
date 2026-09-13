@@ -94,7 +94,11 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .lightbox-overlay{ position:fixed; inset:0; background:rgba(10,11,15,.94); display:none; align-items:center; justify-content:center; z-index:250; }
 .lightbox-overlay.is-open{ display:flex; }
 .lightbox-img{ max-width:92%; max-height:82vh; object-fit:contain; border-radius:12px; }
-.lightbox-close{ position:absolute; top:20px; right:20px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:16px; }
+.lightbox-close{ position:absolute; top:20px; right:20px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:16px; z-index:2; }
+.lightbox-nav{ position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:24px; line-height:1; display:flex; align-items:center; justify-content:center; z-index:2; }
+.lightbox-nav.lightbox-prev{ left:10px; }
+.lightbox-nav.lightbox-next{ right:10px; }
+.lightbox-counter{ position:absolute; bottom:26px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.18); color:#fff; font-size:12px; padding:4px 13px; border-radius:20px; z-index:2; }
 .modal-photo{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:var(--r-md); margin-bottom:14px; background:var(--paper); cursor:pointer; }
 .cat-badge{ width:54px; height:54px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--text-dark); }
 .cat-badge svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; }
@@ -280,7 +284,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </div>
 <div class="lightbox-overlay" id="lightboxOverlay">
 <button class="lightbox-close" id="lightboxClose">✕</button>
+<button class="lightbox-nav lightbox-prev" id="lightboxPrev" style="display:none;">‹</button>
 <img class="lightbox-img" id="lightboxImg" src="" alt="">
+<button class="lightbox-nav lightbox-next" id="lightboxNext" style="display:none;">›</button>
+<div class="lightbox-counter" id="lightboxCounter" style="display:none;"></div>
 </div>
 <div class="modal-overlay" id="settlementModal">
 <div class="modal-card" style="max-height:82vh;overflow-y:auto;">
@@ -561,7 +568,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260913-2112';
+var APP_VERSION = '20260913-2136';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1182,7 +1189,7 @@ imgBtns[m].addEventListener('click', function(){ handleAdminUploadImage(this); }
 var thumbImgs = container.querySelectorAll('.admin-product-thumb');
 for(var t=0;t<thumbImgs.length;t++){
 thumbImgs[t].addEventListener('click', (function(img){
-return function(){ openLightbox(img.src); };
+return function(){ openProductGallery(img.getAttribute('data-product-id'), img.src); };
 })(thumbImgs[t]));
 }
 var photoSlots = container.querySelectorAll('.admin-photo-slot');
@@ -1371,7 +1378,7 @@ fallbackInner = '<div class="disc" style="--size:58px;--c1:'+c1+';--c2:'+c2+'"><
 fallbackInner = '<div class="cat-badge">'+catIcon(p.cat)+'</div>';
 }
 var spinBadge = '';
-return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" data-zoom="'+imgUrl+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" data-zoom="'+imgUrl+'" data-gallery-id="'+p.id+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
 + '<div class="visual-fallback">' + fallbackInner + '</div>'
 + spinBadge;
 }
@@ -1419,7 +1426,7 @@ if(product) openOrderModal(product);
 var zoomImgs = container.querySelectorAll('.zoomable');
 for(var z=0;z<zoomImgs.length;z++){
 zoomImgs[z].addEventListener('click', (function(img){
-return function(){ openLightbox(img.getAttribute('data-zoom') || img.src); };
+return function(){ openProductGallery(img.getAttribute('data-gallery-id'), img.getAttribute('data-zoom') || img.src); };
 })(zoomImgs[z]));
 }
 }
@@ -1487,7 +1494,7 @@ extraRow.style.display = 'flex';
 var extraImgs = extraRow.querySelectorAll('.modal-extra-thumb');
 for(var ei=0;ei<extraImgs.length;ei++){
 extraImgs[ei].addEventListener('click', (function(img){
-return function(){ openLightbox(img.getAttribute('data-zoom')); };
+return function(){ openProductGallery(product.id, img.getAttribute('data-zoom')); };
 })(extraImgs[ei]));
 }
 document.getElementById('orderModalTitle').textContent = product.name;
@@ -1503,10 +1510,55 @@ document.getElementById('orderModal').classList.add('is-open');
 function closeOrderModal(){
 document.getElementById('orderModal').classList.remove('is-open');
 }
-function openLightbox(url){
-document.getElementById('lightboxImg').src = url;
-document.getElementById('lightboxOverlay').classList.add('is-open');
+var galleryUrls = [];
+var galleryIndex = 0;
+var galleryLoadToken = 0;
+function renderGalleryNav(){
+var multi = galleryUrls.length > 1;
+document.getElementById('lightboxPrev').style.display = multi ? 'flex' : 'none';
+document.getElementById('lightboxNext').style.display = multi ? 'flex' : 'none';
+var counter = document.getElementById('lightboxCounter');
+counter.style.display = multi ? '' : 'none';
+counter.textContent = (galleryIndex+1) + ' / ' + galleryUrls.length;
 }
+function galleryShowIndex(i){
+galleryIndex = (i + galleryUrls.length) % galleryUrls.length;
+document.getElementById('lightboxImg').src = galleryUrls[galleryIndex];
+renderGalleryNav();
+}
+function galleryPrev(){ galleryShowIndex(galleryIndex - 1); }
+function galleryNext(){ galleryShowIndex(galleryIndex + 1); }
+function openProductGallery(productId, startUrl){
+var cover = SUPABASE_URL + '/storage/v1/object/public/product-images/' + productId + '.jpg';
+var shownUrl = startUrl || cover;
+var token = ++galleryLoadToken;
+galleryUrls = [shownUrl];
+galleryIndex = 0;
+document.getElementById('lightboxImg').src = shownUrl;
+renderGalleryNav();
+document.getElementById('lightboxOverlay').classList.add('is-open');
+var slotNums = [2,3,4,5];
+var results = [null,null,null,null];
+var pending = slotNums.length;
+slotNums.forEach(function(slotNum, i){
+var slotUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + productId + '-' + slotNum + '.jpg';
+var probe = new Image();
+probe.onload = function(){ results[i] = slotUrl; settle(); };
+probe.onerror = function(){ settle(); };
+probe.src = slotUrl;
+});
+function settle(){
+pending--;
+if(pending > 0 || token !== galleryLoadToken) return;
+var ordered = [cover];
+results.forEach(function(u){ if(u) ordered.push(u); });
+galleryUrls = ordered;
+var idx = ordered.indexOf(shownUrl);
+galleryIndex = idx !== -1 ? idx : 0;
+renderGalleryNav();
+}
+}
+function openLightbox(url){ openProductGallery('', url); }
 function closeLightbox(){
 document.getElementById('lightboxOverlay').classList.remove('is-open');
 }
@@ -1952,9 +2004,22 @@ recalcSettlement();
 }
 document.getElementById('settlementSubmit').addEventListener('click', handleSubmitSettlement);
 document.getElementById('lightboxOverlay').addEventListener('click', function(e){ if(e.target === this) closeLightbox(); });
+document.getElementById('lightboxPrev').addEventListener('click', function(e){ e.stopPropagation(); galleryPrev(); });
+document.getElementById('lightboxNext').addEventListener('click', function(e){ e.stopPropagation(); galleryNext(); });
+(function(){
+var lbOverlay = document.getElementById('lightboxOverlay');
+var touchStartX = null;
+lbOverlay.addEventListener('touchstart', function(e){ touchStartX = e.changedTouches[0].clientX; }, {passive:true});
+lbOverlay.addEventListener('touchend', function(e){
+if(touchStartX === null || galleryUrls.length < 2) { touchStartX = null; return; }
+var dx = e.changedTouches[0].clientX - touchStartX;
+if(Math.abs(dx) > 40){ if(dx < 0) galleryNext(); else galleryPrev(); }
+touchStartX = null;
+}, {passive:true});
+})();
 document.getElementById('orderModalPhoto').addEventListener('click', function(){
 var url = this.getAttribute('data-zoom');
-if(url) openLightbox(url);
+if(url && orderModalProduct) openProductGallery(orderModalProduct.id, url);
 });
 document.getElementById('qtyMinus').addEventListener('click', function(){
 if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; }
