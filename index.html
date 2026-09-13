@@ -572,7 +572,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260913-2220';
+var APP_VERSION = '20260913-2235';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -928,7 +928,10 @@ function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
 var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">'+(g.nickname||'客人')+'</h2>';
 var restrictedBadge = g.orderRestricted
-? '<p style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin:0 0 10px;">🚫 已限制下單資格</p>'
+? '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
++ '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);">🚫 已限制下單資格</span>'
++ '<button class="admin-unrestrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">恢復下單資格</button>'
++ '</div>'
 : '';
 var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
 var restrictBtnHtml = (!g.orderRestricted && g.cycle && g.cycle.dayNumber >= 4)
@@ -962,6 +965,10 @@ delSettleBtns[n].addEventListener('click', (function(btn){ return function(){ ha
 var restrictBtns = container.querySelectorAll('.admin-restrict-btn');
 for(var r=0;r<restrictBtns.length;r++){
 restrictBtns[r].addEventListener('click', (function(btn){ return function(){ handleAdminRestrictCustomer(btn); }; })(restrictBtns[r]));
+}
+var unrestrictBtns = container.querySelectorAll('.admin-unrestrict-btn');
+for(var u=0;u<unrestrictBtns.length;u++){
+unrestrictBtns[u].addEventListener('click', (function(btn){ return function(){ handleAdminUnrestrictCustomer(btn); }; })(unrestrictBtns[u]));
 }
 }
 async function handleAdminConfirmOrder(btn){
@@ -1016,7 +1023,7 @@ btn.disabled = false; btn.textContent = '刪除這筆結單';
 }
 }
 async function handleAdminRestrictCustomer(btn){
-if(!window.confirm('確定要限制這位客人的下單資格嗎？\n\n執行後：\n・目前所有未使用的回饋券／免運券會清空\n・客人之後將無法再喊單\n・現有訂單不會被刪除或取消\n\n此動作無法復原，建議私訊客人未獲回應後再執行。')) return;
+if(!window.confirm('確定要限制這位客人的下單資格嗎？\n\n執行後：\n・目前所有未使用的回饋券／免運券會清空（無法復原）\n・客人之後將無法再喊單，可隨時手動恢復\n・現有訂單不會被刪除或取消\n\n建議私訊客人未獲回應後再執行。')) return;
 btn.disabled = true; btn.textContent = '處理中...';
 var lineUid = btn.getAttribute('data-line-uid');
 try{
@@ -1026,6 +1033,19 @@ await loadAdminGroups();
 }catch(e){
 alert('操作失敗：' + e.message);
 btn.disabled = false; btn.textContent = '限制下單資格＋清空優惠券';
+}
+}
+async function handleAdminUnrestrictCustomer(btn){
+if(!window.confirm('確定要恢復這位客人的下單資格嗎？\n\n優惠券不會恢復，只會解除下單限制。')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+var lineUid = btn.getAttribute('data-line-uid');
+try{
+await callMemberApi('admin-unrestrict-customer', { lineUid: lineUid });
+showToast('已恢復下單資格');
+await loadAdminGroups();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = '恢復下單資格';
 }
 }
 function loadHtml2Canvas(){
