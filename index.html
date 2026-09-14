@@ -48,7 +48,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .greeting{ margin:0 0 6px; font-size:14.5px; color:var(--muted-light); font-weight:500; }
 .wordmark{ margin:0 0 14px; font-family:var(--font-display); font-weight:700; font-size:clamp(28px,8vw,36px); line-height:1.08; letter-spacing:-.01em; color:var(--text-light); }
 .hero-desc{ margin:0 0 14px; font-size:13.5px; line-height:1.75; color:var(--muted-light); }
-.hero-next-trip{ display:inline-block; margin:0 0 14px; padding:6px 14px; border-radius:var(--r-full); background:rgba(47,216,201,.15); border:1px solid rgba(47,216,201,.35); color:var(--volt); font-size:12px; font-weight:700; }
+.hero-next-trip{ display:block; margin:0 0 14px; padding:10px 14px; border-radius:var(--r-md); background:rgba(47,216,201,.15); border:1px solid rgba(47,216,201,.35); color:var(--volt); font-size:12px; font-weight:700; line-height:1.6; overflow:hidden; transition:height .35s ease, opacity .25s ease; }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
 .hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
@@ -603,7 +603,22 @@ applySiteSettings();
 function applySiteSettings(){
 var tripEl = document.getElementById('heroNextTrip');
 if(tripEl && siteSettings.next_trip){
-tripEl.textContent = '✈︎ 下一站｜' + siteSettings.next_trip;
+var newText = '✈︎ 下一站｜' + siteSettings.next_trip;
+if(tripEl.textContent === newText) return;
+var startH = tripEl.offsetHeight;
+tripEl.style.height = startH + 'px';
+tripEl.style.opacity = '0';
+setTimeout(function(){
+tripEl.textContent = newText;
+tripEl.style.height = 'auto';
+var endH = tripEl.offsetHeight;
+tripEl.style.height = startH + 'px';
+tripEl.getBoundingClientRect();
+requestAnimationFrame(function(){
+tripEl.style.height = endH + 'px';
+tripEl.style.opacity = '1';
+});
+}, 220);
 }
 }
 var ICONS = {
