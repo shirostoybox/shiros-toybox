@@ -349,9 +349,9 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <p class="eyebrow">SPIN · CLASH · WIN</p>
 <p class="greeting" id="heroGreeting">陀友，您好</p>
 <h1 class="wordmark">四郎<br>玩具箱</h1>
-<p class="hero-desc">日本選物・角色周邊・二手挖寶 🇯🇵<br>新品、老物、偶爾遇到的限定款<br>出國期間限定開放扭蛋連線 🎰</p>
-<span class="hero-next-trip">✈︎ 下一站｜2027.03 岡山・四國</span>
-<p class="hero-desc">有想找的，也可以來許個願 ♡<br>旅途中剛好遇見，就一起把它帶回來。</p>
+<p class="hero-desc">日本選物・角色周邊・二手挖寶 🇯🇵<br>新品、老物、偶爾遇到的限定款<br>出國期間限定開放扭蛋連線 🥚</p>
+<span class="hero-next-trip" id="heroNextTrip">✈︎ 下一站｜2027.03 岡山・四國</span>
+<p class="hero-desc">有想找的，也可以來許個願 ♡</p>
 <div class="hero-actions">
 <button class="btn btn--primary btn--full" data-target="shop">立即選購</button>
 </div>
@@ -549,7 +549,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260914-1438';
+var APP_VERSION = '20260914-1457';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -579,6 +579,7 @@ return data;
 var myOrders = [];
 var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, referralCouponBalance:0, canRedeem:false };
 var myOrderRestricted = false;
+var siteSettings = {};
 var pendingCycle = { hasPending:false };
 var settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
 var favorites = {};
@@ -591,6 +592,19 @@ if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
 return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured };
 });
+}
+async function loadSiteSettings(){
+try{
+var data = await callMemberApi('get-site-settings');
+siteSettings = data.settings || {};
+}catch(e){ siteSettings = {}; }
+applySiteSettings();
+}
+function applySiteSettings(){
+var tripEl = document.getElementById('heroNextTrip');
+if(tripEl && siteSettings.next_trip){
+tripEl.textContent = '✈︎ 下一站｜' + siteSettings.next_trip;
+}
 }
 var ICONS = {
 heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.5-9C.8 7.2 3 4 6.3 4 8.4 4 10 5 12 7c2-2 3.6-3 5.7-3 3.3 0 5.5 3.2 3.8 7-2.5 4.65-9.5 9-9.5 9Z" stroke-linejoin="round"/></svg>',
@@ -733,7 +747,7 @@ document.getElementById('profileAvatar').src = currentUser.pictureUrl;
 document.getElementById('profileAvatarDetail').src = currentUser.pictureUrl;
 }
 showLoading('讀取商品中...');
-await loadProducts();
+await Promise.all([loadProducts(), loadSiteSettings()]);
 document.getElementById('app').style.display = 'block';
 hideLoading();
 renderCategoryNav();
@@ -1091,7 +1105,7 @@ return;
 }
 var products = data.products || [];
 if(!listEl) return;
-var html = adminNewProductFormHTML(products);
+var html = adminSiteSettingsHTML() + adminNewProductFormHTML(products);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">目前沒有商品。</p>';
 } else {
@@ -1099,6 +1113,8 @@ html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + 
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
+var saveTripBtn = document.getElementById('adminSaveNextTrip');
+if(saveTripBtn){ saveTripBtn.addEventListener('click', handleAdminSaveNextTrip); }
 var catSelect = document.getElementById('npCat');
 if(catSelect){
 catSelect.addEventListener('change', function(){
@@ -1110,6 +1126,30 @@ var newCatInputInit = document.getElementById('npNewCatName');
 if(newCatInputInit){ newCatInputInit.style.display = 'block'; }
 }
 }
+}
+function adminSiteSettingsHTML(){
+var tripVal = siteSettings.next_trip || '';
+return '<div style="background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:16px;">'
++ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;">首頁「下一站」文字</p>'
++ '<input type="text" class="gate-input" id="adminNextTripInput" value="'+escAttr(tripVal)+'" placeholder="例如：2027.03 岡山・四國" style="margin-bottom:8px;">'
++ '<button type="button" class="btn btn--dark btn--full" id="adminSaveNextTrip">儲存</button>'
++ '</div>';
+}
+async function handleAdminSaveNextTrip(){
+var btn = document.getElementById('adminSaveNextTrip');
+var input = document.getElementById('adminNextTripInput');
+if(!input) return;
+var value = input.value.trim();
+btn.disabled = true; btn.textContent = '儲存中...';
+try{
+await callMemberApi('admin-update-site-setting', { key: 'next_trip', value: value });
+siteSettings.next_trip = value;
+applySiteSettings();
+showToast('已儲存');
+}catch(e){
+alert('儲存失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = '儲存';
 }
 function adminProductsGroupedHTML(products){
 var html = '', lastCat = null;
