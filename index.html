@@ -364,24 +364,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </div>
 </section>
 <p class="section-label">熱門分類</p>
-<div class="cat-grid">
-<button class="cat-card" data-cat="beyblade">
-<span class="cat-card-icon"><div class="disc" style="--size:24px;--c1:var(--ignis);--c2:var(--volt)"></div></span>
-<span>戰鬥陀螺</span>
-</button>
-<button class="cat-card" data-cat="doll">
-<span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg></span>
-<span>娃娃玩偶</span>
-</button>
-<button class="cat-card" data-cat="anpanman">
-<span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7 21l5-3 5 3-2-7.5" stroke-linejoin="round"/></svg></span>
-<span>麵包超人博物館</span>
-</button>
-<button class="cat-card" data-cat="gacha">
-<span class="cat-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg></span>
-<span>扭蛋</span>
-</button>
-</div>
+<div class="cat-grid"></div>
 <div class="picks-header">
 <h2>本週嚴選</h2>
 <span class="see-more" data-target="shop">查看更多 →</span>
@@ -397,13 +380,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
 <input type="text" id="shopSearch" placeholder="搜尋商品...">
 </div>
-<div class="category-tabs">
-<button class="cat-tab active" data-cat="all">全部</button>
-<button class="cat-tab" data-cat="beyblade">戰鬥陀螺</button>
-<button class="cat-tab" data-cat="doll">娃娃玩偶</button>
-<button class="cat-tab" data-cat="anpanman">麵包超人博物館</button>
-<button class="cat-tab" data-cat="gacha">扭蛋</button>
-</div>
+<div class="category-tabs"></div>
 <div class="gacha-info" id="gachaInfo" style="display:none;">
 <p class="gacha-info-title">🪙 日本扭蛋順路價</p>
 <div class="gacha-price-row"><span>¥200</span><span>→</span><span>NT$80</span></div>
@@ -572,7 +549,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260913-2310';
+var APP_VERSION = '20260914-1438';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -619,13 +596,18 @@ var ICONS = {
 heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.5-9C.8 7.2 3 4 6.3 4 8.4 4 10 5 12 7c2-2 3.6-3 5.7-3 3.3 0 5.5 3.2 3.8 7-2.5 4.65-9.5 9-9.5 9Z" stroke-linejoin="round"/></svg>',
 bear:'<svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="12" cy="13" r="6.4"/></svg>',
 ribbon:'<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7 21l5-3 5 3-2-7.5" stroke-linejoin="round"/></svg>',
-capsule:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg>'
+capsule:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/></svg>',
+star:'<svg viewBox="0 0 24 24"><path d="M12 2 14.5 9.5 22 12 14.5 14.5 12 22 9.5 14.5 2 12 9.5 9.5Z" stroke-linejoin="round"/></svg>'
 };
 function catIcon(cat){
 if(cat==='doll') return ICONS.bear;
 if(cat==='anpanman') return ICONS.ribbon;
 if(cat==='gacha') return ICONS.capsule;
-return '';
+return ICONS.star;
+}
+function catCardIconHTML(cat){
+if(cat==='beyblade') return '<div class="disc" style="--size:24px;--c1:var(--ignis);--c2:var(--volt)"></div>';
+return catIcon(cat);
 }
 function showLoading(msg){
 document.getElementById('loadingText').textContent = msg;
@@ -754,6 +736,7 @@ showLoading('讀取商品中...');
 await loadProducts();
 document.getElementById('app').style.display = 'block';
 hideLoading();
+renderCategoryNav();
 renderHome();
 renderShop();
 loadMyOrders();
@@ -1501,6 +1484,36 @@ return function(){ openProductGallery(img.getAttribute('data-gallery-id'), img.g
 })(zoomImgs[z]));
 }
 }
+function renderCategoryNav(){
+var cats = {};
+for(var i=0;i<PRODUCTS.length;i++){ var p = PRODUCTS[i]; if(p.cat){ cats[p.cat] = p.catLabel || catLabelFor(p.cat); } }
+var catKeys = Object.keys(cats);
+
+var catGrid = document.querySelector('.cat-grid');
+if(catGrid){
+catGrid.innerHTML = catKeys.map(function(key){
+return '<button class="cat-card" data-cat="'+escAttr(key)+'">'
++ '<span class="cat-card-icon">'+catCardIconHTML(key)+'</span>'
++ '<span>'+escAttr(cats[key])+'</span>'
++ '</button>';
+}).join('');
+var catCards = catGrid.querySelectorAll('.cat-card');
+for(var c=0;c<catCards.length;c++){
+catCards[c].addEventListener('click', (function(card){ return function(){ setCategory(card.getAttribute('data-cat')); showView('shop'); }; })(catCards[c]));
+}
+}
+
+var tabsWrap = document.querySelector('.category-tabs');
+if(tabsWrap){
+var tabsHtml = '<button class="cat-tab'+(currentCategory==='all'?' active':'')+'" data-cat="all">全部</button>';
+tabsHtml += catKeys.map(function(key){ return '<button class="cat-tab'+(currentCategory===key?' active':'')+'" data-cat="'+escAttr(key)+'">'+escAttr(cats[key])+'</button>'; }).join('');
+tabsWrap.innerHTML = tabsHtml;
+var catTabs = tabsWrap.querySelectorAll('.cat-tab');
+for(var t=0;t<catTabs.length;t++){
+catTabs[t].addEventListener('click', (function(tab){ return function(){ setCategory(tab.getAttribute('data-cat')); }; })(catTabs[t]));
+}
+}
+}
 function renderHome(){
 var grid = document.getElementById('homeGrid');
 var list = [];
@@ -1659,6 +1672,7 @@ btn.disabled = false; btn.textContent = '加入喊單';
 closeOrderModal();
 showToast('已加入喊單！');
 await loadProducts();
+renderCategoryNav();
 renderHome();
 renderShop();
 loadMyOrders();
@@ -2008,6 +2022,7 @@ if(name === 'history'){ loadMySettlements(); }
 }
 async function refreshShop(){
 await loadProducts();
+renderCategoryNav();
 renderHome();
 renderShop();
 }
@@ -2021,10 +2036,6 @@ var heroBtns = document.querySelectorAll('.hero-actions [data-target], .hero-lin
 for(var h=0;h<heroBtns.length;h++){
 heroBtns[h].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(heroBtns[h]));
 }
-var catCards = document.querySelectorAll('.cat-card');
-for(var c=0;c<catCards.length;c++){
-catCards[c].addEventListener('click', (function(card){ return function(){ setCategory(card.getAttribute('data-cat')); showView('shop'); }; })(catCards[c]));
-}
 var seeMore = document.querySelector('.see-more');
 if(seeMore){ seeMore.addEventListener('click', function(){ setCategory('all'); showView('shop'); }); }
 var menuLinks = document.querySelectorAll('.menu-row[data-target]');
@@ -2034,10 +2045,6 @@ menuLinks[ml].addEventListener('click', (function(b){ return function(){ showVie
 var backBtns = document.querySelectorAll('.back-btn[data-back]');
 for(var bk=0;bk<backBtns.length;bk++){
 backBtns[bk].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-back')); }; })(backBtns[bk]));
-}
-var catTabs = document.querySelectorAll('.cat-tab');
-for(var t=0;t<catTabs.length;t++){
-catTabs[t].addEventListener('click', (function(tab){ return function(){ setCategory(tab.getAttribute('data-cat')); }; })(catTabs[t]));
 }
 var searchInput = document.getElementById('shopSearch');
 if(searchInput){ searchInput.addEventListener('input', function(e){ currentQuery = e.target.value; renderShop(); }); }
