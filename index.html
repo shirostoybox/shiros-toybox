@@ -2068,7 +2068,7 @@ if(name === 'shop'){ refreshShop(); }
 if(name === 'history'){ loadMySettlements(); }
 }
 async function refreshShop(){
-await loadProducts();
+await Promise.all([loadProducts(), loadSiteSettings()]);
 renderCategoryNav();
 renderHome();
 renderShop();
