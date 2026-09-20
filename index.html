@@ -578,6 +578,7 @@ sessionStorage.removeItem('authRecoveryDone');
 return data;
 }
 var myOrders = [];
+var mySettlements = [];
 var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, referralCouponBalance:0, canRedeem:false };
 var myOrderRestricted = false;
 var siteSettings = {};
@@ -803,6 +804,7 @@ el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back=
 + '<div style="display:flex;gap:8px;padding:0 20px 12px;">'
 + '<button type="button" class="cat-tab active admin-tab-btn" data-tab="orders">訂單</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>'
++ '<button type="button" class="cat-tab admin-tab-btn" data-tab="members">會員</button>'
 + '</div>'
 + '<div class="guide-content" id="adminTabContent"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
 var backBtn = el.querySelector('.back-btn');
@@ -812,7 +814,8 @@ for(var t=0;t<tabBtns.length;t++){
 tabBtns[t].addEventListener('click', function(){
 for(var j=0;j<tabBtns.length;j++){ tabBtns[j].classList.remove('active'); }
 this.classList.add('active');
-if(this.getAttribute('data-tab') === 'orders'){ loadAdminGroups(); } else { loadAdminProducts(); }
+var tab = this.getAttribute('data-tab');
+if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts(); } else { loadAdminMembers(); }
 });
 }
 await loadAdminGroups();
@@ -948,7 +951,7 @@ var restrictedBadge = g.orderRestricted
 : '';
 var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
 var restrictBtnHtml = (!g.orderRestricted && g.cycle && g.cycle.dayNumber >= 4)
-? '<button class="admin-restrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格＋清空優惠券</button>'
+? '<button class="admin-restrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
 : '';
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
@@ -1039,7 +1042,7 @@ btn.disabled = false; btn.textContent = '刪除這筆結單';
 }
 }
 async function handleAdminRestrictCustomer(btn){
-if(!window.confirm('確定要限制這位客人的下單資格嗎？\n\n執行後：\n・目前所有未使用的回饋券／免運券會清空（無法復原）\n・客人之後將無法再喊單，可隨時手動恢復\n・現有訂單不會被刪除或取消\n\n建議私訊客人未獲回應後再執行。')) return;
+if(!window.confirm('確定要限制這位客人的下單資格嗎？\n\n執行後：\n・客人之後將無法再喊單，可隨時手動恢復\n・回饋券／免運券不會被清空，如需清空請到「會員」分頁手動修改\n・現有訂單不會被刪除或取消\n\n建議私訊客人未獲回應後再執行。')) return;
 btn.disabled = true; btn.textContent = '處理中...';
 var lineUid = btn.getAttribute('data-line-uid');
 try{
@@ -1048,7 +1051,7 @@ showToast('已限制下單資格');
 await loadAdminGroups();
 }catch(e){
 alert('操作失敗：' + e.message);
-btn.disabled = false; btn.textContent = '限制下單資格＋清空優惠券';
+btn.disabled = false; btn.textContent = '限制下單資格';
 }
 }
 async function handleAdminUnrestrictCustomer(btn){
@@ -1063,6 +1066,81 @@ await loadAdminGroups();
 alert('操作失敗：' + e.message);
 btn.disabled = false; btn.textContent = '恢復下單資格';
 }
+}
+async function loadAdminMembers(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl) return;
+listEl.innerHTML = '<input type="text" class="gate-input" id="adminMemberSearch" placeholder="搜尋客人暱稱">'
++ '<button type="button" class="btn btn--dark btn--full" id="adminMemberSearchBtn" style="margin-bottom:16px;">搜尋</button>'
++ '<div id="adminMemberResults"></div>';
+var input = document.getElementById('adminMemberSearch');
+var searchBtn = document.getElementById('adminMemberSearchBtn');
+var runSearch = function(){ handleAdminSearchMembers(input.value.trim()); };
+if(searchBtn) searchBtn.addEventListener('click', runSearch);
+if(input) input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+}
+async function handleAdminSearchMembers(query){
+var resultsEl = document.getElementById('adminMemberResults');
+if(!resultsEl) return;
+if(!query){ resultsEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">請輸入客人暱稱搜尋。</p>'; return; }
+resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">搜尋中...</p>';
+var data;
+try{
+data = await callMemberApi('admin-search-members', { query: query });
+}catch(e){
+resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">搜尋失敗：'+e.message+'</p>';
+return;
+}
+var members = data.members || [];
+if(members.length === 0){
+resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">找不到符合的客人。</p>';
+return;
+}
+resultsEl.innerHTML = members.map(adminMemberCardHTML).join('');
+bindAdminMemberActions(resultsEl);
+}
+function adminMemberCardHTML(m){
+var restrictedBadge = m.orderRestricted
+? '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin-bottom:8px;">🚫 已限制下單資格</span>'
+: '';
+return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-bottom:14px;">'
++ '<p style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+(m.nickname||'（未設定暱稱）')+'</p>'
++ (m.displayName ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px;">LINE：'+m.displayName+'</p>' : '')
++ restrictedBadge
++ '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">'
++ '<label style="font-size:12px;color:var(--muted);">回饋券張數<input type="number" min="0" step="1" class="gate-input admin-member-coupon-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.couponBalance+'" style="margin-top:4px;margin-bottom:0;"></label>'
++ '<label style="font-size:12px;color:var(--muted);">免運券張數<input type="number" min="0" step="1" class="gate-input admin-member-referral-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.referralCouponBalance+'" style="margin-top:4px;margin-bottom:0;"></label>'
++ '</div>'
++ '<label style="font-size:12px;color:var(--muted);display:block;margin-top:10px;">累積消費（NT$）<input type="number" min="0" step="1" class="gate-input admin-member-spend-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.cumulativeSpend+'" style="margin-top:4px;margin-bottom:0;"></label>'
++ '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
++ '</div>';
+}
+function bindAdminMemberActions(container){
+var saveBtns = container.querySelectorAll('.admin-save-member-btn');
+for(var i=0;i<saveBtns.length;i++){
+saveBtns[i].addEventListener('click', function(){ handleAdminSaveMemberBalance(this); });
+}
+}
+async function handleAdminSaveMemberBalance(btn){
+var lineUid = btn.getAttribute('data-line-uid');
+var couponInput = document.querySelector('.admin-member-coupon-input[data-line-uid="'+lineUid+'"]');
+var referralInput = document.querySelector('.admin-member-referral-input[data-line-uid="'+lineUid+'"]');
+var spendInput = document.querySelector('.admin-member-spend-input[data-line-uid="'+lineUid+'"]');
+var couponBalance = parseInt(couponInput.value);
+var referralCouponBalance = parseInt(referralInput.value);
+var cumulativeSpend = parseInt(spendInput.value);
+if(!Number.isFinite(couponBalance) || !Number.isFinite(referralCouponBalance) || !Number.isFinite(cumulativeSpend) || couponBalance < 0 || referralCouponBalance < 0 || cumulativeSpend < 0){
+alert('請輸入正確的數字（不可為負數）');
+return;
+}
+btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
+try{
+await callMemberApi('admin-update-member-balance', { lineUid: lineUid, couponBalance: couponBalance, referralCouponBalance: referralCouponBalance, cumulativeSpend: cumulativeSpend });
+showToast('已儲存');
+}catch(e){
+alert('儲存失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = oldText;
 }
 function loadHtml2Canvas(){
 return new Promise(function(resolve, reject){
@@ -1744,6 +1822,12 @@ pendingCycle = await callMemberApi('get-cycle-status');
 }catch(e){
 pendingCycle = { hasPending:false };
 }
+try{
+var settleData = await callMemberApi('get-my-settlements');
+mySettlements = settleData.settlements || [];
+}catch(e){
+mySettlements = [];
+}
 renderOrders();
 renderHome();
 renderShop();
@@ -1824,6 +1908,41 @@ return '<div class="cycle-banner '+cls+'">'
 + warningHTML
 + '<p class="cycle-sub-text">'+subText+'</p>'
 + '<button class="btn btn--primary btn--full" id="openSettlementBtn">前往結單</button>'
++ '</div>';
+}
+function daysSinceDate(iso){
+var start = new Date(iso);
+start.setHours(0,0,0,0);
+var today = new Date();
+today.setHours(0,0,0,0);
+return Math.round((today - start) / 86400000) + 1;
+}
+function settlementCycleBannerHTML(s){
+var anchor = s.created_at || s.cycle_deadline;
+var day = daysSinceDate(anchor);
+var deadline = new Date(anchor);
+deadline.setDate(deadline.getDate() + 2);
+var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
+var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・請盡快完成匯款';
+var warningHTML = '';
+var subText = '付款期限：'+deadlineStr+'前・'+(s.order_no||'此筆訂單')+'・應付NT$'+s.total;
+if(day === 2){
+cls = 'cycle-banner--day2'; icon = '⏰';
+mainText = '第2天・明天是付款最後一天！';
+} else if(day === 3){
+cls = 'cycle-banner--day3'; icon = '🚨';
+mainText = '第3天（最後一天）！請於今天24:00前完成付款';
+} else if(day >= 4){
+cls = 'cycle-banner--overdue'; icon = '⛔';
+mainText = '已逾期';
+warningHTML = '<p class="cycle-warning-text">已逾期，請立即私訊官方LINE說明原因，否則將清空優惠券、移出社團並永久封鎖，恕不再開放加入。</p>';
+subText = (s.order_no||'此筆訂單')+'・應付NT$'+s.total;
+}
+return '<div class="cycle-banner '+cls+'">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">付款倒數</p></div>'
++ '<p class="cycle-main-text">'+mainText+'</p>'
++ warningHTML
++ '<p class="cycle-sub-text">'+subText+'</p>'
 + '</div>';
 }
 function settlementCouponSectionHTML(){
@@ -1992,13 +2111,19 @@ btn.disabled = false; btn.textContent = '送出結單';
 function renderOrders(){
 var view = document.getElementById('cartView');
 var badge = document.getElementById('cartBadge');
-if(myOrders.length > 0){ badge.textContent = myOrders.length; badge.style.display = 'flex'; }
+var unpaidSettlements = mySettlements.filter(function(s){ return s.status !== '已付款'; });
+var badgeCount = myOrders.length + unpaidSettlements.length;
+if(badgeCount > 0){ badge.textContent = badgeCount; badge.style.display = 'flex'; }
 else { badge.style.display = 'none'; }
 var html = '<div style="display:flex;justify-content:flex-end;padding:0 20px;"><button type="button" class="history-link-btn" id="openHistoryBtn" style="background:none;border:none;font-size:13px;color:var(--muted);font-family:var(--font-body);padding:6px 0;">歷史訂單 ›</button></div>';
-html += cycleBannerHTML() + balanceCardHTML();
-if(myOrders.length === 0){
+html += cycleBannerHTML();
+if(unpaidSettlements.length > 0){
+html += unpaidSettlements.map(function(s){ return settlementCycleBannerHTML(s) + myHistorySettlementHTML(s); }).join('');
+}
+html += balanceCardHTML();
+if(myOrders.length === 0 && unpaidSettlements.length === 0){
 html += '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
-} else {
+} else if(myOrders.length > 0){
 html += '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
 }
 view.innerHTML = html;
@@ -2049,9 +2174,10 @@ data = await callMemberApi('get-my-settlements');
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
 return;
 }
-var settlements = data.settlements || [];
+var settlements = (data.settlements || []).filter(function(s){ return s.status === '已付款'; });
+mySettlements = data.settlements || [];
 if(settlements.length === 0){
-listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">還沒有結單紀錄。</p>';
+listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">還沒有已付款的結單紀錄，待付款的訂單請到「喊單」頁查看。</p>';
 return;
 }
 listEl.innerHTML = settlements.map(myHistorySettlementHTML).join('');
