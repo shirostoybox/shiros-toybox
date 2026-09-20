@@ -893,6 +893,7 @@ return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
++ '<button type="button" class="admin-delete-order-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:none;border:none;color:var(--ignis-deep);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">刪除</button>'
 + '</div>';
 }
 function adminSettlementCardHTML(s, color){
@@ -981,6 +982,10 @@ var delSettleBtns = container.querySelectorAll('.admin-delete-settlement-btn');
 for(var n=0;n<delSettleBtns.length;n++){
 delSettleBtns[n].addEventListener('click', (function(btn){ return function(){ handleAdminDeleteSettlement(btn); }; })(delSettleBtns[n]));
 }
+var delOrderBtns = container.querySelectorAll('.admin-delete-order-btn');
+for(var p=0;p<delOrderBtns.length;p++){
+delOrderBtns[p].addEventListener('click', (function(btn){ return function(){ handleAdminDeleteOrder(btn); }; })(delOrderBtns[p]));
+}
 var restrictBtns = container.querySelectorAll('.admin-restrict-btn');
 for(var r=0;r<restrictBtns.length;r++){
 restrictBtns[r].addEventListener('click', (function(btn){ return function(){ handleAdminRestrictCustomer(btn); }; })(restrictBtns[r]));
@@ -1039,6 +1044,19 @@ await loadAdminGroups();
 }catch(e){
 alert('刪除失敗：' + e.message);
 btn.disabled = false; btn.textContent = '刪除這筆結單';
+}
+}
+async function handleAdminDeleteOrder(btn){
+if(!window.confirm('確定要刪除這筆已取消的訂單紀錄嗎？這個動作沒辦法復原。')) return;
+btn.disabled = true; btn.textContent = '刪除中...';
+var orderId = btn.getAttribute('data-order-id');
+try{
+await callMemberApi('admin-delete-cancelled-order', { orderId: orderId });
+showToast('已刪除');
+await loadAdminGroups();
+}catch(e){
+alert('刪除失敗：' + e.message);
+btn.disabled = false; btn.textContent = '刪除';
 }
 }
 async function handleAdminRestrictCustomer(btn){
@@ -2176,11 +2194,17 @@ return;
 }
 var settlements = (data.settlements || []).filter(function(s){ return s.status === '已付款'; });
 mySettlements = data.settlements || [];
-if(settlements.length === 0){
+var cancelledOrders = data.cancelledOrders || [];
+if(settlements.length === 0 && cancelledOrders.length === 0){
 listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">還沒有已付款的結單紀錄，待付款的訂單請到「喊單」頁查看。</p>';
 return;
 }
-listEl.innerHTML = settlements.map(myHistorySettlementHTML).join('');
+var html = settlements.map(myHistorySettlementHTML).join('');
+if(cancelledOrders.length > 0){
+html += '<div class="view-heading" style="margin-top:20px;"><h2>已取消</h2><span class="count-pill">'+cancelledOrders.length+' 筆</span></div>'
++ '<div class="order-list">' + cancelledOrders.map(orderCardHTML).join('') + '</div>';
+}
+listEl.innerHTML = html;
 }
 /* ---------- view switching ---------- */
 function showView(name){
