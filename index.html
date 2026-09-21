@@ -1121,6 +1121,9 @@ function adminMemberCardHTML(m){
 var restrictedBadge = m.orderRestricted
 ? '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin-bottom:8px;">🚫 已限制下單資格</span>'
 : '';
+var restrictToggleBtn = m.orderRestricted
+? '<button type="button" class="btn btn--full admin-member-unrestrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;">恢復下單資格</button>'
+: '<button type="button" class="btn btn--full admin-member-restrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;border:1.5px solid var(--ink);color:var(--ink);">限制下單資格</button>';
 return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-bottom:14px;">'
 + '<p style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+(m.nickname||'（未設定暱稱）')+'</p>'
 + (m.displayName ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px;">LINE：'+m.displayName+'</p>' : '')
@@ -1131,12 +1134,49 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '</div>'
 + '<label style="font-size:12px;color:var(--muted);display:block;margin-top:10px;">累積消費（NT$）<input type="number" min="0" step="1" class="gate-input admin-member-spend-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.cumulativeSpend+'" style="margin-top:4px;margin-bottom:0;"></label>'
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
++ restrictToggleBtn
 + '</div>';
 }
 function bindAdminMemberActions(container){
 var saveBtns = container.querySelectorAll('.admin-save-member-btn');
 for(var i=0;i<saveBtns.length;i++){
 saveBtns[i].addEventListener('click', function(){ handleAdminSaveMemberBalance(this); });
+}
+var restrictBtns = container.querySelectorAll('.admin-member-restrict-btn');
+for(var r=0;r<restrictBtns.length;r++){
+restrictBtns[r].addEventListener('click', function(){ handleAdminMemberRestrict(this); });
+}
+var unrestrictBtns = container.querySelectorAll('.admin-member-unrestrict-btn');
+for(var u=0;u<unrestrictBtns.length;u++){
+unrestrictBtns[u].addEventListener('click', function(){ handleAdminMemberUnrestrict(this); });
+}
+}
+async function handleAdminMemberRestrict(btn){
+if(!window.confirm('確定要限制這位客人的下單資格嗎？\n\n執行後：\n・客人之後將無法再喊單，可隨時手動恢復\n・回饋券／免運券／累積消費不會被更動\n・現有訂單不會被刪除或取消')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+var lineUid = btn.getAttribute('data-line-uid');
+try{
+await callMemberApi('admin-restrict-customer', { lineUid: lineUid });
+showToast('已限制下單資格');
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = '限制下單資格';
+}
+}
+async function handleAdminMemberUnrestrict(btn){
+if(!window.confirm('確定要恢復這位客人的下單資格嗎？')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+var lineUid = btn.getAttribute('data-line-uid');
+try{
+await callMemberApi('admin-unrestrict-customer', { lineUid: lineUid });
+showToast('已恢復下單資格');
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = '恢復下單資格';
 }
 }
 async function handleAdminSaveMemberBalance(btn){
