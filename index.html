@@ -1258,6 +1258,8 @@ listEl.innerHTML = html;
 bindAdminProductActions(listEl);
 var saveTripBtn = document.getElementById('adminSaveNextTrip');
 if(saveTripBtn){ saveTripBtn.addEventListener('click', handleAdminSaveNextTrip); }
+var liveToggleBtn = document.getElementById('adminToggleLiveConnection');
+if(liveToggleBtn){ liveToggleBtn.addEventListener('click', handleAdminToggleLiveConnection); }
 var catSelect = document.getElementById('npCat');
 if(catSelect){
 catSelect.addEventListener('change', function(){
@@ -1272,10 +1274,23 @@ if(newCatInputInit){ newCatInputInit.style.display = 'block'; }
 }
 function adminSiteSettingsHTML(){
 var tripVal = siteSettings.next_trip || '';
+var liveOn = siteSettings.live_connection_mode === 'on';
+var liveBoxStyle = liveOn ? 'background:#FEF2F2;border:1.5px solid var(--ignis-deep);' : 'background:var(--card);border:1.5px solid var(--line);';
+var liveBtnStyle = liveOn ? 'background:var(--ignis-deep);color:#fff;' : '';
+var liveBtnClass = liveOn ? 'btn' : 'btn btn--dark';
+var liveBtnLabel = liveOn ? '關閉限時連線' : '開啟限時連線';
+var liveStatusText = liveOn
+? '🔴 限時連線中・現貨／預購連線商品暫停下單，客人只能下單限時連線商品・結單倒數已暫停'
+: '出國衝貨、開直播連線前可開啟：現貨／預購連線商品會暫停下單，結單倒數也會暫停，直到關閉為止';
 return '<div style="background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:16px;">'
 + '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;">首頁「下一站」文字</p>'
 + '<input type="text" class="gate-input" id="adminNextTripInput" value="'+escAttr(tripVal)+'" placeholder="例如：2027.03 岡山・四國" style="margin-bottom:8px;">'
 + '<button type="button" class="btn btn--dark btn--full" id="adminSaveNextTrip">儲存</button>'
++ '</div>'
++ '<div style="'+liveBoxStyle+'border-radius:var(--r-md);padding:14px;margin-bottom:16px;">'
++ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 6px;">限時連線模式</p>'
++ '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.5;">'+liveStatusText+'</p>'
++ '<button type="button" class="'+liveBtnClass+' btn--full" id="adminToggleLiveConnection" style="'+liveBtnStyle+'">'+liveBtnLabel+'</button>'
 + '</div>';
 }
 async function handleAdminSaveNextTrip(){
@@ -1293,6 +1308,24 @@ showToast('已儲存');
 alert('儲存失敗：' + e.message);
 }
 btn.disabled = false; btn.textContent = '儲存';
+}
+async function handleAdminToggleLiveConnection(){
+var btn = document.getElementById('adminToggleLiveConnection');
+var turnOn = siteSettings.live_connection_mode !== 'on';
+var confirmMsg = turnOn
+? '確定要開啟限時連線模式嗎？\n\n開啟後：\n・現貨／預購連線商品將暫停下單，客人點選會看到提示\n・只有標示「限時連線」的商品可以下單\n・結單倒數會暫停，直到你關閉這個模式'
+: '確定要關閉限時連線模式嗎？\n\n關閉後：\n・現貨／預購連線商品恢復可以下單\n・結單倒數會重新開始計算（從現在起算3天）';
+if(!window.confirm(confirmMsg)) return;
+btn.disabled = true;
+try{
+var res = await callMemberApi('admin-toggle-live-connection', { enabled: turnOn });
+siteSettings.live_connection_mode = res.enabled ? 'on' : 'off';
+showToast(res.enabled ? '已開啟限時連線' : '已關閉限時連線');
+loadAdminProducts();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false;
+}
 }
 function adminProductsGroupedHTML(products){
 var html = '', lastCat = null;
@@ -1741,6 +1774,10 @@ var unitPrice = orderModalProduct.price + extra;
 document.getElementById('orderModalSub').textContent = orderModalProduct.sub + ' · NT$' + unitPrice;
 }
 function openOrderModal(product){
+if(siteSettings.live_connection_mode === 'on' && product.stock !== 'live_limited'){
+alert('目前是限時連線中，只能下單限時連線商品');
+return;
+}
 orderModalProduct = product;
 orderModalQty = 1;
 orderModalShell = 'no';
