@@ -297,7 +297,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="modal-overlay" id="settlementModal">
 <div class="modal-card" style="max-height:82vh;overflow-y:auto;">
 <button class="modal-close" id="settlementClose">✕</button>
-<h3>確認結單</h3>
+<h3 id="settlementModalTitle">確認結單</h3>
 <div id="settlementItemList" class="settle-item-list"></div>
 <div class="settle-section">
 <p class="settle-section-title">寄送方式</p>
@@ -582,8 +582,9 @@ var mySettlements = [];
 var myBalance = { cumulativeSpend:0, redeemable:0, couponBalance:0, referralCouponBalance:0, canRedeem:false };
 var myOrderRestricted = false;
 var siteSettings = {};
-var pendingCycle = { hasPending:false };
-var settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
+var pendingCycles = { live_limited:{hasPending:false}, regular:{hasPending:false} };
+var CYCLE_GROUP_LABELS = { live_limited:'限時連線商品', regular:'現貨／預購商品' };
+var settlementState = { group:null, shippingMethod:null, rewardCount:0, useReferral:false };
 var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
@@ -850,22 +851,22 @@ cards[i].style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
 });
 }
 }
-function adminCycleBannerHTML(cycle, itemCount){
-if(!cycle) return '';
+function adminCycleBannerHTML(cycle, label){
+if(!cycle || !cycle.hasPending) return '';
 var day = cycle.dayNumber;
 var deadline = new Date(cycle.deadline);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
 var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
-var subText = '結單期限：'+deadlineStr+'前・共'+itemCount+'件商品，小計NT$'+cycle.subtotal;
+var subText = '結單期限：'+deadlineStr+'前・共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal;
 if(day === 2){ cls = 'cycle-banner--day2'; icon = '⏰'; mainText = '第2天・明天是最後一天！'; }
 else if(day === 3){ cls = 'cycle-banner--day3'; icon = '🚨'; mainText = '第3天（最後一天）！'; }
 else if(day >= 4){
 cls = 'cycle-banner--overdue'; icon = '⛔';
 mainText = '已逾期（第'+day+'天）';
-subText = '共'+itemCount+'件商品，小計NT$'+cycle.subtotal+'・請盡快私訊客人確認狀況';
+subText = '共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal+'・請盡快私訊客人確認狀況';
 }
 return '<div class="cycle-banner '+cls+'">'
-+ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">結單倒數</p></div>'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">'+label+'・結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + '<p class="cycle-sub-text">'+subText+'</p>'
 + '</div>';
@@ -877,8 +878,11 @@ var confirmBtn = o.status === '待確認'
 ? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">確認</button>'
 : '';
 var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
+var liveBadge = o.is_live_limited
+? '<span style="display:inline-block;background:var(--volt);color:var(--ink);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">⚡限時連線</span>'
+: '';
 return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
@@ -950,8 +954,10 @@ var restrictedBadge = g.orderRestricted
 + '<button class="admin-unrestrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">恢復下單資格</button>'
 + '</div>'
 : '';
-var cycleHtml = adminCycleBannerHTML(g.cycle, g.openOrders.length);
-var restrictBtnHtml = (!g.orderRestricted && g.cycle && g.cycle.dayNumber >= 4)
+var gc = g.cycle || { live_limited:{hasPending:false}, regular:{hasPending:false} };
+var cycleHtml = adminCycleBannerHTML(gc.live_limited, '限時連線商品') + adminCycleBannerHTML(gc.regular, '現貨／預購商品');
+var isOverdue = (gc.live_limited.hasPending && gc.live_limited.dayNumber >= 4) || (gc.regular.hasPending && gc.regular.dayNumber >= 4);
+var restrictBtnHtml = (!g.orderRestricted && isOverdue)
 ? '<button class="admin-restrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
 : '';
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
@@ -1913,9 +1919,10 @@ canRedeem: !!data.canRedeem
 };
 myOrderRestricted = !!data.orderRestricted;
 try{
-pendingCycle = await callMemberApi('get-cycle-status');
+var cycleData = await callMemberApi('get-cycle-status');
+pendingCycles = cycleData.groups || { live_limited:{hasPending:false}, regular:{hasPending:false} };
 }catch(e){
-pendingCycle = { hasPending:false };
+pendingCycles = { live_limited:{hasPending:false}, regular:{hasPending:false} };
 }
 try{
 var settleData = await callMemberApi('get-my-settlements');
@@ -1977,14 +1984,16 @@ alert('兌換失敗：' + e.message);
 if(btn){ btn.disabled = false; btn.textContent = '兌換回饋券（-NT$2,000）'; }
 }
 }
-function cycleBannerHTML(){
-if(!pendingCycle.hasPending) return '';
-var day = pendingCycle.dayNumber;
-var deadline = new Date(pendingCycle.deadline);
+function cycleBannerHTML(group){
+var pc = pendingCycles[group];
+if(!pc || !pc.hasPending) return '';
+var label = CYCLE_GROUP_LABELS[group];
+var day = pc.dayNumber;
+var deadline = new Date(pc.deadline);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
 var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
 var warningHTML = '';
-var subText = '結單期限：'+deadlineStr+'前・共'+pendingCycle.itemCount+'件商品，小計NT$'+pendingCycle.subtotal+'<br>建議提早完成結單，才有充裕時間完成匯款';
+var subText = '結單期限：'+deadlineStr+'前・共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>建議提早完成結單，才有充裕時間完成匯款';
 if(day === 2){
 cls = 'cycle-banner--day2'; icon = '⏰';
 mainText = '第2天・明天是最後一天！';
@@ -1995,14 +2004,14 @@ mainText = '第3天（最後一天）！請於今天24:00前結單並完成付�
 cls = 'cycle-banner--overdue'; icon = '⛔';
 mainText = '已逾期';
 warningHTML = '<p class="cycle-warning-text">已逾期，請立即私訊官方LINE說明原因，否則將清空優惠券、移出社團並永久封鎖，恕不再開放加入。</p>';
-subText = '共'+pendingCycle.itemCount+'件商品，小計NT$'+pendingCycle.subtotal;
+subText = '共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal;
 }
 return '<div class="cycle-banner '+cls+'">'
-+ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">結單倒數</p></div>'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">'+label+'・結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + warningHTML
 + '<p class="cycle-sub-text">'+subText+'</p>'
-+ '<button class="btn btn--primary btn--full" id="openSettlementBtn">前往結單</button>'
++ '<button class="btn btn--primary btn--full" id="openSettlementBtn_'+group+'">前往結單</button>'
 + '</div>';
 }
 function daysSinceDate(iso){
@@ -2041,7 +2050,7 @@ return '<div class="cycle-banner '+cls+'">'
 + '</div>';
 }
 function settlementCouponSectionHTML(){
-var subtotal = pendingCycle.subtotal || 0;
+var subtotal = (pendingCycles[settlementState.group] && pendingCycles[settlementState.group].subtotal) || 0;
 var html = '';
 if(myBalance.referralCouponBalance > 0 || myBalance.couponBalance > 0){
 html += '<p class="settle-section-title">使用優惠券</p>';
@@ -2067,7 +2076,8 @@ html += '<div style="margin-top:10px;'+(canReward?'':'opacity:.5;')+'">'
 return html;
 }
 function recalcSettlement(){
-var subtotal = pendingCycle._confirmedSubtotal != null ? pendingCycle._confirmedSubtotal : (pendingCycle.subtotal || 0);
+var pcCalc = pendingCycles[settlementState.group] || {};
+var subtotal = pcCalc._confirmedSubtotal != null ? pcCalc._confirmedSubtotal : (pcCalc.subtotal || 0);
 var shipFee = settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0);
 var discount = (settlementState.useReferral ? 60 : 0) + settlementState.rewardCount * 60;
 var payable = subtotal + shipFee;
@@ -2090,8 +2100,9 @@ note.textContent = '⚠️ 券的總價值超過應付金額，超過部分不�
 }
 function renderSettlementItemList(){
 var list = document.getElementById('settlementItemList');
+var pc = pendingCycles[settlementState.group];
 var confirmedSubtotal = 0, unconfirmedCount = 0;
-list.innerHTML = pendingCycle.items.map(function(o){
+list.innerHTML = pc.items.map(function(o){
 var isConfirmed = o.status === '已確認';
 var lineTotal = o.price * o.quantity;
 if(isConfirmed){ confirmedSubtotal += lineTotal; } else { unconfirmedCount++; }
@@ -2103,8 +2114,8 @@ var rightHtml = '<span style="display:flex;flex-direction:column;align-items:fle
 + '</span>';
 return '<div class="'+rowClass+'"><span>'+nameHtml+'</span>'+rightHtml+'</div>';
 }).join('');
-pendingCycle._confirmedSubtotal = confirmedSubtotal;
-pendingCycle._unconfirmedCount = unconfirmedCount;
+pc._confirmedSubtotal = confirmedSubtotal;
+pc._unconfirmedCount = unconfirmedCount;
 var delBtns = list.querySelectorAll('.settle-item-delete');
 for(var i=0;i<delBtns.length;i++){
 delBtns[i].addEventListener('click', function(){ handleDeleteOrder(this.getAttribute('data-order-id')); });
@@ -2112,12 +2123,13 @@ delBtns[i].addEventListener('click', function(){ handleDeleteOrder(this.getAttri
 updateSettlementBlockState();
 }
 function updateSettlementBlockState(){
+var pc = pendingCycles[settlementState.group] || {};
 var btn = document.getElementById('settlementSubmit');
 var note = document.getElementById('settleBlockNote');
-if(pendingCycle._unconfirmedCount > 0){
+if(pc._unconfirmedCount > 0){
 btn.disabled = true;
 note.style.display = 'block';
-note.textContent = '還有 '+pendingCycle._unconfirmedCount+' 件商品尚未確認，請稍候，或點上面「移除」先拿掉，才能送出結單';
+note.textContent = '還有 '+pc._unconfirmedCount+' 件商品尚未確認，請稍候，或點上面「移除」先拿掉，才能送出結單';
 } else {
 btn.disabled = false;
 note.style.display = 'none';
@@ -2128,8 +2140,10 @@ if(!window.confirm('確定要移除這件商品嗎？移除後這次結單不會
 try{
 await callMemberApi('delete-order', { orderId: orderId });
 showToast('已移除');
-pendingCycle = await callMemberApi('get-cycle-status');
-if(!pendingCycle.hasPending){
+var cycleData = await callMemberApi('get-cycle-status');
+pendingCycles = cycleData.groups || pendingCycles;
+var pc = pendingCycles[settlementState.group];
+if(!pc || !pc.hasPending){
 document.getElementById('settlementModal').classList.remove('is-open');
 } else {
 renderSettlementItemList();
@@ -2140,9 +2154,11 @@ await loadMyOrders();
 alert('移除失敗：' + e.message);
 }
 }
-function openSettlementModal(){
-if(!pendingCycle.hasPending) return;
-settlementState = { shippingMethod:null, rewardCount:0, useReferral:false };
+function openSettlementModal(group){
+var pc = pendingCycles[group];
+if(!pc || !pc.hasPending) return;
+settlementState = { group:group, shippingMethod:null, rewardCount:0, useReferral:false };
+document.getElementById('settlementModalTitle').textContent = '確認結單・'+CYCLE_GROUP_LABELS[group];
 renderSettlementItemList();
 document.getElementById('settleRecipientName').value = '';
 document.getElementById('settlePhone').value = '';
@@ -2175,6 +2191,7 @@ var phone = document.getElementById('settlePhone').value.trim();
 if(!settlementState.shippingMethod){ alert('請選擇寄送方式'); return; }
 if(!recipientName || !phone){ alert('請填寫收件姓名與手機號碼'); return; }
 var payload = {
+group: settlementState.group,
 shippingMethod: settlementState.shippingMethod,
 recipientName: recipientName, phone: phone,
 useReferralCoupon: settlementState.useReferral,
@@ -2211,7 +2228,7 @@ var badgeCount = myOrders.length + unpaidSettlements.length;
 if(badgeCount > 0){ badge.textContent = badgeCount; badge.style.display = 'flex'; }
 else { badge.style.display = 'none'; }
 var html = '<div style="display:flex;justify-content:flex-end;padding:0 20px;"><button type="button" class="history-link-btn" id="openHistoryBtn" style="background:none;border:none;font-size:13px;color:var(--muted);font-family:var(--font-body);padding:6px 0;">歷史訂單 ›</button></div>';
-html += cycleBannerHTML();
+html += cycleBannerHTML('live_limited') + cycleBannerHTML('regular');
 if(unpaidSettlements.length > 0){
 html += unpaidSettlements.map(function(s){ return settlementCycleBannerHTML(s) + myHistorySettlementHTML(s); }).join('');
 }
@@ -2224,8 +2241,10 @@ html += '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill"
 view.innerHTML = html;
 var goShopBtn = view.querySelector('.go-shop');
 if(goShopBtn) goShopBtn.addEventListener('click', function(){ showView('shop'); });
-var settleBtn = document.getElementById('openSettlementBtn');
-if(settleBtn) settleBtn.addEventListener('click', openSettlementModal);
+var settleBtnLiveLimited = document.getElementById('openSettlementBtn_live_limited');
+if(settleBtnLiveLimited) settleBtnLiveLimited.addEventListener('click', function(){ openSettlementModal('live_limited'); });
+var settleBtnRegular = document.getElementById('openSettlementBtn_regular');
+if(settleBtnRegular) settleBtnRegular.addEventListener('click', function(){ openSettlementModal('regular'); });
 var redeemBtn = document.getElementById('redeemCouponBtn');
 if(redeemBtn) redeemBtn.addEventListener('click', handleRedeemCoupon);
 var myDelBtns = view.querySelectorAll('.my-order-delete');
