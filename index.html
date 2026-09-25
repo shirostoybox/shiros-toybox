@@ -844,7 +844,7 @@ if(groups.length === 0){
 listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
 return;
 }
-var searchHtml = '<input type="text" class="gate-input" id="adminOrderSearch" placeholder="搜尋客人暱稱" style="margin-bottom:16px;">';
+var searchHtml = '<input type="text" class="gate-input" id="adminOrderSearch" placeholder="搜尋暱稱／商品名稱／訂單編號／狀態" style="margin-bottom:16px;">';
 listEl.innerHTML = searchHtml + groups.map(adminGroupHTML).join('');
 bindAdminGroupActions(listEl);
 var searchInput = document.getElementById('adminOrderSearch');
@@ -853,8 +853,8 @@ searchInput.addEventListener('input', function(){
 var q = this.value.trim().toLowerCase();
 var cards = listEl.querySelectorAll('.admin-group');
 for(var i=0;i<cards.length;i++){
-var name = (cards[i].getAttribute('data-search-name') || '').toLowerCase();
-cards[i].style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
+var text = (cards[i].getAttribute('data-search-text') || '').toLowerCase();
+cards[i].style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
 }
 });
 }
@@ -953,6 +953,17 @@ var hash = 0;
 for(var i=0;i<str.length;i++){ hash = (hash * 31 + str.charCodeAt(i)) >>> 0; }
 return ADMIN_CUSTOMER_COLORS[hash % ADMIN_CUSTOMER_COLORS.length];
 }
+function buildAdminSearchText(g){
+var parts = [g.nickname || ''];
+var addOrder = function(o){ parts.push(o.order_no||'', o.product_name||'', o.variant||'', o.status||''); };
+(g.openOrders||[]).forEach(addOrder);
+(g.cancelledOrders||[]).forEach(addOrder);
+(g.settlements||[]).forEach(function(s){
+parts.push(s.order_no||'', s.status||'');
+(s.items||[]).forEach(function(it){ parts.push(it.product_name||'', it.variant||''); });
+});
+return parts.join(' ');
+}
 function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
 var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">'+(g.nickname||'客人')+'</h2>';
@@ -973,7 +984,7 @@ var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
 ? '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
 : '';
 var settleHtml = g.settlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
-return '<div class="order-card admin-group" data-search-name="'+escAttr(g.nickname)+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>';
+return '<div class="order-card admin-group" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
