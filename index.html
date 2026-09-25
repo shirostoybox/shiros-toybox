@@ -813,6 +813,7 @@ el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back=
 + '<button type="button" class="cat-tab active admin-tab-btn" data-tab="orders">訂單</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="members">會員</button>'
++ '<button type="button" class="cat-tab admin-tab-btn" data-tab="settings">設定</button>'
 + '</div>'
 + '<div class="guide-content" id="adminTabContent"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
 var backBtn = el.querySelector('.back-btn');
@@ -823,7 +824,7 @@ tabBtns[t].addEventListener('click', function(){
 for(var j=0;j<tabBtns.length;j++){ tabBtns[j].classList.remove('active'); }
 this.classList.add('active');
 var tab = this.getAttribute('data-tab');
-if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts(); } else { loadAdminMembers(); }
+if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts(); } else if(tab === 'settings'){ loadAdminSettings(); } else { loadAdminMembers(); }
 });
 }
 await loadAdminGroups();
@@ -1261,7 +1262,7 @@ return;
 }
 var products = data.products || [];
 if(!listEl) return;
-var html = adminSiteSettingsHTML() + adminNewProductFormHTML(products);
+var html = adminNewProductFormHTML(products);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">目前沒有商品。</p>';
 } else {
@@ -1269,10 +1270,6 @@ html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + 
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
-var saveTripBtn = document.getElementById('adminSaveNextTrip');
-if(saveTripBtn){ saveTripBtn.addEventListener('click', handleAdminSaveNextTrip); }
-var liveToggleBtn = document.getElementById('adminToggleLiveConnection');
-if(liveToggleBtn){ liveToggleBtn.addEventListener('click', handleAdminToggleLiveConnection); }
 var catSelect = document.getElementById('npCat');
 if(catSelect){
 catSelect.addEventListener('change', function(){
@@ -1284,6 +1281,15 @@ var newCatInputInit = document.getElementById('npNewCatName');
 if(newCatInputInit){ newCatInputInit.style.display = 'block'; }
 }
 }
+}
+async function loadAdminSettings(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl) return;
+listEl.innerHTML = adminSiteSettingsHTML();
+var saveTripBtn = document.getElementById('adminSaveNextTrip');
+if(saveTripBtn){ saveTripBtn.addEventListener('click', handleAdminSaveNextTrip); }
+var liveToggleBtn = document.getElementById('adminToggleLiveConnection');
+if(liveToggleBtn){ liveToggleBtn.addEventListener('click', handleAdminToggleLiveConnection); }
 }
 function adminSiteSettingsHTML(){
 var tripVal = siteSettings.next_trip || '';
@@ -1334,7 +1340,7 @@ try{
 var res = await callMemberApi('admin-toggle-live-connection', { enabled: turnOn });
 siteSettings.live_connection_mode = res.enabled ? 'on' : 'off';
 showToast(res.enabled ? '已開啟限時連線' : '已關閉限時連線');
-loadAdminProducts();
+loadAdminSettings();
 }catch(e){
 alert('操作失敗：' + e.message);
 btn.disabled = false;
