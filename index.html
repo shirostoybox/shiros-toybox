@@ -284,6 +284,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <span id="qtyValue">1</span>
 <button id="qtyPlus">＋</button>
 </div>
+<p id="orderModalDepositHint" style="display:none;font-size:12.5px;color:var(--ignis-deep);font-weight:600;margin:0 0 10px;"></p>
 <button class="btn btn--primary btn--full" id="orderModalConfirm">加入喊單</button>
 </div>
 </div>
@@ -323,6 +324,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <div class="settle-total-row"><span>商品小計</span><span id="settleSubtotal">NT$0</span></div>
 <div class="settle-total-row"><span>運費</span><span id="settleShipFee">NT$0</span></div>
 <div class="settle-total-row" id="settleDiscountRow" style="display:none;"><span>優惠折抵</span><span id="settleDiscount" style="color:var(--ignis-deep);">-NT$0</span></div>
+<div class="settle-total-row" id="settleDepositRow" style="display:none;"><span>💰已付訂金</span><span id="settleDeposit" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
 </div>
 <p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
@@ -889,11 +891,20 @@ var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'
 var liveBadge = o.is_live_limited
 ? '<span style="display:inline-block;background:var(--volt);color:var(--ink);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">⚡限時連線</span>'
 : '';
+var depositBadge = o.deposit_required
+? '<span style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">💰需訂金</span>'
+: '';
+// 只有這筆訂單當初判斷需要訂金，才顯示這個輸入格；客人付了多少你就key多少，之後確認／取消都會一起存這個金額。
+var suggestedDeposit = total ? Math.round(total/2) : 0;
+var depositInputHtml = o.deposit_required
+? '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">💰客人已付訂金（建議NT$'+suggestedDeposit+'）</label><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="尚未輸入" style="margin-bottom:0;"></div>'
+: '';
 return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
++ depositInputHtml
 + confirmBtn
 + cancelBtn
 + '</div>';
@@ -930,6 +941,7 @@ return '<div data-settlement-card="'+s.id+'" style="background:'+fillColor+';bor
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
 + '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
++ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
@@ -1023,8 +1035,12 @@ unrestrictBtns[u].addEventListener('click', (function(btn){ return function(){ h
 async function handleAdminConfirmOrder(btn){
 btn.disabled = true; btn.textContent = '確認中...';
 var orderId = btn.getAttribute('data-order-id');
+// 訂金輸入格跟這個按鈕是同一列的兄弟元素，有填就跟著這次確認一起存進去。
+var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-deposit-input') : null;
+var payload = { orderId: orderId };
+if(depositInput && depositInput.value !== ''){ payload.depositAmount = depositInput.value; }
 try{
-await callMemberApi('admin-confirm-order', { orderId: orderId });
+await callMemberApi('admin-confirm-order', payload);
 showToast('已確認');
 await loadAdminGroups();
 }catch(e){
@@ -1036,8 +1052,11 @@ async function handleAdminCancelOrder(btn){
 if(!window.confirm('確定要標記這件商品缺貨、取消這筆訂單嗎？客人會在自己的訂單紀錄看到「缺貨已幫您取消」，不會影響他其他已確認的商品結單。')) return;
 btn.disabled = true; btn.textContent = '處理中...';
 var orderId = btn.getAttribute('data-order-id');
+var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-deposit-input') : null;
+var payload = { orderId: orderId };
+if(depositInput && depositInput.value !== ''){ payload.depositAmount = depositInput.value; }
 try{
-await callMemberApi('admin-cancel-order', { orderId: orderId });
+await callMemberApi('admin-cancel-order', payload);
 showToast('已標記缺貨取消');
 await loadAdminGroups();
 }catch(e){
@@ -1694,6 +1713,10 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已
 } else {
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
+// 預購連線／限時連線的商品，單價超過2000就可能會需要訂金（實際以喊單當下的小計判斷，數量選擇在下一步彈窗）。
+var depositNoteHTML = ((p.stock === 'preorder' || p.stock === 'live_limited') && Number(p.price) > 2000)
+? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰喊單金額超過NT$2000需支付訂金</p>'
+: '';
 return '<article class="card">'
 + '<div class="card-visual">' + visualHTML(p)
 + '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
@@ -1702,6 +1725,7 @@ return '<article class="card">'
 + '<span class="type-chip">' + p.catLabel + '</span>'
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
++ depositNoteHTML
 + orderBtnHTML
 + '</div></article>';
 }
@@ -1802,6 +1826,17 @@ function updateOrderModalSub(){
 var extra = orderModalShell === 'yes' ? 10 : 0;
 var unitPrice = orderModalProduct.price + extra;
 document.getElementById('orderModalSub').textContent = orderModalProduct.sub + ' · NT$' + unitPrice;
+// 訂金判斷用「這筆訂單的小計」（單價×數量），跟後端 submit-order 的邏輯一致，數量變動即時更新提示。
+var depositEl = document.getElementById('orderModalDepositHint');
+var stock = orderModalProduct.stock;
+var lineSubtotal = unitPrice * orderModalQty;
+var needsDeposit = (stock === 'preorder' || stock === 'live_limited') && lineSubtotal > 2000;
+if(needsDeposit){
+depositEl.style.display = 'block';
+depositEl.textContent = '💰此筆喊單需支付訂金 NT$'+Math.round(lineSubtotal/2)+'（商品金額一半，確認後會另行通知收款方式）';
+} else {
+depositEl.style.display = 'none';
+}
 }
 function openOrderModal(product){
 if(siteSettings.live_connection_mode === 'on' && product.stock !== 'live_limited'){
@@ -1972,11 +2007,16 @@ else if(o.status === '缺貨已幫您取消') statusClass = 'order-status order-
 var deleteBtn = o.status === '待確認'
 ? '<button type="button" class="settle-item-delete my-order-delete" data-order-id="'+o.id+'" style="margin-top:8px;">移除</button>'
 : '';
+var depositAmount = Number(o.deposit_amount || 0);
+var depositHtml = depositAmount > 0
+? '<p class="order-time" style="color:var(--ignis-deep);font-weight:600;">💰已付訂金 NT$'+depositAmount+'</p>'
+: '';
 return '<div class="order-card">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
++ depositHtml
 + deleteBtn
 + '</div>';
 }
@@ -2107,7 +2147,8 @@ var discount = (settlementState.useReferral ? 60 : 0) + settlementState.rewardCo
 var payable = subtotal + shipFee;
 var overflow = discount > payable;
 if(overflow) discount = payable;
-var total = payable - discount;
+var depositTotal = pcCalc._confirmedDeposit != null ? pcCalc._confirmedDeposit : 0;
+var total = Math.max(0, payable - discount - depositTotal);
 document.getElementById('settleSubtotal').textContent = 'NT$'+subtotal;
 document.getElementById('settleShipFee').textContent = 'NT$'+shipFee;
 var discountRow = document.getElementById('settleDiscountRow');
@@ -2115,6 +2156,11 @@ if(discount > 0){
 discountRow.style.display = 'flex';
 document.getElementById('settleDiscount').textContent = '-NT$'+discount;
 } else { discountRow.style.display = 'none'; }
+var depositRow = document.getElementById('settleDepositRow');
+if(depositTotal > 0){
+depositRow.style.display = 'flex';
+document.getElementById('settleDeposit').textContent = '-NT$'+depositTotal;
+} else { depositRow.style.display = 'none'; }
 document.getElementById('settleTotal').textContent = 'NT$'+total;
 var note = document.getElementById('settleOverflowNote');
 if(overflow){
@@ -2125,14 +2171,16 @@ note.textContent = '⚠️ 券的總價值超過應付金額，超過部分不�
 function renderSettlementItemList(){
 var list = document.getElementById('settlementItemList');
 var pc = pendingCycles[settlementState.group];
-var confirmedSubtotal = 0, unconfirmedCount = 0;
+var confirmedSubtotal = 0, unconfirmedCount = 0, confirmedDeposit = 0;
 list.innerHTML = pc.items.map(function(o){
 var isConfirmed = o.status === '已確認';
 var lineTotal = o.price * o.quantity;
-if(isConfirmed){ confirmedSubtotal += lineTotal; } else { unconfirmedCount++; }
+var depositPaid = Number(o.deposit_amount || 0);
+if(isConfirmed){ confirmedSubtotal += lineTotal; confirmedDeposit += depositPaid; } else { unconfirmedCount++; }
 var rowClass = isConfirmed ? 'settle-item-row' : 'settle-item-row settle-item-row--pending';
 var nameHtml = o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity
-+ (isConfirmed ? '' : '<br><span class="settle-item-pending-note">尚未確認，這次無法結單</span>');
++ (isConfirmed ? '' : '<br><span class="settle-item-pending-note">尚未確認，這次無法結單</span>')
++ (depositPaid > 0 ? '<br><span style="font-size:11.5px;color:var(--muted);">💰已付訂金 NT$'+depositPaid+'</span>' : '');
 var rightHtml = '<span style="display:flex;flex-direction:column;align-items:flex-end;">NT$'+lineTotal
 + (isConfirmed ? '' : '<button type="button" class="settle-item-delete" data-order-id="'+o.id+'">移除</button>')
 + '</span>';
@@ -2140,6 +2188,7 @@ return '<div class="'+rowClass+'"><span>'+nameHtml+'</span>'+rightHtml+'</div>';
 }).join('');
 pc._confirmedSubtotal = confirmedSubtotal;
 pc._unconfirmedCount = unconfirmedCount;
+pc._confirmedDeposit = confirmedDeposit;
 var delBtns = list.querySelectorAll('.settle-item-delete');
 for(var i=0;i<delBtns.length;i++){
 delBtns[i].addEventListener('click', function(){ handleDeleteOrder(this.getAttribute('data-order-id')); });
@@ -2293,6 +2342,7 @@ return '<div class="order-card" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
 + '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
++ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
@@ -2428,11 +2478,11 @@ var url = this.getAttribute('data-zoom');
 if(url && orderModalProduct) openProductGallery(orderModalProduct.id, url);
 });
 document.getElementById('qtyMinus').addEventListener('click', function(){
-if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; }
+if(orderModalQty > 1){ orderModalQty--; document.getElementById('qtyValue').textContent = orderModalQty; updateOrderModalSub(); }
 });
 document.getElementById('qtyPlus').addEventListener('click', function(){
 if(orderModalMax && orderModalQty >= orderModalMax){ showToast('已達現有庫存上限'); return; }
-orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty;
+orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty; updateOrderModalSub();
 });
 document.getElementById('loginGateBtn').addEventListener('click', function(){
 liff.login();
