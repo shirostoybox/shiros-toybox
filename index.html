@@ -1113,7 +1113,7 @@ btn.disabled = false; btn.textContent = '恢復下單資格';
 async function loadAdminMembers(){
 var listEl = document.getElementById('adminTabContent');
 if(!listEl) return;
-listEl.innerHTML = '<input type="text" class="gate-input" id="adminMemberSearch" placeholder="搜尋客人暱稱">'
+listEl.innerHTML = '<input type="text" class="gate-input" id="adminMemberSearch" placeholder="搜尋客人暱稱／LINE顯示名稱">'
 + '<button type="button" class="btn btn--dark btn--full" id="adminMemberSearchBtn" style="margin-bottom:16px;">搜尋</button>'
 + '<div id="adminMemberResults"></div>';
 var input = document.getElementById('adminMemberSearch');
