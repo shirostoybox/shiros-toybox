@@ -618,7 +618,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260926-2345';
+var APP_VERSION = '20260927-0100';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2867,8 +2867,30 @@ renderLive();
 /* ---------- wire static controls ---------- */
 document.addEventListener('DOMContentLoaded', function(){
 var navItems = document.querySelectorAll('.nav-item');
+// 底部選單固定在畫面底部、不會跟著頁面滑動，所以就算頁面還在慣性滑動，也不會點錯。
+// iPhone在滑動中會把第一下當成「讓畫面停下來」而不觸發click，
+// 這裡改成手指離開時就直接切換頁面，一次就有反應；手指有明顯移動（在滑選單）就不算點擊。
+// preventDefault 讓後面不會再多觸發一次 click；電腦用滑鼠點的時候還是走原本的 click。
 for(var n=0;n<navItems.length;n++){
-navItems[n].addEventListener('click', (function(item){ return function(){ showView(item.getAttribute('data-target')); }; })(navItems[n]));
+(function(item){
+var startX = 0, startY = 0, tracking = false;
+item.addEventListener('touchstart', function(e){
+var t = e.changedTouches[0];
+startX = t.clientX; startY = t.clientY; tracking = true;
+}, {passive:true});
+item.addEventListener('touchmove', function(e){
+var t = e.changedTouches[0];
+if(Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) tracking = false;
+}, {passive:true});
+item.addEventListener('touchend', function(e){
+if(!tracking) return;
+tracking = false;
+e.preventDefault();
+showView(item.getAttribute('data-target'));
+}, {passive:false});
+item.addEventListener('touchcancel', function(){ tracking = false; }, {passive:true});
+item.addEventListener('click', function(){ showView(item.getAttribute('data-target')); });
+})(navItems[n]);
 }
 var heroBtns = document.querySelectorAll('.hero-actions [data-target], .hero-links [data-target]');
 for(var h=0;h<heroBtns.length;h++){
