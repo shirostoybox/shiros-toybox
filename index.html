@@ -184,12 +184,37 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .live-entry.is-idle .live-badge{ background:rgba(255,255,255,.15); color:#C9CCD6; }
 .live-dot{ width:7px; height:7px; border-radius:50%; background:#E2472A; animation:live-blink 1.2s ease-in-out infinite; }
 .live-entry.is-idle .live-dot{ background:#9AA0B4; animation:none; }
-.live-entry-sub{ font-size:12.5px; opacity:.92; line-height:1.45; }
+.live-entry-sub{ display:block; font-size:12.5px; opacity:.92; line-height:1.45; }
+.live-entry.is-idle[class*="zone-"]{ background:linear-gradient(125deg,#20242F 0%,#3A3F4F 100%); box-shadow:none; }
 .live-entry-arrow{ flex:0 0 auto; font-size:22px; opacity:.9; }
 .live-status-note{ margin:0 20px 10px; padding:10px 14px; border-radius:var(--r-md); font-size:12.5px; font-weight:600; line-height:1.55; }
 .live-status-note.is-on{ background:#FEF2F2; color:#C8321C; border:1px solid rgba(226,71,42,.35); }
 .live-status-note.is-off{ background:var(--card); color:var(--muted); border:1px solid var(--line); }
 .live-empty{ padding:30px 20px; text-align:center; font-size:13.5px; color:var(--muted); line-height:1.7; }
+.live-entries{ display:flex; flex-direction:column; gap:12px; margin:20px 0 2px; }
+.live-entries .live-entry{ margin:0 18px; }
+.live-entry-note{ display:inline-block; margin:1px 0 3px; padding:1px 8px; border-radius:999px; background:rgba(255,255,255,.22); font-size:11.5px; font-weight:700; vertical-align:middle; }
+.live-entry.zone-gold{ background:linear-gradient(125deg,#7A5410 0%,#C8962B 50%,#F2D07A 100%); box-shadow:0 12px 26px -14px rgba(160,115,20,.9); }
+.live-entry.zone-blue{ background:linear-gradient(125deg,#1E3A8A 0%,#2F6FE0 55%,#8EC5FF 100%); box-shadow:0 12px 26px -14px rgba(37,99,235,.9); }
+.live-entry.zone-purple{ background:linear-gradient(125deg,#4C1D95 0%,#7C4DDB 55%,#C9B2FF 100%); box-shadow:0 12px 26px -14px rgba(109,40,217,.9); }
+.live-entry.zone-green{ background:linear-gradient(125deg,#065F46 0%,#139E72 55%,#7EE2B8 100%); box-shadow:0 12px 26px -14px rgba(4,120,87,.9); }
+.live-entry.zone-gold .live-badge{ color:#8A6414; } .live-entry.zone-gold .live-dot{ background:#C8962B; }
+.live-entry.zone-blue .live-badge{ color:#1E4FC2; } .live-entry.zone-blue .live-dot{ background:#2F6FE0; }
+.live-entry.zone-purple .live-badge{ color:#5B2BB5; } .live-entry.zone-purple .live-dot{ background:#7C4DDB; }
+.live-entry.zone-green .live-badge{ color:#067A57; } .live-entry.zone-green .live-dot{ background:#139E72; }
+.live-zone-hero{ margin:4px 20px 12px; padding:16px; border-radius:var(--r-md); color:#fff; }
+.live-zone-hero.zone-gold{ background:linear-gradient(125deg,#7A5410,#C8962B 55%,#F2D07A); }
+.live-zone-hero.zone-blue{ background:linear-gradient(125deg,#1E3A8A,#2F6FE0 55%,#8EC5FF); }
+.live-zone-hero.zone-purple{ background:linear-gradient(125deg,#4C1D95,#7C4DDB 55%,#C9B2FF); }
+.live-zone-hero.zone-green{ background:linear-gradient(125deg,#065F46,#139E72 55%,#7EE2B8); }
+.live-zone-hero h2{ margin:0; font-size:20px; font-weight:800; }
+.live-zone-hero p{ margin:6px 0 0; font-size:12.5px; opacity:.95; line-height:1.5; }
+.zone-swatch{ width:34px; height:34px; border-radius:50%; border:3px solid transparent; padding:0; cursor:pointer; }
+.zone-swatch.is-selected{ border-color:var(--ink); box-shadow:0 0 0 2px #fff inset; }
+.zone-swatch.zone-gold{ background:linear-gradient(135deg,#C8962B,#F2D07A); }
+.zone-swatch.zone-blue{ background:linear-gradient(135deg,#2F6FE0,#8EC5FF); }
+.zone-swatch.zone-purple{ background:linear-gradient(135deg,#7C4DDB,#C9B2FF); }
+.zone-swatch.zone-green{ background:linear-gradient(135deg,#139E72,#7EE2B8); }
 @keyframes live-blink{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.35; transform:scale(.8); } }
 @keyframes live-shine{ 0%{ left:-60%; } 60%,100%{ left:130%; } }
 @keyframes cyclePulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.18); } }
@@ -388,14 +413,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </div>
 </div>
 </section>
-<button type="button" class="live-entry is-idle" id="liveEntry">
-<span class="live-entry-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.3 5.3a9.5 9.5 0 0 0 0 13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4"/></svg></span>
-<span class="live-entry-text">
-<span class="live-entry-top"><span class="live-entry-title">限時連線專區</span><span class="live-badge"><span class="live-dot"></span>LIVE</span></span>
-<span class="live-entry-sub" id="liveEntrySub">出國連線期間限定商品都在這裡</span>
-</span>
-<span class="live-entry-arrow">›</span>
-</button>
+<div class="live-entries" id="liveEntries"></div>
 <p class="section-label">熱門分類</p>
 <div class="cat-grid"></div>
 <div class="picks-header">
@@ -426,7 +444,8 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 </section>
 <!-- LIVE CONNECTION -->
 <section class="view" data-view="live">
-<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>限時連線專區</h2><span class="count-pill" id="liveCount"></span></div>
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><span class="count-pill" id="liveCount" style="margin-left:auto;"></span></div>
+<div id="liveZoneHero"></div>
 <div id="liveStatusNote"></div>
 <div class="category-tabs" id="liveCategoryTabs"></div>
 <div class="grid" id="liveGrid"></div>
@@ -597,7 +616,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260926-2250';
+var APP_VERSION = '20260926-2330';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -636,12 +655,29 @@ var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
 var PRODUCTS = [];
+var LIVE_ZONES = [];
+var ZONE_COLORS = [['gold','金色'],['blue','藍色'],['purple','紫色'],['green','綠色']];
+async function loadLiveZones(){
+try{
+var data = await callMemberApi('get-live-zones');
+LIVE_ZONES = data.zones || [];
+}catch(e){ LIVE_ZONES = []; }
+}
+function zoneById(id){
+for(var i=0;i<LIVE_ZONES.length;i++){ if(LIVE_ZONES[i].id === id) return LIVE_ZONES[i]; }
+return null;
+}
+function zoneColorClass(z){
+var c = z && z.color;
+return 'zone-' + (['gold','blue','purple','green'].indexOf(c) !== -1 ? c : 'gold');
+}
 async function loadProducts(){
 var res = await supabaseClient.from('products').select('*').order('featured', { ascending:false });
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null };
 });
+await loadLiveZones();
 }
 async function loadSiteSettings(){
 try{
@@ -821,6 +857,12 @@ checkAdminAndMaybeShow();
 return;
 }
 var validTargets = ['home','shop','live','cart','wish','guide','payment','shipping','activity'];
+if(target === 'live'){
+var zoneParam = params.get('zone');
+var openList = openZones();
+openLiveZone(zoneParam || (openList.length === 1 ? openList[0].id : null));
+return;
+}
 if(target && validTargets.indexOf(target) !== -1){
 showView(target);
 }
@@ -1348,6 +1390,180 @@ btn.disabled = false; btn.textContent = oldText;
 }
 // 庫存分頁只管一般商品（現貨／預購連線／缺貨），限時連線分頁只管限時連線／連線已結束的商品。
 var adminProductsMode = 'regular';
+var adminLiveZoneFilter = null;
+function adminCatMemPrefix(){ return adminProductsMode === 'live' ? 'live:' + adminLiveZoneFilter + ':' : 'regular:'; }
+function zoneSwatchesHTML(groupId, selected){
+return '<div style="display:flex;gap:10px;margin:4px 0 10px;" data-swatch-group="'+groupId+'">'
++ ZONE_COLORS.map(function(c){
+return '<button type="button" class="zone-swatch zone-'+c[0]+(selected===c[0]?' is-selected':'')+'" data-color="'+c[0]+'" aria-label="'+c[1]+'" title="'+c[1]+'"></button>';
+}).join('') + '</div>';
+}
+function adminZonesManageHTML(){
+var html = '<div style="background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:14px;">'
++ '<p style="font-size:14px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">專區管理</p>'
++ '<p style="font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 12px;">開啟中的專區會出現在客人首頁；關閉後客人看不到、也不能再喊單，已經喊單的訂單不受影響。</p>';
+html += LIVE_ZONES.map(function(z){
+var colorVal = ['gold','blue','purple','green'].indexOf(z.color) !== -1 ? z.color : 'gold';
+return '<div class="admin-zone-card" data-zone-id="'+escAttr(z.id)+'" style="border:1.5px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px;">'
++ '<div class="live-entry '+zoneColorClass(z)+(z.is_open?'':' is-idle')+'" style="width:100%;margin:0 0 10px;padding:10px 12px;cursor:default;">'
++ '<span class="live-entry-text"><span class="live-entry-top"><span class="live-entry-title" style="font-size:15px;">'+escHtml(z.name||'限時連線專區')+'</span></span>'
++ (z.note ? '<span class="live-entry-note">'+escHtml(z.note)+'</span> ' : '')
++ '<span class="live-entry-sub">'+(z.is_open ? '🟢 開啟中' : '⚪️ 已關閉')+'</span></span></div>'
++ '<div style="display:flex;gap:8px;">'
++ '<button type="button" class="btn btn--full admin-zone-toggle" data-open="'+(z.is_open?'1':'0')+'" style="flex:1;'+(z.is_open?'border:1.5px solid var(--ink);color:var(--ink);':'background:var(--ignis);color:#fff;')+'">'+(z.is_open?'關閉專區':'開啟專區')+'</button>'
++ '<button type="button" class="btn admin-zone-edit-toggle" style="border:1.5px solid var(--line);color:var(--text-dark);">編輯</button>'
++ '</div>'
++ '<div class="admin-zone-edit" style="display:none;margin-top:10px;">'
++ '<input type="text" class="gate-input admin-zone-name" value="'+escAttr(z.name||'')+'" placeholder="專區名稱" style="margin-bottom:8px;">'
++ '<input type="text" class="gate-input admin-zone-note" value="'+escAttr(z.note||'')+'" placeholder="備註（地點或小幫手名字，例如：岡山・小美）" style="margin-bottom:6px;">'
++ '<p style="font-size:12px;color:var(--muted);margin:0;">顏色</p>'
++ zoneSwatchesHTML('zone-'+z.id, colorVal)
++ '<div style="display:flex;gap:8px;">'
++ '<button type="button" class="btn btn--dark admin-zone-save" style="flex:1;">儲存</button>'
++ '<button type="button" class="btn admin-zone-delete" style="border:1.5px solid var(--ignis-deep);color:var(--ignis-deep);">刪除專區</button>'
++ '</div></div></div>';
+}).join('');
+html += '<button type="button" class="btn btn--dark btn--full" id="adminZoneNewToggle">+ 建立新專區</button>'
++ '<div id="adminZoneNewForm" style="display:'+(LIVE_ZONES.length ? 'none' : 'block')+';margin-top:10px;">'
++ '<input type="text" class="gate-input" id="nzName" value="限時連線專區" placeholder="專區名稱">'
++ '<input type="text" class="gate-input" id="nzNote" placeholder="備註（地點或小幫手名字，例如：岡山・小美）">'
++ '<p style="font-size:12px;color:var(--muted);margin:0;">顏色</p>'
++ zoneSwatchesHTML('new', 'gold')
++ '<button type="button" class="btn btn--primary btn--full" id="nzSubmit">建立並開啟</button>'
++ '</div></div>';
+return html;
+}
+function adminZoneFilterHTML(unassignedCount){
+var chips = LIVE_ZONES.map(function(z){
+var label = (z.name || '限時連線專區') + (z.note ? '｜' + z.note : '') + (z.is_open ? '' : '（已關閉）');
+return '<button type="button" class="cat-tab admin-zone-filter'+(adminLiveZoneFilter===z.id?' active':'')+'" data-zone-id="'+escAttr(z.id)+'">'+escHtml(label)+'</button>';
+}).join('');
+if(unassignedCount > 0){
+chips += '<button type="button" class="cat-tab admin-zone-filter'+(adminLiveZoneFilter==='__none__'?' active':'')+'" data-zone-id="__none__">未分配（'+unassignedCount+'）</button>';
+}
+return '<p style="font-size:12.5px;font-weight:700;color:var(--text-dark);margin:4px 0 8px;">管理哪個專區的商品</p>'
++ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">'+chips+'</div>';
+}
+function bindZoneSwatches(container){
+var sws = container.querySelectorAll('.zone-swatch');
+for(var i=0;i<sws.length;i++){
+sws[i].addEventListener('click', function(){
+var group = this.parentNode.querySelectorAll('.zone-swatch');
+for(var j=0;j<group.length;j++){ group[j].classList.remove('is-selected'); }
+this.classList.add('is-selected');
+});
+}
+}
+function selectedSwatch(el){
+var sel = el.querySelector('.zone-swatch.is-selected');
+return sel ? sel.getAttribute('data-color') : 'gold';
+}
+function bindAdminZoneActions(container){
+bindZoneSwatches(container);
+var newToggle = document.getElementById('adminZoneNewToggle');
+if(newToggle){ newToggle.addEventListener('click', function(){
+var f = document.getElementById('adminZoneNewForm');
+f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}); }
+var nzSubmit = document.getElementById('nzSubmit');
+if(nzSubmit){ nzSubmit.addEventListener('click', handleAdminCreateZone); }
+var cards = container.querySelectorAll('.admin-zone-card');
+for(var i=0;i<cards.length;i++){
+(function(card){
+var zoneId = card.getAttribute('data-zone-id');
+card.querySelector('.admin-zone-edit-toggle').addEventListener('click', function(){
+var ed = card.querySelector('.admin-zone-edit');
+var show = ed.style.display === 'none';
+ed.style.display = show ? 'block' : 'none';
+this.textContent = show ? '收起' : '編輯';
+});
+card.querySelector('.admin-zone-save').addEventListener('click', function(){ handleAdminSaveZone(card, zoneId, this); });
+card.querySelector('.admin-zone-toggle').addEventListener('click', function(){ handleAdminToggleZone(zoneId, this.getAttribute('data-open') !== '1', this); });
+card.querySelector('.admin-zone-delete').addEventListener('click', function(){ handleAdminDeleteZone(zoneId, this); });
+})(cards[i]);
+}
+var filters = container.querySelectorAll('.admin-zone-filter');
+for(var f=0;f<filters.length;f++){
+filters[f].addEventListener('click', function(){
+adminLiveZoneFilter = this.getAttribute('data-zone-id');
+loadAdminProducts();
+});
+}
+var zoneSelects = container.querySelectorAll('.admin-product-zone-select');
+for(var z=0;z<zoneSelects.length;z++){
+zoneSelects[z].addEventListener('change', function(){ handleAdminSetProductZone(this); });
+}
+}
+async function handleAdminCreateZone(){
+var btn = document.getElementById('nzSubmit');
+var name = document.getElementById('nzName').value.trim() || '限時連線專區';
+var note = document.getElementById('nzNote').value.trim();
+var color = selectedSwatch(document.getElementById('adminZoneNewForm'));
+btn.disabled = true; btn.textContent = '建立中...';
+try{
+var res = await callMemberApi('admin-create-live-zone', { name: name, note: note, color: color });
+adminLiveZoneFilter = res.zoneId;
+showToast('專區已建立並開啟');
+await loadAdminProducts();
+}catch(e){
+alert('建立失敗：' + e.message);
+btn.disabled = false; btn.textContent = '建立並開啟';
+}
+}
+async function handleAdminSaveZone(card, zoneId, btn){
+var name = card.querySelector('.admin-zone-name').value.trim() || '限時連線專區';
+var note = card.querySelector('.admin-zone-note').value.trim();
+var color = selectedSwatch(card);
+btn.disabled = true;
+try{
+await callMemberApi('admin-update-live-zone', { zoneId: zoneId, name: name, note: note, color: color });
+showToast('已儲存');
+await loadAdminProducts();
+}catch(e){
+alert('儲存失敗：' + e.message);
+btn.disabled = false;
+}
+}
+async function handleAdminToggleZone(zoneId, open, btn){
+var msg = open
+? '確定要開啟這個專區嗎？\n\n開啟後客人首頁會出現這個專區，可以對裡面的「限時連線」商品喊單。'
+: '確定要關閉這個專區嗎？\n\n關閉後：\n・客人首頁不會再出現這個專區\n・裡面的商品不能再喊單\n・已經喊單的訂單不受影響，照常結單\n・之後可以隨時重新開啟';
+if(!window.confirm(msg)) return;
+btn.disabled = true;
+try{
+await callMemberApi('admin-update-live-zone', { zoneId: zoneId, isOpen: open });
+showToast(open ? '專區已開啟' : '專區已關閉');
+await loadAdminProducts();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false;
+}
+}
+async function handleAdminDeleteZone(zoneId, btn){
+if(!window.confirm('確定要刪除這個專區嗎？\n\n專區裡還有商品的話不能刪除，請先把商品移到別的專區，或改成其他狀態。')) return;
+btn.disabled = true;
+try{
+await callMemberApi('admin-delete-live-zone', { zoneId: zoneId });
+showToast('專區已刪除');
+await loadAdminProducts();
+}catch(e){
+alert('刪除失敗：' + e.message);
+btn.disabled = false;
+}
+}
+async function handleAdminSetProductZone(select){
+var productId = select.getAttribute('data-product-id');
+var zoneId = select.value || null;
+select.disabled = true;
+try{
+await callMemberApi('admin-set-product-zone', { productId: productId, zoneId: zoneId });
+showToast('已移到其他專區');
+await loadAdminProducts();
+}catch(e){
+alert('更新失敗：' + e.message);
+select.disabled = false;
+}
+}
 async function loadAdminProducts(mode){
 if(mode) adminProductsMode = mode;
 var isLiveMode = adminProductsMode === 'live';
@@ -1364,7 +1580,22 @@ if(!listEl) return;
 var products = allProducts.filter(function(p){ return isLiveMode ? isLiveStock(p.stock_status) : !isLiveStock(p.stock_status); });
 var html = '';
 if(isLiveMode){
-html += '<p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 12px;">這裡只放「限時連線」「連線已結束」的商品，會顯示在客人首頁的限時連線專區。商品狀態改成現貨／預購連線後，會自動移到「庫存」分頁。</p>';
+await loadLiveZones();
+if(adminLiveZoneFilter !== '__none__' && !zoneById(adminLiveZoneFilter)){
+adminLiveZoneFilter = LIVE_ZONES.length ? LIVE_ZONES[0].id : '__none__';
+}
+var unassigned = products.filter(function(p){ return !p.live_zone_id || !zoneById(p.live_zone_id); });
+html += adminZonesManageHTML();
+if(LIVE_ZONES.length === 0){
+html += '<p style="font-size:13px;color:var(--muted);line-height:1.6;margin:14px 0 0;">先建立一個專區，才能在裡面新增限時連線商品。</p>';
+listEl.innerHTML = html;
+bindAdminZoneActions(listEl);
+return;
+}
+html += adminZoneFilterHTML(unassigned.length);
+products = adminLiveZoneFilter === '__none__'
+? unassigned
+: products.filter(function(p){ return p.live_zone_id === adminLiveZoneFilter; });
 }
 html += adminNewProductFormHTML(allProducts, isLiveMode);
 if(products.length === 0){
@@ -1375,6 +1606,7 @@ html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + 
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
 bindAdminCatToggles(listEl);
+if(isLiveMode) bindAdminZoneActions(listEl);
 var catSelect = document.getElementById('npCat');
 if(catSelect){
 catSelect.addEventListener('change', function(){
@@ -1466,7 +1698,7 @@ groups.push(byCat[key]);
 byCat[key].items.push(p);
 }
 return groups.map(function(g){
-var isOpen = !!adminOpenCats[adminProductsMode + ':' + g.key];
+var isOpen = !!adminOpenCats[adminCatMemPrefix() + g.key];
 var rows = g.items.map(function(p){ return adminProductRowHTML(p, g.color); }).join('');
 return '<div class="admin-cat-group" style="margin-bottom:10px;">'
 + '<button type="button" class="admin-cat-toggle" data-cat-key="'+escAttr(g.key)+'" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--card);cursor:pointer;font:inherit;text-align:left;">'
@@ -1490,7 +1722,7 @@ var chevron = this.querySelector('.admin-cat-chevron');
 var willOpen = body.style.display === 'none';
 body.style.display = willOpen ? 'block' : 'none';
 if(chevron) chevron.style.transform = 'rotate('+(willOpen?'90':'0')+'deg)';
-var memKey = adminProductsMode + ':' + key;
+var memKey = adminCatMemPrefix() + key;
 if(willOpen){ adminOpenCats[memKey] = true; } else { delete adminOpenCats[memKey]; }
 });
 }
@@ -1509,7 +1741,9 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 + '<input type="text" class="gate-input" id="npNewCatName" placeholder="新分類名稱" style="display:none;">'
 + '<input type="number" class="gate-input" id="npPrice" placeholder="價格">'
 + (isLiveMode
-? '<input type="hidden" id="npStock" value="live_limited"><p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;">狀態：限時連線</p>'
+? '<input type="hidden" id="npStock" value="live_limited">'
++ '<select class="gate-input" id="npZone">' + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(adminLiveZoneFilter===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('') + '</select>'
++ '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;">狀態：限時連線</p>'
 : '<select class="gate-input" id="npStock"><option value="in">現貨</option><option value="preorder">預購連線</option></select>')
 + (isLiveMode ? '<input type="hidden" id="npQty" value="">' : '<input type="number" class="gate-input" id="npQty" placeholder="現貨數量（非現貨可留空）">')
 + '<input type="file" accept="image/*" class="gate-input" id="npImage" style="padding:8px;">'
@@ -1536,6 +1770,10 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
++ (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
++ (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
++ LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(p.live_zone_id===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('')
++ '</select>' : '')
 + '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
 + '<input type="number" class="gate-input admin-qty-input" data-product-id="'+p.id+'" value="'+(p.qty!=null?p.qty:'')+'" placeholder="庫存數量" style="margin-bottom:0;flex:1;">'
@@ -1744,8 +1982,10 @@ if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
 var btn = document.getElementById('npSubmit');
 btn.disabled = true; btn.textContent = '建立中...';
 try{
+var zoneSelect = document.getElementById('npZone');
 var res = await callMemberApi('admin-create-product', {
-name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: stock, qty: qty
+name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: stock, qty: qty,
+liveZoneId: zoneSelect ? zoneSelect.value : null
 });
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
@@ -1926,25 +2166,55 @@ bindCardButtons(grid);
 document.getElementById('shopCount').textContent = list.length + ' 件';
 }
 var liveCategory = 'all';
-function renderLiveEntry(){
-var entry = document.getElementById('liveEntry');
-var sub = document.getElementById('liveEntrySub');
-if(!entry || !sub) return;
-var liveOn = siteSettings.live_connection_mode === 'on';
-var available = liveProducts().filter(function(p){ return p.stock === 'live_limited'; }).length;
-if(liveOn){
-entry.classList.remove('is-idle');
-sub.textContent = '🔴 連線進行中・' + (available > 0 ? available + ' 件商品開放喊單' : '商品陸續上架中');
-} else if(available > 0){
-entry.classList.remove('is-idle');
-sub.textContent = available + ' 件限時商品開放喊單中';
-} else {
-entry.classList.add('is-idle');
-sub.textContent = '目前沒有進行中的連線 ✈︎';
+var currentLiveZoneId = null;
+var LIVE_ICON_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.3 5.3a9.5 9.5 0 0 0 0 13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4"/></svg>';
+function openZones(){ return LIVE_ZONES.filter(function(z){ return z.is_open; }); }
+function zoneProducts(zoneId){ return liveProducts().filter(function(p){ return p.liveZoneId === zoneId; }); }
+function renderLiveEntries(){
+var wrap = document.getElementById('liveEntries');
+if(!wrap) return;
+var zones = openZones();
+if(zones.length === 0){
+wrap.innerHTML = '<div class="live-entry is-idle" style="cursor:default;">'
++ '<span class="live-entry-icon">'+LIVE_ICON_SVG+'</span>'
++ '<span class="live-entry-text"><span class="live-entry-top"><span class="live-entry-title">限時連線專區</span><span class="live-badge"><span class="live-dot"></span>LIVE</span></span>'
++ '<span class="live-entry-sub">目前沒有進行中的連線 ✈︎</span></span></div>';
+return;
 }
+wrap.innerHTML = zones.map(function(z){
+var available = zoneProducts(z.id).filter(function(p){ return p.stock === 'live_limited'; }).length;
+var sub = available > 0 ? '🔴 ' + available + ' 件限時商品開放喊單中' : '商品陸續上架中，敬請期待';
+return '<button type="button" class="live-entry '+zoneColorClass(z)+'" data-zone-id="'+escAttr(z.id)+'">'
++ '<span class="live-entry-icon">'+LIVE_ICON_SVG+'</span>'
++ '<span class="live-entry-text">'
++ '<span class="live-entry-top"><span class="live-entry-title">'+escHtml(z.name || '限時連線專區')+'</span><span class="live-badge"><span class="live-dot"></span>LIVE</span></span>'
++ (z.note ? '<span class="live-entry-note">'+escHtml(z.note)+'</span> ' : '')
++ '<span class="live-entry-sub">'+sub+'</span>'
++ '</span><span class="live-entry-arrow">›</span></button>';
+}).join('');
+var btns = wrap.querySelectorAll('.live-entry[data-zone-id]');
+for(var i=0;i<btns.length;i++){
+btns[i].addEventListener('click', function(){ openLiveZone(this.getAttribute('data-zone-id')); });
+}
+}
+function openLiveZone(zoneId){
+if(currentLiveZoneId !== zoneId){ liveCategory = 'all'; }
+currentLiveZoneId = zoneId;
+showView('live');
 }
 function renderLive(){
-var all = liveProducts();
+renderLiveEntries();
+var zone = zoneById(currentLiveZoneId);
+var isOpen = !!(zone && zone.is_open);
+var heroEl = document.getElementById('liveZoneHero');
+if(heroEl){
+heroEl.innerHTML = zone
+? '<div class="live-zone-hero '+zoneColorClass(zone)+'"><h2>'+escHtml(zone.name || '限時連線專區')+'</h2>'
++ (zone.note ? '<span class="live-entry-note" style="margin:6px 0 0;">'+escHtml(zone.note)+'</span>' : '')
++ '<p>'+(isOpen ? '限時連線進行中，商品數量有限，喊單後依結單規則完成付款即可 ♡' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
+: '';
+}
+var all = (zone && isOpen) ? zoneProducts(zone.id) : [];
 var cats = {}, catKeys = [];
 for(var i=0;i<all.length;i++){
 var p = all[i];
@@ -1974,22 +2244,26 @@ var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 var countEl = document.getElementById('liveCount');
-if(countEl) countEl.textContent = list.length + ' 件';
+if(countEl) countEl.textContent = list.length ? list.length + ' 件' : '';
 var noteEl = document.getElementById('liveStatusNote');
 if(noteEl){
-noteEl.innerHTML = siteSettings.live_connection_mode === 'on'
-? '<p class="live-status-note is-on">🔴 連線進行中！限時商品開放喊單，結單倒數會在連線結束後才開始計算。</p>'
-: (all.some(function(p){ return p.stock === 'live_limited'; }) ? '<p class="live-status-note is-off">限時商品數量有限，喊單後依結單規則完成付款即可 ♡</p>' : '');
+noteEl.innerHTML = (isOpen && siteSettings.live_connection_mode === 'on')
+? '<p class="live-status-note is-on">🔴 連線進行中！結單倒數會在連線結束後才開始計算。</p>' : '';
 }
 var emptyEl = document.getElementById('liveEmpty');
 if(emptyEl){
-emptyEl.innerHTML = list.length === 0 ? '<p class="live-empty">目前沒有限時連線商品<br>下次出國連線時會在這裡開放，敬請期待 ✈︎</p>' : '';
+var msg = '';
+if(!zone || !isOpen) msg = '這個專區目前沒有開放<br>下次出國連線時會在首頁開放，敬請期待 ✈︎';
+else if(list.length === 0) msg = '商品陸續上架中，敬請期待 ✈︎';
+emptyEl.innerHTML = msg ? '<p class="live-empty">'+msg+'</p>' : '';
 }
-renderLiveEntry();
 }
 async function refreshLive(){
 await Promise.all([loadProducts(), loadSiteSettings()]);
 renderLive();
+}
+function escHtml(s){
+return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function setCategory(cat){
 currentCategory = cat;
@@ -2142,6 +2416,7 @@ await loadProducts();
 renderCategoryNav();
 renderHome();
 renderShop();
+renderLive();
 loadMyOrders();
 }
 /* ---------- real orders ---------- */
@@ -2587,8 +2862,6 @@ var heroBtns = document.querySelectorAll('.hero-actions [data-target], .hero-lin
 for(var h=0;h<heroBtns.length;h++){
 heroBtns[h].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(heroBtns[h]));
 }
-var liveEntryBtn = document.getElementById('liveEntry');
-if(liveEntryBtn){ liveEntryBtn.addEventListener('click', function(){ showView('live'); }); }
 var seeMore = document.querySelector('.see-more');
 if(seeMore){ seeMore.addEventListener('click', function(){ setCategory('all'); showView('shop'); }); }
 var menuLinks = document.querySelectorAll('.menu-row[data-target]');
