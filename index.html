@@ -616,7 +616,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260926-2330';
+var APP_VERSION = '20260926-2340';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1486,7 +1486,7 @@ var filters = container.querySelectorAll('.admin-zone-filter');
 for(var f=0;f<filters.length;f++){
 filters[f].addEventListener('click', function(){
 adminLiveZoneFilter = this.getAttribute('data-zone-id');
-loadAdminProducts();
+renderAdminProducts();
 });
 }
 var zoneSelects = container.querySelectorAll('.admin-product-zone-select');
@@ -1564,23 +1564,33 @@ alert('更新失敗：' + e.message);
 select.disabled = false;
 }
 }
+// 商品跟專區資料抓一次就先存起來：切換專區標籤只是換個篩選，直接用存好的資料重畫，
+// 不用每點一次都再跑一趟後端（每次呼叫後端都要先向LINE驗證身分，手機上會明顯卡一下）。
+// 只有新增／修改／刪除之後才重新抓最新資料。
+var adminProductsCache = [];
 async function loadAdminProducts(mode){
 if(mode) adminProductsMode = mode;
-var isLiveMode = adminProductsMode === 'live';
 var listEl = document.getElementById('adminTabContent');
-var data;
 try{
-data = await callMemberApi('admin-list-products');
+var results = await Promise.all([
+callMemberApi('admin-list-products'),
+adminProductsMode === 'live' ? loadLiveZones() : Promise.resolve()
+]);
+adminProductsCache = results[0].products || [];
 }catch(e){
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
 return;
 }
-var allProducts = data.products || [];
+renderAdminProducts();
+}
+function renderAdminProducts(){
+var isLiveMode = adminProductsMode === 'live';
+var listEl = document.getElementById('adminTabContent');
+var allProducts = adminProductsCache;
 if(!listEl) return;
 var products = allProducts.filter(function(p){ return isLiveMode ? isLiveStock(p.stock_status) : !isLiveStock(p.stock_status); });
 var html = '';
 if(isLiveMode){
-await loadLiveZones();
 if(adminLiveZoneFilter !== '__none__' && !zoneById(adminLiveZoneFilter)){
 adminLiveZoneFilter = LIVE_ZONES.length ? LIVE_ZONES[0].id : '__none__';
 }
