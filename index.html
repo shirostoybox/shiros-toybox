@@ -559,7 +559,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260926-2140';
+var APP_VERSION = '20260926-2225';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1325,6 +1325,7 @@ html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + 
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
+bindAdminCatToggles(listEl);
 var catSelect = document.getElementById('npCat');
 if(catSelect){
 catSelect.addEventListener('change', function(){
@@ -1401,20 +1402,48 @@ alert('操作失敗：' + e.message);
 btn.disabled = false;
 }
 }
+// 記住目前展開了哪些分類：儲存商品、換照片之後列表會重新載入，
+// 不記住的話每次存完都會全部收起來，要重新點開很麻煩。
+var adminOpenCats = {};
 function adminProductsGroupedHTML(products){
-var html = '', lastCat = null;
+var groups = [], byCat = {};
 for(var i=0;i<products.length;i++){
 var p = products[i];
-if(p.cat !== lastCat){
-var catColor = colorForCategory(p.cat);
-html += '<div style="margin-top:'+(lastCat===null?'0':'22px')+';margin-bottom:10px;">'
-+ '<span style="display:inline-block;font-size:13px;font-weight:700;padding:5px 14px;border-radius:999px;background:'+catColor.tag+';color:'+catColor.tagText+';">'+escAttr(p.cat_label || catLabelFor(p.cat))+'</span>'
+var key = p.cat || '__none__';
+if(!byCat[key]){
+byCat[key] = { key:key, label:p.cat_label || catLabelFor(p.cat) || '未分類', color:colorForCategory(p.cat), items:[] };
+groups.push(byCat[key]);
+}
+byCat[key].items.push(p);
+}
+return groups.map(function(g){
+var isOpen = !!adminOpenCats[g.key];
+var rows = g.items.map(function(p){ return adminProductRowHTML(p, g.color); }).join('');
+return '<div class="admin-cat-group" style="margin-bottom:10px;">'
++ '<button type="button" class="admin-cat-toggle" data-cat-key="'+escAttr(g.key)+'" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--card);cursor:pointer;font:inherit;text-align:left;">'
++ '<span style="display:flex;align-items:center;gap:8px;min-width:0;">'
++ '<span style="display:inline-block;font-size:13px;font-weight:700;padding:5px 14px;border-radius:999px;background:'+g.color.tag+';color:'+g.color.tagText+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escAttr(g.label)+'</span>'
++ '<span style="font-size:12.5px;color:var(--muted);white-space:nowrap;">'+g.items.length+' 件</span>'
++ '</span>'
++ '<span class="admin-cat-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s ease;transform:rotate('+(isOpen?'90':'0')+'deg);">▶</span>'
++ '</button>'
++ '<div class="admin-cat-body" data-cat-key="'+escAttr(g.key)+'" style="display:'+(isOpen?'block':'none')+';margin-top:10px;">'+rows+'</div>'
 + '</div>';
-lastCat = p.cat;
+}).join('');
 }
-html += adminProductRowHTML(p, colorForCategory(p.cat));
+function bindAdminCatToggles(container){
+var toggles = container.querySelectorAll('.admin-cat-toggle');
+for(var i=0;i<toggles.length;i++){
+toggles[i].addEventListener('click', function(){
+var key = this.getAttribute('data-cat-key');
+var body = this.parentNode.querySelector('.admin-cat-body');
+var chevron = this.querySelector('.admin-cat-chevron');
+var willOpen = body.style.display === 'none';
+body.style.display = willOpen ? 'block' : 'none';
+if(chevron) chevron.style.transform = 'rotate('+(willOpen?'90':'0')+'deg)';
+if(willOpen){ adminOpenCats[key] = true; } else { delete adminOpenCats[key]; }
+});
 }
-return html;
 }
 function adminNewProductFormHTML(products){
 var cats = {};
