@@ -622,7 +622,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260927-0120';
+var APP_VERSION = '20260927-1525';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1084,7 +1084,14 @@ var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
 ? '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
 : '';
-var settleHtml = g.settlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
+// 還沒付款的結單直接顯示（要處理的）；已付款的收進「已付款」折疊區，跟已取消一樣點開才看得到。
+var unpaidSettlements = g.settlements.filter(function(s){ return s.status !== '已付款'; });
+var paidSettlements = g.settlements.filter(function(s){ return s.status === '已付款'; });
+var settleHtml = unpaidSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
+if(paidSettlements.length > 0){
+settleHtml += '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已付款 ('+paidSettlements.length+')</summary>'
++ paidSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('') + '</details>';
+}
 return '<div class="order-card admin-group" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>';
 }
 function bindAdminGroupActions(container){
