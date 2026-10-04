@@ -549,8 +549,8 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>回饋券Q&A</h2></div>
 <div class="guide-content">
 <div class="qa-list">
-<div class="qa-item"><p class="qa-q">Q：怎麼獲得回饋券？</p><p class="qa-a">A：累積消費每滿NT$2,000，即贈送1張NT$60回饋券 ✨<br>・累積NT$2,000 → 1張<br>・累積NT$4,000 → 2張<br>・累積NT$6,000 → 3張<br>以此類推 ♡</p></div>
-<div class="qa-item"><p class="qa-q">Q：超過NT$2,000的金額會浪費嗎？</p><p class="qa-a">A：不會。每滿NT$2,000取得1張回饋券後，剩餘消費金額會繼續保留累積。<br>例如：累積消費NT$3,200 → 可獲得1張NT$60回饋券，剩餘NT$1,200會繼續累積下一張。</p></div>
+<div class="qa-item"><p class="qa-q">Q：怎麼獲得回饋券？</p><p class="qa-a">A：累積消費每滿NT$2,500，即贈送1張NT$60回饋券 ✨<br>・累積NT$2,500 → 1張<br>・累積NT$5,000 → 2張<br>・累積NT$7,500 → 3張<br>以此類推 ♡</p></div>
+<div class="qa-item"><p class="qa-q">Q：超過NT$2,500的金額會浪費嗎？</p><p class="qa-a">A：不會。每滿NT$2,500取得1張回饋券後，剩餘消費金額會繼續保留累積。<br>例如：累積消費NT$3,200 → 可獲得1張NT$60回饋券，剩餘NT$700會繼續累積下一張。</p></div>
 <div class="qa-item"><p class="qa-q">Q：回饋券要消費滿多少才能使用？</p><p class="qa-a">A：商品消費金額滿NT$500即可使用回饋券 ♡<br>回饋券使用門檻以「折抵前的商品金額」計算。</p></div>
 <div class="qa-item"><p class="qa-q">Q：一次可以使用幾張回饋券？</p><p class="qa-a">A：使用張數不限，可依目前持有的回饋券自由使用。</p></div>
 <div class="qa-item"><p class="qa-q">Q：如果回饋券金額超過這次消費金額怎麼辦？</p><p class="qa-a">A：回饋券折抵金額最高以本次實際商品金額為限，超過的部分不找零，也不兌換現金。<br>例如：商品金額NT$500，持有9張回饋券共NT$540，本次最多折抵NT$500，超過的NT$40不另外退還。也可以選擇使用8張折抵NT$480，本次支付NT$20，並將剩餘1張回饋券保留至下次使用。</p></div>
@@ -630,7 +630,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-1400';
+var APP_VERSION = '20261004-1730';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -687,6 +687,8 @@ var settlementState = { group:null, shippingMethod:null, rewardCount:0, useRefer
 var favorites = {};
 var currentCategory = 'all';
 var currentQuery = '';
+// 一般回饋券門檻：每滿多少可兌換1張（要跟 member-api 的 REWARD_THRESHOLD 一致）
+var REWARD_THRESHOLD = 2500;
 var PRODUCTS = [];
 var LIVE_ZONES = [];
 var ZONE_COLORS = [['gold','金色'],['blue','藍色'],['purple','紫色'],['green','綠色']];
@@ -1348,7 +1350,7 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 function adminRedeemableNote(spend, redeemed){
 var diff = spend - redeemed;
 if(diff < 0) return '<span style="color:#d9422b;font-weight:700;">⚠️ 已兌換金額比累積消費多 NT$'+(-diff)+'，客人會卡住無法兌換，請調低已兌換金額</span>';
-return '<span style="color:var(--muted);">可兌換進度：NT$'+diff+'（可換 '+Math.floor(diff/2000)+' 張）</span>';
+return '<span style="color:var(--muted);">可兌換進度：NT$'+diff+'（可換 '+Math.floor(diff/REWARD_THRESHOLD)+' 張）</span>';
 }
 function bindAdminMemberActions(container){
 var spendInputs = container.querySelectorAll('.admin-member-spend-input, .admin-member-redeemed-input');
@@ -2610,11 +2612,21 @@ var deleteBtn = o.status === '待確認'
 ? '<button type="button" class="settle-item-delete my-order-delete" data-order-id="'+o.id+'" style="margin-top:8px;">移除</button>'
 : '';
 var depositAmount = Number(o.deposit_amount || 0);
-var depositHtml = depositAmount > 0
-? '<p class="order-time" style="color:var(--ignis-deep);font-weight:600;">💰已付訂金 NT$'+depositAmount+'</p>'
-: '';
+// 需要訂金的商品：狀態標籤直接寫出訂金狀態，客人一看就知道要不要先付訂
+var statusText = o.status;
+if(o.deposit_required && o.status === '待確認'){
+statusText = depositAmount > 0 ? '已付訂・待確認' : '待確認・未付訂';
+} else if(o.deposit_required && o.status === '已確認' && depositAmount > 0){
+statusText = '已付訂・已確認';
+}
+var depositHtml = '';
+if(depositAmount > 0){
+depositHtml = '<p class="order-time" style="color:var(--ignis-deep);font-weight:600;">💰已付訂金 NT$'+depositAmount+'</p>';
+} else if(o.deposit_required && o.status === '待確認' && total){
+depositHtml = '<p class="order-time" style="color:var(--ignis-deep);font-weight:600;">💰需付訂金 NT$'+Math.round(total/2)+'（商品金額一半），付訂後才會幫您確認</p>';
+}
 return '<div class="order-card">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+statusText+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
@@ -2624,10 +2636,10 @@ return '<div class="order-card">'
 }
 function balanceCardHTML(){
 var b = myBalance;
-var cyclePos = Math.min(b.redeemable, 2000);
-var percent = Math.round(cyclePos / 2000 * 100);
-var note = b.canRedeem ? '已可兌換1張回饋券 🎉' : '距離下一張回饋券還差 NT$' + (2000 - cyclePos);
-var redeemBtn = b.canRedeem ? '<button class="btn btn--primary" id="redeemCouponBtn">兌換回饋券（-NT$2,000）</button>' : '';
+var cyclePos = Math.min(b.redeemable, REWARD_THRESHOLD);
+var percent = Math.round(cyclePos / REWARD_THRESHOLD * 100);
+var note = b.canRedeem ? '已可兌換1張回饋券 🎉' : '距離下一張回饋券還差 NT$' + (REWARD_THRESHOLD - cyclePos);
+var redeemBtn = b.canRedeem ? '<button class="btn btn--primary" id="redeemCouponBtn">兌換回饋券（-NT$'+REWARD_THRESHOLD.toLocaleString('en-US')+'）</button>' : '';
 var referralRow = b.referralCouponBalance > 0 ? '<p class="balance-coupon-count" style="margin-top:8px;">🎫 持有 '+b.referralCouponBalance+' 張免運券（好友邀請獲得）</p>' : '';
 return '<div class="balance-card">'
 + '<p class="balance-label">累積消費</p>'
@@ -2647,7 +2659,7 @@ showToast('兌換成功，獲得1張回饋券！');
 await loadMyOrders();
 }catch(e){
 alert('兌換失敗：' + e.message);
-if(btn){ btn.disabled = false; btn.textContent = '兌換回饋券（-NT$2,000）'; }
+if(btn){ btn.disabled = false; btn.textContent = '兌換回饋券（-NT$'+REWARD_THRESHOLD.toLocaleString('en-US')+'）'; }
 }
 }
 function cycleBannerHTML(group){
