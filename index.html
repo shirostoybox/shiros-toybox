@@ -218,6 +218,12 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .zone-swatch.zone-blue{ background:linear-gradient(135deg,#2F6FE0,#8EC5FF); }
 .zone-swatch.zone-purple{ background:linear-gradient(135deg,#7C4DDB,#C9B2FF); }
 .zone-swatch.zone-green{ background:linear-gradient(135deg,#139E72,#7EE2B8); }
+.paused-notice{ margin:14px 18px 4px; padding:14px 16px; border-radius:var(--r-md); background:#FFF7E6; border:1.5px solid #F5C26B; color:#7A4B00; }
+.paused-notice-title{ margin:0 0 4px; font-size:14px; font-weight:800; }
+.paused-notice-text{ margin:0 0 10px; font-size:12.5px; line-height:1.6; }
+.paused-notice-actions{ display:flex; gap:8px; }
+.paused-notice-actions button{ flex:1; padding:9px 8px; border-radius:var(--r-full); border:1.5px solid #E0A33A; background:#fff; color:#7A4B00; font-size:12.5px; font-weight:700; font-family:var(--font-body); }
+.paused-notice-actions button.is-primary{ background:#E0A33A; color:#fff; }
 @keyframes live-blink{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.35; transform:scale(.8); } }
 @keyframes live-shine{ 0%{ left:-60%; } 60%,100%{ left:130%; } }
 @keyframes cyclePulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.18); } }
@@ -419,6 +425,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 </section>
 <div class="live-entries" id="liveEntries"></div>
+<div class="paused-notice-slot" id="homePausedNotice"></div>
 <p class="section-label">熱門分類</p>
 <div class="cat-grid"></div>
 <div class="picks-header">
@@ -436,6 +443,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
 <input type="text" id="shopSearch" placeholder="搜尋商品...">
 </div>
+<div class="paused-notice-slot" id="shopPausedNotice"></div>
 <div class="category-tabs"></div>
 <div class="gacha-info" id="gachaInfo" style="display:none;">
 <p class="gacha-info-title">🪙 日本扭蛋順路價</p>
@@ -622,7 +630,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20260927-1640';
+var APP_VERSION = '20261004-1400';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -987,6 +995,13 @@ hint.textContent = terms.length === 0 ? '可以用空白隔開多個關鍵字，
 }
 function adminCycleBannerHTML(cycle, label){
 if(!cycle || !cycle.hasPending) return '';
+if(cycle.paused && cycle.kind === 'regular'){
+return '<div class="cycle-banner cycle-banner--day1">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">⏸</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
++ '<p class="cycle-main-text">暫停喊單中・暫停倒數</p>'
++ '<p class="cycle-sub-text">共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal+'・到「設定」恢復現貨／預購喊單後，重新倒數3天</p>'
++ '</div>';
+}
 if(cycle.paused){
 return '<div class="cycle-banner cycle-banner--day1">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🔴</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
@@ -1698,8 +1713,8 @@ if(!listEl) return;
 listEl.innerHTML = adminSiteSettingsHTML();
 var saveTripBtn = document.getElementById('adminSaveNextTrip');
 if(saveTripBtn){ saveTripBtn.addEventListener('click', handleAdminSaveNextTrip); }
-var liveToggleBtn = document.getElementById('adminToggleLiveConnection');
-if(liveToggleBtn){ liveToggleBtn.addEventListener('click', handleAdminToggleLiveConnection); }
+var pauseBtn = document.getElementById('adminToggleRegularPaused');
+if(pauseBtn){ pauseBtn.addEventListener('click', handleAdminToggleRegularPaused); }
 }
 function adminSiteSettingsHTML(){
 var tripVal = siteSettings.next_trip || '';
@@ -1716,7 +1731,37 @@ return '<div style="background:var(--card);border:1.5px solid var(--line);border
 + '<input type="text" class="gate-input" id="adminNextTripInput" value="'+escAttr(tripVal)+'" placeholder="例如：2027.03 岡山・四國" style="margin-bottom:8px;">'
 + '<button type="button" class="btn btn--dark btn--full" id="adminSaveNextTrip">儲存</button>'
 + '</div>'
-+ '<p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 16px;">限時連線的開啟／關閉改到「限時連線」分頁，每個專區各自開關、各自結單倒數。</p>';
++ (function(){
+var paused = isRegularPaused();
+return '<div style="'+(paused ? 'background:#FFF7E6;border:1.5px solid #F5C26B;' : 'background:var(--card);border:1.5px solid var(--line);')+'border-radius:var(--r-md);padding:14px;margin-bottom:16px;">'
++ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 6px;">現貨／預購連線喊單</p>'
++ '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">'
++ (paused
+? '⏸ 目前<b>暫停中</b>：客人不能喊現貨／預購連線商品，已喊單的現貨／預購結單倒數也暫停中、不能結單。按下恢復後，從那一刻重新倒數3天。限時連線專區照常可以喊單。'
+: '🟢 目前<b>開放中</b>。限時連線忙不過來時，可以一鍵暫停現貨／預購連線喊單（結單倒數也會一起暫停），限時連線專區不受影響。')
++ '</p>'
++ '<button type="button" class="btn '+(paused ? 'btn--primary' : 'btn--dark')+' btn--full" id="adminToggleRegularPaused">'+(paused ? '恢復現貨／預購喊單' : '暫停現貨／預購喊單')+'</button>'
++ '</div>';
+})()
++ '<p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 16px;">限時連線的開啟／關閉在「限時連線」分頁，每個專區各自開關、各自結單倒數。</p>';
+}
+async function handleAdminToggleRegularPaused(){
+var btn = document.getElementById('adminToggleRegularPaused');
+var turnOn = !isRegularPaused();
+var msg = turnOn
+? '確定要暫停現貨／預購連線喊單嗎？\n\n暫停後：\n・客人不能再喊現貨／預購連線商品\n・已喊單的現貨／預購結單倒數一起暫停，暫停期間不能結單、不會發到期提醒\n・首頁和商品頁會顯示暫停提示，引導客人看限時連線或許願\n・限時連線專區照常喊單、照常倒數\n・已經送出結單、等待付款的不受影響'
+: '確定要恢復現貨／預購連線喊單嗎？\n\n恢復後，所有還沒結單的現貨／預購喊單會從現在重新倒數3天。';
+if(!window.confirm(msg)) return;
+btn.disabled = true;
+try{
+await callMemberApi('admin-update-site-setting', { key: 'regular_paused', value: turnOn ? 'on' : 'off' });
+siteSettings.regular_paused = turnOn ? 'on' : 'off';
+showToast(turnOn ? '已暫停現貨／預購喊單，倒數也已暫停' : '已恢復現貨／預購喊單，重新倒數3天');
+loadAdminSettings();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false;
+}
 }
 async function handleAdminSaveNextTrip(){
 var btn = document.getElementById('adminSaveNextTrip');
@@ -2129,6 +2174,8 @@ if(myOrderRestricted){
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已暫停下單</button>';
 } else if(isUnavailable){
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已售完</button>';
+} else if(isRegularPaused() && !isLiveStock(p.stock)){
+orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫停喊單中</button>';
 } else {
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
@@ -2208,7 +2255,35 @@ catTabs[t].addEventListener('click', (function(tab){ return function(){ setCateg
 }
 }
 }
+// 「暫停現貨／預購喊單」開關：後台設定分頁一鍵開關，存在 site_settings 的 regular_paused。
+// 開著的時候，現貨／預購連線商品不能喊單（限時連線商品不受影響），首頁和商品頁會顯示提示。
+function isRegularPaused(){ return siteSettings.regular_paused === 'on'; }
+function pausedNoticeHTML(){
+return '<div class="paused-notice">'
++ '<p class="paused-notice-title">⏸ 限時連線忙碌中，暫停現貨與預購連線喊單</p>'
++ '<p class="paused-notice-text">欲購買商品可以先以限時連線為主，也可以許願 ♡<br>已經喊單的現貨／預購商品，<b>結單倒數也一起暫停</b>，恢復後會重新倒數3天，不用擔心逾期。</p>'
++ '<div class="paused-notice-actions">'
++ (openZones().length ? '<button type="button" class="is-primary paused-go-live">看限時連線</button>' : '')
++ '<button type="button" class="paused-go-wish">我要許願</button>'
++ '</div></div>';
+}
+function renderPausedNotices(){
+['homePausedNotice','shopPausedNotice'].forEach(function(id){
+var el = document.getElementById(id);
+if(!el) return;
+el.innerHTML = isRegularPaused() ? pausedNoticeHTML() : '';
+var goLive = el.querySelector('.paused-go-live');
+if(goLive) goLive.addEventListener('click', function(){
+var zs = openZones();
+if(zs.length === 1){ openLiveZone(zs[0].id); }
+else { showView('home'); var w = document.getElementById('liveEntries'); if(w) w.scrollIntoView({behavior:'smooth', block:'center'}); }
+});
+var goWish = el.querySelector('.paused-go-wish');
+if(goWish) goWish.addEventListener('click', function(){ showView('wish'); });
+});
+}
 function renderHome(){
+renderPausedNotices();
 var grid = document.getElementById('homeGrid');
 var list = [];
 var regList = regularProducts();
@@ -2228,6 +2303,7 @@ return catOk && haystack.indexOf(q) !== -1;
 });
 }
 function renderShop(){
+renderPausedNotices();
 var grid = document.getElementById('shopGrid');
 var list = getFilteredShop();
 grid.innerHTML = list.map(cardHTML).join('');
@@ -2364,6 +2440,10 @@ depositEl.style.display = 'none';
 }
 }
 function openOrderModal(product){
+if(isRegularPaused() && !isLiveStock(product.stock)){
+alert('限時連線忙碌中，暫停現貨與預購連線喊單。\n欲購買商品可以先以限時連線為主，也可以許願 ♡');
+return;
+}
 orderModalProduct = product;
 orderModalQty = 1;
 orderModalShell = 'no';
@@ -2574,6 +2654,13 @@ function cycleBannerHTML(group){
 var pc = pendingCycles[group];
 if(!pc || !pc.hasPending) return '';
 var label = cycleGroupLabel(group, pc);
+if(pc.paused && group === 'regular'){
+return '<div class="cycle-banner cycle-banner--day1">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">⏸</span><p class="cycle-day-label">'+escHtml(label)+'・結單倒數暫停中</p></div>'
++ '<p class="cycle-main-text">限時連線忙碌中，現貨／預購暫停喊單</p>'
++ '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>暫停期間結單倒數也一起暫停，恢復後會<b>重新倒數3天</b>，到時候再結單就好，不用擔心逾期 ♡</p>'
++ '</div>';
+}
 if(pc.paused){
 return '<div class="cycle-banner cycle-banner--day1">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🔴</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
