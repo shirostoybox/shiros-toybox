@@ -631,7 +631,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-1800';
+var APP_VERSION = '20261004-1810';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2472,10 +2472,18 @@ document.getElementById('orderModalSub').textContent = orderModalProduct.sub + '
 var depositEl = document.getElementById('orderModalDepositHint');
 var stock = orderModalProduct.stock;
 var lineSubtotal = unitPrice * orderModalQty;
-var needsDeposit = (stock === 'preorder' || stock === 'live_limited') && lineSubtotal > 2000;
+// 同一件商品之前還沒結單的喊單也一起算，加起來超過2000就要付訂金（跟後端 submit-order 一致）
+var existingSubtotal = 0, existingCount = 0;
+(myOrders || []).forEach(function(o){
+if(o.product_id === orderModalProduct.id && o.status !== '缺貨已幫您取消'){ existingSubtotal += Number(o.price) * Number(o.quantity || 1); existingCount++; }
+});
+var combined = existingSubtotal + lineSubtotal;
+var needsDeposit = (stock === 'preorder' || stock === 'live_limited') && combined > 2000;
 if(needsDeposit){
 depositEl.style.display = 'block';
-depositEl.textContent = '💰此筆喊單需支付訂金 NT$'+Math.round(lineSubtotal/2)+'（商品金額一半，確認後會另行通知收款方式）';
+depositEl.textContent = existingCount > 0
+? '💰這件商品加上您之前喊的'+existingCount+'筆，合計NT$'+combined+'，超過NT$2,000，需支付訂金 NT$'+Math.round(combined/2)+'（合計金額一半，確認後會另行通知收款方式）'
+: '💰此筆喊單需支付訂金 NT$'+Math.round(lineSubtotal/2)+'（商品金額一半，確認後會另行通知收款方式）';
 } else {
 depositEl.style.display = 'none';
 }
