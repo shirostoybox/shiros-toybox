@@ -551,10 +551,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：怎麼獲得回饋券？</p><p class="qa-a">A：累積消費每滿NT$2,500，即贈送1張NT$60回饋券 ✨<br>・累積NT$2,500 → 1張<br>・累積NT$5,000 → 2張<br>・累積NT$7,500 → 3張<br>以此類推 ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：超過NT$2,500的金額會浪費嗎？</p><p class="qa-a">A：不會。每滿NT$2,500取得1張回饋券後，剩餘消費金額會繼續保留累積。<br>例如：累積消費NT$3,200 → 可獲得1張NT$60回饋券，剩餘NT$700會繼續累積下一張。</p></div>
-<div class="qa-item"><p class="qa-q">Q：回饋券要消費滿多少才能使用？</p><p class="qa-a">A：一般商品（精品除外）金額滿NT$500即可使用回饋券 ♡<br>回饋券使用門檻以「折抵前的商品金額」計算。</p></div>
+<div class="qa-item"><p class="qa-q">Q：回饋券要消費滿多少才能使用？</p><p class="qa-a">A：一般商品（品牌選物除外）金額滿NT$500即可使用回饋券 ♡<br>回饋券使用門檻以「折抵前的商品金額」計算。</p></div>
 <div class="qa-item"><p class="qa-q">Q：一次可以使用幾張回饋券？</p><p class="qa-a">A：使用張數不限，可依目前持有的回饋券自由使用。</p></div>
 <div class="qa-item"><p class="qa-q">Q：如果回饋券金額超過這次消費金額怎麼辦？</p><p class="qa-a">A：回饋券折抵金額最高以本次實際商品金額為限，超過的部分不找零，也不兌換現金。<br>例如：商品金額NT$500，持有9張回饋券共NT$540，本次最多折抵NT$500，超過的NT$40不另外退還。也可以選擇使用8張折抵NT$480，本次支付NT$20，並將剩餘1張回饋券保留至下次使用。</p></div>
-<div class="qa-item"><p class="qa-q">Q：精品的消費怎麼回饋？</p><p class="qa-a">A：標示「💎 精品」的商品另外累積「精品消費」，精品累積每滿NT$5,000，即可兌換1張NT$50精品回饋券 ✨<br>・精品回饋券只能折抵精品商品，張數不限，最多折抵到本次精品金額為止。<br>・一般回饋券（NT$60）只能折抵一般商品，不能折抵精品。<br>・同一筆結單同時有精品和一般商品時，兩種券可以分別使用，免運券也照原本規則使用。<br>・精品折抵的金額一樣不列入精品累積。</p></div>
+<div class="qa-item"><p class="qa-q">Q：品牌選物的消費怎麼回饋？</p><p class="qa-a">A：品牌選物（例如精品、潮牌等品牌商品）價格透明、代購費已壓低，因此回饋另外計算 ♡<br>標示「🏷️ 品牌選物」的商品另外累積「品牌選物消費」，品牌選物累積每滿NT$5,000，即可兌換1張NT$50品牌選物回饋券 ✨<br>・品牌選物回饋券只能折抵品牌選物商品，張數不限，最多折抵到本次品牌選物金額為止。<br>・一般回饋券（NT$60）只能折抵一般商品，不能折抵品牌選物。<br>・同一筆結單同時有品牌選物和一般商品時，兩種券可以分別使用，免運券也照原本規則使用。<br>・品牌選物折抵的金額一樣不列入品牌選物累積。</p></div>
 <div class="qa-item"><p class="qa-q">Q：回饋券可以換現金嗎？</p><p class="qa-a">A：回饋券僅限折抵商品消費使用，恕不兌換現金。</p></div>
 <div class="qa-item"><p class="qa-q">Q：哪些消費會列入累積？</p><p class="qa-a">A：以實際購買成功並完成付款的「商品金額」計算。運費、缺貨、取消商品皆不列入消費累積。</p></div>
 <div class="qa-item"><p class="qa-q">Q：使用回饋券折抵後，消費金額怎麼累積？</p><p class="qa-a">A：消費累積以「折抵後實際支付的商品金額」計算。<br>例如：商品NT$2,000，使用1張NT$60回饋券折抵商品，本次實際支付NT$1,940，因此本次累積消費金額為NT$1,940。</p></div>
@@ -631,7 +631,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-1850';
+var APP_VERSION = '20261004-1905';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -690,7 +690,7 @@ var currentCategory = 'all';
 var currentQuery = '';
 // 一般回饋券門檻：每滿多少可兌換1張（要跟 member-api 的 REWARD_THRESHOLD 一致）
 var REWARD_THRESHOLD = 2500;
-// 精品回饋券：精品累積每滿多少可兌換1張、面額多少（要跟 member-api 一致），只能折抵精品
+// 品牌選物回饋券：品牌選物累積每滿多少可兌換1張、面額多少（要跟 member-api 一致），只能折抵品牌選物
 var LUXURY_THRESHOLD = 5000;
 var LUXURY_COUPON_VALUE = 50;
 var REWARD_COUPON_VALUE = 60;
@@ -1046,7 +1046,7 @@ var liveBadge = o.is_live_limited
 ? '<span style="display:inline-block;background:var(--volt);color:var(--ink);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">⚡限時連線'+(orderZone && orderZone.note ? '｜'+escHtml(orderZone.note) : '')+'</span>'
 : '';
 var luxuryBadge = o.is_luxury
-? '<span style="display:inline-block;background:#1B1E27;color:#E9C46A;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">💎精品</span>'
+? '<span style="display:inline-block;background:#1B1E27;color:#E9C46A;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🏷️品牌選物</span>'
 : '';
 var depositBadge = o.deposit_required
 ? '<span style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">💰需訂金</span>'
@@ -1374,11 +1374,11 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '<label style="font-size:12px;color:var(--muted);">已兌換金額（NT$）<input type="number" min="0" step="1" class="gate-input admin-member-redeemed-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.redeemedSpend||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
 + '</div>'
 + '<p class="admin-member-redeemable-note" data-line-uid="'+escAttr(m.lineUid)+'" style="font-size:12px;margin:6px 0 0;">'+adminRedeemableNote(m.cumulativeSpend, m.redeemedSpend||0)+'</p>'
-+ '<p style="font-size:12.5px;font-weight:700;color:var(--text-dark);margin:14px 0 0;">💎 精品回饋</p>'
++ '<p style="font-size:12.5px;font-weight:700;color:var(--text-dark);margin:14px 0 0;">🏷️ 品牌選物回饋</p>'
 + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">'
-+ '<label style="font-size:11.5px;color:var(--muted);">精品券張數<input type="number" min="0" step="1" class="gate-input admin-member-lux-coupon-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.luxuryCouponBalance||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
-+ '<label style="font-size:11.5px;color:var(--muted);">精品累積<input type="number" min="0" step="1" class="gate-input admin-member-lux-spend-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.luxuryCumulativeSpend||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
-+ '<label style="font-size:11.5px;color:var(--muted);">精品已兌換<input type="number" min="0" step="1" class="gate-input admin-member-lux-redeemed-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.luxuryRedeemedSpend||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
++ '<label style="font-size:11.5px;color:var(--muted);">品牌選物券張數<input type="number" min="0" step="1" class="gate-input admin-member-lux-coupon-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.luxuryCouponBalance||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
++ '<label style="font-size:11.5px;color:var(--muted);">品牌選物累積<input type="number" min="0" step="1" class="gate-input admin-member-lux-spend-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.luxuryCumulativeSpend||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
++ '<label style="font-size:11.5px;color:var(--muted);">品牌選物已兌換<input type="number" min="0" step="1" class="gate-input admin-member-lux-redeemed-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+(m.luxuryRedeemedSpend||0)+'" style="margin-top:4px;margin-bottom:0;"></label>'
 + '</div>'
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
 + restrictToggleBtn
@@ -1463,7 +1463,7 @@ var luxCoupon = parseInt(document.querySelector('.admin-member-lux-coupon-input[
 var luxSpend = parseInt(document.querySelector('.admin-member-lux-spend-input[data-line-uid="'+lineUid+'"]').value) || 0;
 var luxRedeemed = parseInt(document.querySelector('.admin-member-lux-redeemed-input[data-line-uid="'+lineUid+'"]').value) || 0;
 if(luxCoupon < 0 || luxSpend < 0 || luxRedeemed < 0){ alert('請輸入正確的數字（不可為負數）'); return; }
-if(luxRedeemed > luxSpend){ alert('精品已兌換金額不能大於精品累積，否則客人會無法兌換精品回饋券'); return; }
+if(luxRedeemed > luxSpend){ alert('品牌選物已兌換金額不能大於品牌選物累積，否則客人會無法兌換品牌選物回饋券'); return; }
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
 try{
 await callMemberApi('admin-update-member-balance', { lineUid: lineUid, couponBalance: couponBalance, referralCouponBalance: referralCouponBalance, cumulativeSpend: cumulativeSpend, redeemedSpend: redeemedSpend, luxuryCouponBalance: luxCoupon, luxuryCumulativeSpend: luxSpend, luxuryRedeemedSpend: luxRedeemed });
@@ -1904,7 +1904,7 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 + '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;">狀態：限時連線</p>'
 : '<select class="gate-input" id="npStock"><option value="in">現貨</option><option value="preorder">預購連線</option></select>')
 + (isLiveMode ? '<input type="hidden" id="npQty" value="">' : '<input type="number" class="gate-input" id="npQty" placeholder="現貨數量（非現貨可留空）">')
-+ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="npLuxury" style="width:18px;height:18px;"> 💎 精品（累積到精品回饋，限用精品回饋券）</label>'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="npLuxury" style="width:18px;height:18px;"> 🏷️ 品牌選物（累積到品牌選物回饋，限用品牌選物回饋券）</label>'
 + '<input type="file" accept="image/*" class="gate-input" id="npImage" style="padding:8px;">'
 + '<button type="button" class="btn btn--primary btn--full" id="npSubmit">建立商品</button>'
 + '</div>';
@@ -1933,7 +1933,7 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
 + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(p.live_zone_id===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('')
 + '</select>' : '')
-+ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-luxury-toggle" data-product-id="'+p.id+'"'+(p.is_luxury?' checked':'')+' style="width:18px;height:18px;"> 💎 精品（累積到精品回饋，限用精品回饋券）</label>'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-luxury-toggle" data-product-id="'+p.id+'"'+(p.is_luxury?' checked':'')+' style="width:18px;height:18px;"> 🏷️ 品牌選物（累積到品牌選物回饋，限用品牌選物回饋券）</label>'
 + '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
 + '<input type="number" class="gate-input admin-qty-input" data-product-id="'+p.id+'" value="'+(p.qty!=null?p.qty:'')+'" placeholder="庫存數量" style="margin-bottom:0;flex:1;">'
@@ -1998,7 +1998,7 @@ el.disabled = true;
 try{
 await callMemberApi('admin-set-product-luxury', { productId: pid, isLuxury: val });
 for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === pid) adminProductsCache[ci].is_luxury = val; }
-showToast(val ? '已設為精品' : '已取消精品');
+showToast(val ? '已設為品牌選物' : '已取消品牌選物');
 }catch(e){
 alert('更新失敗：' + e.message);
 el.checked = !val;
@@ -2252,7 +2252,7 @@ return '<article class="card">'
 + '</div>'
 + '<div class="card-body">'
 + '<span class="type-chip">' + p.catLabel + '</span>'
-+ (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">💎 精品</span>' : '')
++ (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 品牌選物</span>' : '')
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
@@ -2725,20 +2725,20 @@ return '<div class="balance-card">'
 + '</div>'
 + luxuryBalanceCardHTML();
 }
-// 精品累積：有精品消費或持有精品回饋券的客人才顯示，一般客人看不到這張卡
+// 品牌選物累積：有品牌選物消費或持有品牌選物回饋券的客人才顯示，一般客人看不到這張卡
 function luxuryBalanceCardHTML(){
 var b = myBalance;
 if(!(b.luxuryCumulativeSpend > 0 || b.luxuryCouponBalance > 0)) return '';
 var pos = Math.min(b.luxuryRedeemable, LUXURY_THRESHOLD);
 var percent = Math.round(pos / LUXURY_THRESHOLD * 100);
-var note = (b.canRedeemLuxury ? '已可兌換1張精品回饋券 🎉' : '距離下一張精品回饋券還差 NT$' + (LUXURY_THRESHOLD - pos)) + '<br><span style="font-size:11.5px;opacity:.8;">每滿NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'換1張NT$'+LUXURY_COUPON_VALUE+'精品回饋券，限折抵精品</span>';
-var btn = b.canRedeemLuxury ? '<button class="btn btn--primary" id="redeemLuxuryCouponBtn" style="flex-shrink:0;">兌換精品回饋券（-NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'）</button>' : '';
+var note = (b.canRedeemLuxury ? '已可兌換1張品牌選物回饋券 🎉' : '距離下一張品牌選物回饋券還差 NT$' + (LUXURY_THRESHOLD - pos)) + '<br><span style="font-size:11.5px;opacity:.8;">每滿NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'換1張NT$'+LUXURY_COUPON_VALUE+'品牌選物回饋券，限折抵品牌選物</span>';
+var btn = b.canRedeemLuxury ? '<button class="btn btn--primary" id="redeemLuxuryCouponBtn" style="flex-shrink:0;">兌換品牌選物回饋券（-NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'）</button>' : '';
 return '<div class="balance-card" style="background:linear-gradient(135deg,#1B1E27,#3A3424);margin-top:12px;">'
-+ '<p class="balance-label" style="color:#E9C46A;">💎 精品累積消費</p>'
++ '<p class="balance-label" style="color:#E9C46A;">🏷️ 品牌選物累積消費</p>'
 + '<p class="balance-amount">NT$'+b.luxuryCumulativeSpend+'</p>'
 + '<div class="balance-progress-track"><div class="balance-progress-fill" style="width:'+percent+'%;background:linear-gradient(90deg,#C8962B,#F2D07A);"></div></div>'
 + '<p class="balance-progress-note">'+note+'</p>'
-+ '<div class="balance-row"><p class="balance-coupon-count">💎 持有 '+b.luxuryCouponBalance+' 張精品券</p>'+btn+'</div>'
++ '<div class="balance-row"><p class="balance-coupon-count">🏷️ 持有 '+b.luxuryCouponBalance+' 張品牌選物券</p>'+btn+'</div>'
 + '</div>';
 }
 async function handleRedeemLuxuryCoupon(){
@@ -2746,11 +2746,11 @@ var btn = document.getElementById('redeemLuxuryCouponBtn');
 if(btn){ btn.disabled = true; btn.textContent = '兌換中...'; }
 try{
 await callMemberApi('redeem-luxury-coupon');
-showToast('兌換成功，獲得1張精品回饋券！');
+showToast('兌換成功，獲得1張品牌選物回饋券！');
 await loadMyOrders();
 }catch(e){
 alert('兌換失敗：' + e.message);
-if(btn){ btn.disabled = false; btn.textContent = '兌換精品回饋券（-NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'）'; }
+if(btn){ btn.disabled = false; btn.textContent = '兌換品牌選物回饋券（-NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'）'; }
 }
 }
 async function handleRedeemCoupon(){
@@ -2864,7 +2864,7 @@ html += '<label class="settle-radio'+(canReferral?'':' settle-radio--disabled')+
 if(myBalance.couponBalance > 0){
 var canReward = generalSubtotal >= 500;
 var rewardHint = luxurySubtotal > 0
-? '<br><span style="font-size:11.5px;color:var(--muted);">回饋券只能折抵一般商品（精品除外），一般商品這次共NT$'+generalSubtotal+(canReward ? '' : '，需滿NT$500才能使用')+'</span>'
+? '<br><span style="font-size:11.5px;color:var(--muted);">回饋券只能折抵一般商品（品牌選物除外），一般商品這次共NT$'+generalSubtotal+(canReward ? '' : '，需滿NT$500才能使用')+'</span>'
 : (canReward ? '' : '<br><span style="font-size:11.5px;color:var(--muted);">需商品小計滿NT$500才能使用</span>');
 html += '<div style="margin-top:10px;'+(canReward?'':'opacity:.5;')+'">'
 + '<p style="font-size:13px;margin:0 0 6px;color:var(--text-dark);">回饋券（持有'+myBalance.couponBalance+'張）'+rewardHint+'</p>'
@@ -2874,10 +2874,10 @@ html += '<div style="margin-top:10px;'+(canReward?'':'opacity:.5;')+'">'
 + '<button type="button" id="settleRewardPlus"'+(canReward?'':' disabled')+'>＋</button>'
 + '</div></div>';
 }
-// 精品回饋券：這筆結單裡有精品才出現，只能折抵精品的金額
+// 品牌選物回饋券：這筆結單裡有品牌選物才出現，只能折抵品牌選物的金額
 if(myBalance.luxuryCouponBalance > 0 && luxurySubtotal > 0){
 html += '<div style="margin-top:10px;">'
-+ '<p style="font-size:13px;margin:0 0 6px;color:var(--text-dark);">💎 精品回饋券（每張NT$'+LUXURY_COUPON_VALUE+'，持有'+myBalance.luxuryCouponBalance+'張）<br><span style="font-size:11.5px;color:var(--muted);">只能折抵精品，這次精品共NT$'+luxurySubtotal+'</span></p>'
++ '<p style="font-size:13px;margin:0 0 6px;color:var(--text-dark);">🏷️ 品牌選物回饋券（每張NT$'+LUXURY_COUPON_VALUE+'，持有'+myBalance.luxuryCouponBalance+'張）<br><span style="font-size:11.5px;color:var(--muted);">只能折抵品牌選物，這次品牌選物共NT$'+luxurySubtotal+'</span></p>'
 + '<div class="qty-row" style="justify-content:flex-start;gap:16px;margin:8px 0;">'
 + '<button type="button" id="settleLuxuryMinus">−</button>'
 + '<span id="settleLuxuryCount">0</span>'
@@ -2894,7 +2894,7 @@ var luxurySub = pcCalc._confirmedLuxurySubtotal || 0;
 var generalSub = subtotal - luxurySub;
 var rewardRaw = settlementState.rewardCount * REWARD_COUPON_VALUE;
 var luxuryRaw = settlementState.luxuryCount * LUXURY_COUPON_VALUE;
-// 一般券最多折到一般商品金額、精品券最多折到精品金額
+// 一般券最多折到一般商品金額、品牌選物券最多折到品牌選物金額
 var discount = (settlementState.useReferral ? 60 : 0) + Math.min(rewardRaw, generalSub) + Math.min(luxuryRaw, luxurySub);
 var payable = subtotal + shipFee;
 var overflow = rewardRaw > generalSub || luxuryRaw > luxurySub || discount > payable;
@@ -2930,7 +2930,7 @@ var lineTotal = o.price * o.quantity;
 var depositPaid = Number(o.deposit_amount || 0);
 if(isConfirmed){ confirmedSubtotal += lineTotal; confirmedDeposit += depositPaid; if(o.is_luxury) confirmedLuxurySubtotal += lineTotal; } else { unconfirmedCount++; }
 var rowClass = isConfirmed ? 'settle-item-row' : 'settle-item-row settle-item-row--pending';
-var nameHtml = (o.is_luxury ? '💎 ' : '')+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity
+var nameHtml = (o.is_luxury ? '🏷️ ' : '')+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity
 + (isConfirmed ? '' : '<br><span class="settle-item-pending-note">尚未確認，這次無法結單</span>')
 + (depositPaid > 0 ? '<br><span style="font-size:11.5px;color:var(--muted);">💰已付訂金 NT$'+depositPaid+'</span>' : '');
 var rightHtml = '<span style="display:flex;flex-direction:column;align-items:flex-end;">NT$'+lineTotal
