@@ -631,7 +631,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-1810';
+var APP_VERSION = '20261004-1830';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2219,8 +2219,8 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫
 } else {
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
-// 預購連線／限時連線的商品，單價超過2000就可能會需要訂金（實際以喊單當下的小計判斷，數量選擇在下一步彈窗）。
-var depositNoteHTML = ((p.stock === 'preorder' || p.stock === 'live_limited') && Number(p.price) > 2000)
+// 只有限時連線商品要收訂金：單價超過2000就提示（實際以同商品喊單合計判斷，數量選擇在下一步彈窗）。
+var depositNoteHTML = (p.stock === 'live_limited' && Number(p.price) > 2000)
 ? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰喊單金額超過NT$2000需支付訂金</p>'
 : '';
 return '<article class="card">'
@@ -2475,10 +2475,10 @@ var lineSubtotal = unitPrice * orderModalQty;
 // 同一件商品之前還沒結單的喊單也一起算，加起來超過2000就要付訂金（跟後端 submit-order 一致）
 var existingSubtotal = 0, existingCount = 0;
 (myOrders || []).forEach(function(o){
-if(o.product_id === orderModalProduct.id && o.status !== '缺貨已幫您取消'){ existingSubtotal += Number(o.price) * Number(o.quantity || 1); existingCount++; }
+if(o.product_id === orderModalProduct.id && o.is_live_limited && o.status !== '缺貨已幫您取消'){ existingSubtotal += Number(o.price) * Number(o.quantity || 1); existingCount++; }
 });
 var combined = existingSubtotal + lineSubtotal;
-var needsDeposit = (stock === 'preorder' || stock === 'live_limited') && combined > 2000;
+var needsDeposit = stock === 'live_limited' && combined > 2000;
 if(needsDeposit){
 depositEl.style.display = 'block';
 depositEl.textContent = existingCount > 0
