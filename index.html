@@ -631,7 +631,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-1830';
+var APP_VERSION = '20261004-1850';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1038,8 +1038,8 @@ function adminOpenOrderRowHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
 var statusClass = o.status === '已確認' ? 'order-status order-status--confirmed' : 'order-status';
 var confirmBtn = o.status === '待確認'
-? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">確認</button>'
-: '';
+? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">'+(o.deposit_required && !(Number(o.deposit_amount||0) > 0) ? '輸入訂金後確認' : '確認')+'</button>'
+: '<button class="btn btn--full admin-unconfirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px dashed var(--muted);color:var(--muted);font-size:13px;">按錯了，退回待確認</button>';
 var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
 var orderZone = o.is_live_limited ? zoneById(o.live_zone_id || 'z_default') : null;
 var liveBadge = o.is_live_limited
@@ -1173,6 +1173,10 @@ var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
 for(var i=0;i<confirmBtns.length;i++){
 confirmBtns[i].addEventListener('click', (function(btn){ return function(){ handleAdminConfirmOrder(btn); }; })(confirmBtns[i]));
 }
+var unconfirmBtns = container.querySelectorAll('.admin-unconfirm-btn');
+for(var uc=0;uc<unconfirmBtns.length;uc++){
+unconfirmBtns[uc].addEventListener('click', (function(btn){ return function(){ handleAdminUnconfirmOrder(btn); }; })(unconfirmBtns[uc]));
+}
 var cancelBtns = container.querySelectorAll('.admin-cancel-btn');
 for(var m=0;m<cancelBtns.length;m++){
 cancelBtns[m].addEventListener('click', (function(btn){ return function(){ handleAdminCancelOrder(btn); }; })(cancelBtns[m]));
@@ -1209,6 +1213,13 @@ var orderId = btn.getAttribute('data-order-id');
 var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-deposit-input') : null;
 var payload = { orderId: orderId };
 if(depositInput && depositInput.value !== ''){ payload.depositAmount = depositInput.value; }
+// 需要訂金的喊單：沒輸入訂金金額就不能確認
+if(depositInput && !(Number(depositInput.value) > 0)){
+alert('這筆需要訂金，請先在「客人已付訂金」輸入金額，再按確認。\n客人還沒付訂金的話，先不要確認。');
+btn.disabled = false; btn.textContent = '輸入訂金後確認';
+depositInput.focus();
+return;
+}
 try{
 await callMemberApi('admin-confirm-order', payload);
 showToast('已確認');
@@ -1216,6 +1227,18 @@ await loadAdminGroups();
 }catch(e){
 alert('確認失敗：' + e.message);
 btn.disabled = false; btn.textContent = '確認';
+}
+}
+async function handleAdminUnconfirmOrder(btn){
+if(!window.confirm('確定要把這筆退回「待確認」嗎？\n客人那邊也會變回待確認（已登記的訂金金額不會被刪除）。')) return;
+btn.disabled = true; btn.textContent = '處理中...';
+try{
+await callMemberApi('admin-unconfirm-order', { orderId: btn.getAttribute('data-order-id') });
+showToast('已退回待確認');
+await loadAdminGroups();
+}catch(e){
+alert('退回失敗：' + e.message);
+btn.disabled = false; btn.textContent = '按錯了，退回待確認';
 }
 }
 async function handleAdminCancelOrder(btn){
