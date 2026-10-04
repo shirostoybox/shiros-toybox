@@ -121,8 +121,8 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .stock{ font-size:10px; font-weight:700; padding:3px 8px; border-radius:var(--r-full); }
 .stock--in{ background:rgba(33,132,82,.12); color:#1E7A4C; }
 .stock--live{ background:rgba(176,106,22,.14); color:#A5650F; }
-.stock--preorder{ background:rgba(176,106,22,.14); color:#A5650F; }
-.stock--live_limited{ background:rgba(176,106,22,.14); color:#A5650F; }
+.stock--preorder{ background:rgba(37,99,235,.12); color:#1D4ED8; }
+.stock--live_limited{ background:rgba(226,71,42,.13); color:#C8321C; }
 .stock--live_ended{ background:rgba(125,130,145,.14); color:#7D8291; }
 .stock--sold_out{ background:rgba(125,130,145,.14); color:#7D8291; }
 .card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
@@ -636,7 +636,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-2000';
+var APP_VERSION = '20261004-2020';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -723,6 +723,7 @@ PRODUCTS = res.data.map(function(p){
 return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury };
 });
 await loadLiveZones();
+registerCategories(PRODUCTS);
 }
 async function loadSiteSettings(){
 try{
@@ -1704,6 +1705,7 @@ callMemberApi('admin-list-products'),
 adminProductsMode === 'live' ? loadLiveZones() : Promise.resolve()
 ]);
 adminProductsCache = results[0].products || [];
+registerCategories(adminProductsCache);
 }catch(e){
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
 return;
@@ -2077,21 +2079,48 @@ btn.style.display = 'none';
 alert('刪除失敗：' + e.message);
 }
 }
+// 分類顏色：每個分類一個固定、不重複的顏色。
+// 依分類的建立順序分配（原本的4個分類在最前面，新增的分類照建立時間往後排），
+// 新增分類只會用下一個還沒用過的顏色，不會改到舊分類的顏色。
 var ADMIN_CATEGORY_COLORS = [
+{tag:'#FEF3C7', tagText:'#B45309'},
 {tag:'#DBEAFE', tagText:'#1D4ED8'},
 {tag:'#FCE7F3', tagText:'#BE185D'},
-{tag:'#FEF3C7', tagText:'#B45309'},
 {tag:'#D1FAE5', tagText:'#047857'},
 {tag:'#EDE9FE', tagText:'#6D28D9'},
 {tag:'#CFFAFE', tagText:'#0E7490'},
 {tag:'#FFE4E6', tagText:'#BE123C'},
-{tag:'#E0E7FF', tagText:'#4338CA'}
+{tag:'#E0E7FF', tagText:'#4338CA'},
+{tag:'#ECFCCB', tagText:'#4D7C0F'},
+{tag:'#FFEDD5', tagText:'#C2410C'},
+{tag:'#F3E8FF', tagText:'#7E22CE'},
+{tag:'#CCFBF1', tagText:'#0F766E'},
+{tag:'#E7E5E4', tagText:'#57534E'},
+{tag:'#FAE8FF', tagText:'#A21CAF'}
 ];
+var KNOWN_CAT_ORDER = ['anpanman','beyblade','doll','gacha'];
+var CATEGORY_ORDER = [];
+function registerCategories(list){
+var keys = {};
+CATEGORY_ORDER.forEach(function(k){ keys[k] = true; });
+(list || []).forEach(function(p){ if(p && p.cat) keys[p.cat] = true; });
+var all = Object.keys(keys);
+all.sort(function(x, y){
+var ix = KNOWN_CAT_ORDER.indexOf(x), iy = KNOWN_CAT_ORDER.indexOf(y);
+if(ix !== -1 || iy !== -1){ return (ix === -1 ? 99 : ix) - (iy === -1 ? 99 : iy); }
+if(x.length !== y.length) return x.length - y.length;
+return x < y ? -1 : (x > y ? 1 : 0);
+});
+CATEGORY_ORDER = all;
+}
 function colorForCategory(key){
-var str = String(key||'');
-var hash = 0;
-for(var i=0;i<str.length;i++){ hash = (hash * 31 + str.charCodeAt(i)) >>> 0; }
-return ADMIN_CATEGORY_COLORS[hash % ADMIN_CATEGORY_COLORS.length];
+key = String(key || '');
+var idx = CATEGORY_ORDER.indexOf(key);
+if(idx === -1){ registerCategories([{cat:key}]); idx = CATEGORY_ORDER.indexOf(key); }
+if(idx < ADMIN_CATEGORY_COLORS.length) return ADMIN_CATEGORY_COLORS[idx];
+// 分類超過內建顏色數量時，用色相環平均錯開產生新顏色，一樣不會重複
+var hue = Math.round((idx * 137.508) % 360);
+return { tag:'hsl('+hue+',85%,92%)', tagText:'hsl('+hue+',65%,32%)' };
 }
 function catLabelFor(cat){
 var map = {beyblade:'戰鬥陀螺', doll:'娃娃玩偶', anpanman:'麵包超人博物館', gacha:'扭蛋'};
@@ -2256,7 +2285,7 @@ return '<article class="card">'
 + '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
 + '</div>'
 + '<div class="card-body">'
-+ '<span class="type-chip">' + p.catLabel + '</span>'
++ (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
 + (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 品牌選物</span>' : '')
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
