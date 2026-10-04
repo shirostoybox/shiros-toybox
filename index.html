@@ -311,6 +311,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <h2>還差一步</h2>
 <p class="gate-desc">請填寫妳的LINE社群暱稱，方便之後對照訂單與聯繫</p>
 <p style="margin:-6px 0 14px;font-size:12px;line-height:1.6;color:var(--ignis-deep);">⚠️ 請先加入LINE社群並取得社群暱稱，務必填寫正確的LINE社群暱稱</p>
+<div style="margin:0 0 14px;padding:12px 14px;border-radius:var(--r-md);background:#EAF8EE;border:1px solid #BDE5C8;">
+<p style="margin:0 0 8px;font-size:12.5px;line-height:1.6;color:#1E6B3A;font-weight:600;">還沒加入社群嗎？請先加入「四郎玩具箱 LINE社群｜🇯🇵 活動＋連線通知📢 新品 × 老物挖寶 ꕤ」，加入後再回來填寫社群暱稱 ♡</p>
+<button type="button" class="btn btn--full" id="joinCommunityBtn" style="background:#06C755;color:#fff;">加入LINE社群</button>
+</div>
 <input type="text" class="gate-input" id="nicknameInput" placeholder="輸入LINE社群暱稱" maxlength="20">
 <button class="btn btn--dark btn--full" id="nicknameSubmit">儲存並繼續</button>
 </div>
@@ -636,7 +640,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-2020';
+var APP_VERSION = '20261004-2030';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3240,6 +3244,14 @@ backBtns[bk].addEventListener('click', (function(b){ return function(){ showView
 var searchInput = document.getElementById('shopSearch');
 if(searchInput){ searchInput.addEventListener('input', function(e){ currentQuery = e.target.value; renderShop(); }); }
 document.getElementById('nicknameSubmit').addEventListener('click', submitNickname);
+document.getElementById('joinCommunityBtn').addEventListener('click', function(){
+var url = 'https://line.me/ti/g2/6eKephXLnV_w7uW_rM89DwXmkefupLX2B0WZZA?utm_source=invitation&utm_medium=link_copy&utm_campaign=default';
+// 在LINE裡打開時用LIFF開，會直接跳到社群加入頁；不在LINE裡就直接開連結
+try{
+if(window.liff && liff.isInClient && liff.isInClient()){ liff.openWindow({ url: url, external: false }); return; }
+}catch(e){}
+window.location.href = url;
+});
 document.getElementById('verifyRecheck').addEventListener('click', async function(){
 await checkVerifyOnce();
 if(document.getElementById('verifyGate').classList.contains('is-open')){ showToast('還沒偵測到，請確認驗證碼已送出'); }
