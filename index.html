@@ -640,7 +640,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261004-2030';
+var APP_VERSION = '20261005-1330';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -926,6 +926,9 @@ setCategory(cat);
 }
 }
 /* ---------- admin (owner-only) ---------- */
+// 後台角色：'owner' 老闆（全部權限）／'helper' 小幫手（看不到庫存分頁，只能管限時連線商品）
+var adminRole = null;
+function isHelperRole(){ return adminRole === 'helper'; }
 async function checkAdminAndMaybeShow(){
 var data;
 try{
@@ -934,6 +937,7 @@ data = await callMemberApi('admin-check');
 return;
 }
 if(data && data.isAdmin){
+adminRole = data.role || 'owner';
 showView('admin');
 await renderAdminShell();
 } else {
@@ -945,7 +949,7 @@ var el = document.getElementById('adminView');
 el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>後台</h2></div>'
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 12px;">'
 + '<button type="button" class="cat-tab active admin-tab-btn" data-tab="orders">訂單</button>'
-+ '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>'
++ (isHelperRole() ? '' : '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>')
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="live">限時連線</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="members">會員</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="settings">設定</button>'
@@ -1375,6 +1379,7 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '<p style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+(m.nickname||'（未設定暱稱）')+'</p>'
 + (m.displayName ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px;">LINE：'+m.displayName+'</p>' : '')
 + restrictedBadge
++ (m.staffRole === 'helper' ? '<span style="display:inline-block;background:#EDE9FE;color:#6D28D9;font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin:0 0 8px 6px;">🧑‍💼 小幫手</span>' : '')
 + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">'
 + '<label style="font-size:12px;color:var(--muted);">回饋券張數<input type="number" min="0" step="1" class="gate-input admin-member-coupon-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.couponBalance+'" style="margin-top:4px;margin-bottom:0;"></label>'
 + '<label style="font-size:12px;color:var(--muted);">免運券張數<input type="number" min="0" step="1" class="gate-input admin-member-referral-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.referralCouponBalance+'" style="margin-top:4px;margin-bottom:0;"></label>'
@@ -1392,6 +1397,11 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '</div>'
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
 + restrictToggleBtn
++ (adminRole === 'owner'
+? (m.staffRole === 'helper'
+? '<button type="button" class="btn btn--full admin-member-staff-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-helper="0" style="margin-top:8px;border:1.5px dashed var(--muted);color:var(--muted);">取消小幫手權限</button>'
+: '<button type="button" class="btn btn--full admin-member-staff-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-helper="1" style="margin-top:8px;border:1.5px dashed #6D28D9;color:#6D28D9;">設為小幫手</button>')
+: '')
 + '</div>';
 }
 function adminRedeemableNote(spend, redeemed){
@@ -1417,6 +1427,23 @@ saveBtns[i].addEventListener('click', function(){ handleAdminSaveMemberBalance(t
 var restrictBtns = container.querySelectorAll('.admin-member-restrict-btn');
 for(var r=0;r<restrictBtns.length;r++){
 restrictBtns[r].addEventListener('click', function(){ handleAdminMemberRestrict(this); });
+}
+var staffBtns = container.querySelectorAll('.admin-member-staff-btn');
+for(var sf=0; sf<staffBtns.length; sf++){
+staffBtns[sf].addEventListener('click', async function(){
+var b = this, toHelper = b.getAttribute('data-helper') === '1';
+var msg = toHelper
+? '確定要把這位設為小幫手嗎？\n\n小幫手可以：\n・限時連線分頁（新增／編輯商品、上傳照片、建立／開關／刪除專區）\n・訂單分頁（查看、確認、標記已付款、取消、刪除結單）\n・會員分頁（查看、修改回饋券／累積消費、限制下單）\n・設定分頁\n\n小幫手不能：\n・看或修改「庫存」分頁（現貨／預購商品）\n・設定其他小幫手'
+: '確定要取消這位的小幫手權限嗎？取消後就進不了後台。';
+if(!window.confirm(msg)) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-staff', { lineUid: b.getAttribute('data-line-uid'), isHelper: toHelper });
+showToast(toHelper ? '已設為小幫手' : '已取消小幫手');
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){ alert('操作失敗：' + e.message); b.disabled = false; }
+});
 }
 var unrestrictBtns = container.querySelectorAll('.admin-member-unrestrict-btn');
 for(var u=0;u<unrestrictBtns.length;u++){
@@ -1927,7 +1954,7 @@ function escAttr(s){
 return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 }
 function adminProductRowHTML(p, catColor){
-var options = ADMIN_STOCK_OPTIONS.map(function(o){
+var options = ADMIN_STOCK_OPTIONS.filter(function(o){ return !isHelperRole() || o[0] === 'live_limited' || o[0] === 'live_ended'; }).map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
 }).join('');
 var imgUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + p.id + '.jpg';
