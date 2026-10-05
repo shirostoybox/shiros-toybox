@@ -643,7 +643,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261005-2100';
+var APP_VERSION = '20261005-2120';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2010,6 +2010,7 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
 + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(p.live_zone_id===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('')
 + '</select>' : '')
++ (isLiveStock(p.stock_status) ? '' : '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-featured-toggle" data-product-id="'+p.id+'"'+(p.featured?' checked':'')+' style="width:18px;height:18px;"> ⭐ 本週嚴選（顯示在首頁）</label>')
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-luxury-toggle" data-product-id="'+p.id+'"'+(p.is_luxury?' checked':'')+' style="width:18px;height:18px;"> 🏷️ 品牌選物（累積到品牌選物回饋，限用品牌選物回饋券）</label>'
 + '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
@@ -2022,7 +2023,8 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + '</div>'
 + '<p style="font-size:12px;color:var(--muted);margin:12px 0 6px;">更多照片（最多4張，點縮圖可直接換照片）</p>'
 + adminExtraPhotoSlotsHTML(p)
-+ '<button type="button" class="btn btn--full admin-delete-product-btn" data-product-id="'+p.id+'" data-name="'+escAttr(p.name)+'" style="margin-top:14px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);font-size:13px;">刪除這件商品</button>'
++ '<button type="button" class="btn btn--full admin-duplicate-product-btn" data-product-id="'+p.id+'" style="margin-top:14px;border:1.5px solid var(--ink);color:var(--ink);font-size:13px;">📋 複製這件商品（改規格用）</button>'
++ '<button type="button" class="btn btn--full admin-delete-product-btn" data-product-id="'+p.id+'" data-name="'+escAttr(p.name)+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);font-size:13px;">刪除這件商品</button>'
 + '</div>';
 }
 function adminExtraPhotoSlotsHTML(p){
@@ -2068,6 +2070,28 @@ var saveInfoBtns = container.querySelectorAll('.admin-save-info-btn');
 for(var s=0;s<saveInfoBtns.length;s++){
 saveInfoBtns[s].addEventListener('click', function(){ handleAdminSaveProductInfo(this); });
 }
+var dupBtns = container.querySelectorAll('.admin-duplicate-product-btn');
+for(var du=0; du<dupBtns.length; du++){
+dupBtns[du].addEventListener('click', async function(){
+var b = this;
+b.disabled = true; b.textContent = '複製中...';
+try{
+var res = await callMemberApi('admin-duplicate-product', { productId: b.getAttribute('data-product-id') });
+await loadAdminProducts();
+// 跳到剛複製出來的商品，直接改規格
+var newInput = document.querySelector('.admin-sub-input[data-product-id="'+res.productId+'"]');
+if(newInput){
+var card = newInput.closest('.order-card');
+if(card){ card.style.boxShadow = '0 0 0 3px #7C4DDB'; card.scrollIntoView({ behavior:'smooth', block:'center' }); }
+setTimeout(function(){ newInput.focus(); newInput.select(); }, 400);
+}
+showToast('已複製（照片也一起複製），改好規格後按「儲存商品資訊」');
+}catch(e){
+alert('複製失敗：' + e.message);
+b.disabled = false; b.textContent = '📋 複製這件商品（改規格用）';
+}
+});
+}
 var delProdBtns = container.querySelectorAll('.admin-delete-product-btn');
 for(var dp=0; dp<delProdBtns.length; dp++){
 delProdBtns[dp].addEventListener('click', async function(){
@@ -2082,6 +2106,22 @@ await loadAdminProducts();
 alert('刪除失敗：' + e.message);
 b.disabled = false; b.textContent = '刪除這件商品';
 }
+});
+}
+var featToggles = container.querySelectorAll('.admin-featured-toggle');
+for(var ft=0; ft<featToggles.length; ft++){
+featToggles[ft].addEventListener('change', async function(){
+var el = this, pid = el.getAttribute('data-product-id'), val = el.checked;
+el.disabled = true;
+try{
+await callMemberApi('admin-set-product-featured', { productId: pid, featured: val });
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === pid) adminProductsCache[ci].featured = val; }
+showToast(val ? '已加入本週嚴選' : '已從本週嚴選移除');
+}catch(e){
+alert('更新失敗：' + e.message);
+el.checked = !val;
+}
+el.disabled = false;
 });
 }
 var luxToggles = container.querySelectorAll('.admin-luxury-toggle');
