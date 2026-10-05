@@ -481,6 +481,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <span class="profile-badge">LINE已驗證</span>
 </div>
 <div class="menu-list">
+<button class="menu-row" id="menuAdminRow" style="display:none;color:#6D28D9;"><span>🔧 後台管理</span><span class="chev">›</span></button>
 <button class="menu-row" data-target="profile"><span>個人資訊</span><span class="chev">›</span></button>
 <button class="menu-row" data-target="guide"><span>使用說明</span><span class="chev">›</span></button>
 <a class="menu-row" href="https://line.me/R/ti/p/@324flvar" target="_blank" rel="noopener" style="text-decoration:none;"><span>聯繫客服（LINE）</span><span class="chev">›</span></a>
@@ -640,7 +641,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261005-1330';
+var APP_VERSION = '20261005-1440';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -658,8 +659,9 @@ body: JSON.stringify(payload)
 });
 if(res.status === 401 && !sessionStorage.getItem('authRecoveryDone')){
 sessionStorage.setItem('authRecoveryDone', '1');
+rememberDeepLink();
 liff.logout();
-liff.login();
+liff.login({ redirectUri: window.location.href });
 return new Promise(function(){});
 }
 var data = await res.json();
@@ -900,8 +902,30 @@ renderLive();
 loadMyOrders();
 checkDeepLink();
 }
+// 登入過期需要重新登入時，LINE 登入完回來常常會把網址後面的 ?view=admin 弄掉，
+// 所以重新登入前先把原本要去的頁面記下來，回來後照記下來的頁面打開（記錄10分鐘內有效）。
+function rememberDeepLink(){
+try{
+if(window.location.search && window.location.search.indexOf('view=') !== -1){
+localStorage.setItem('pendingDeepLink', JSON.stringify({ q: window.location.search, t: Date.now() }));
+}
+}catch(e){}
+}
+function takePendingDeepLink(){
+try{
+var raw = localStorage.getItem('pendingDeepLink');
+localStorage.removeItem('pendingDeepLink');
+if(!raw) return '';
+var d = JSON.parse(raw);
+if(d && d.q && Date.now() - d.t < 10 * 60 * 1000) return d.q;
+}catch(e){}
+return '';
+}
 function checkDeepLink(){
-var params = new URLSearchParams(window.location.search);
+var search = window.location.search;
+var pending = takePendingDeepLink();
+if((!search || search.indexOf('view=') === -1) && pending) search = pending;
+var params = new URLSearchParams(search);
 var target = params.get('view');
 if(target === 'admin'){
 checkAdminAndMaybeShow();
@@ -3218,6 +3242,22 @@ if(name === 'cart'){ loadMyOrders(); }
 if(name === 'shop'){ refreshShop(); }
 if(name === 'live'){ refreshLive(); }
 if(name === 'history'){ loadMySettlements(); }
+if(name === 'menu'){ refreshMenuAdminRow(); }
+}
+// 選單裡的「後台管理」：只有老闆跟小幫手看得到，一般客人不會出現。
+// 打開選單時才查一次權限，查過就記住，不會每次都多跑一趟。
+var menuAdminChecked = false;
+async function refreshMenuAdminRow(){
+var row = document.getElementById('menuAdminRow');
+if(!row || menuAdminChecked) return;
+menuAdminChecked = true;
+try{
+var data = await callMemberApi('admin-check');
+if(data && data.isAdmin){
+adminRole = data.role || 'owner';
+row.style.display = 'flex';
+}
+}catch(e){ menuAdminChecked = false; }
 }
 async function refreshShop(){
 await Promise.all([loadProducts(), loadSiteSettings()]);
@@ -3260,6 +3300,8 @@ heroBtns[h].addEventListener('click', (function(b){ return function(){ showView(
 }
 var seeMore = document.querySelector('.see-more');
 if(seeMore){ seeMore.addEventListener('click', function(){ setCategory('all'); showView('shop'); }); }
+var menuAdminRowEl = document.getElementById('menuAdminRow');
+if(menuAdminRowEl){ menuAdminRowEl.addEventListener('click', function(){ checkAdminAndMaybeShow(); }); }
 var menuLinks = document.querySelectorAll('.menu-row[data-target]');
 for(var ml=0;ml<menuLinks.length;ml++){
 menuLinks[ml].addEventListener('click', (function(b){ return function(){ showView(b.getAttribute('data-target')); }; })(menuLinks[ml]));
@@ -3348,7 +3390,8 @@ if(orderModalMax && orderModalQty >= orderModalMax){ showToast('已達現有庫�
 orderModalQty++; document.getElementById('qtyValue').textContent = orderModalQty; updateOrderModalSub();
 });
 document.getElementById('loginGateBtn').addEventListener('click', function(){
-liff.login();
+rememberDeepLink();
+liff.login({ redirectUri: window.location.href });
 });
 document.getElementById('logoutBtn').addEventListener('click', function(){
 liff.logout();
