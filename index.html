@@ -63,6 +63,12 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .gacha-price-row span:last-child{ font-weight:700; color:var(--text-dark); }
 .gacha-info-note{ margin:10px 0 0; font-size:12px; color:var(--muted); }
 .gacha-shell-choice{ display:none; gap:8px; margin:0 0 18px; }
+.opt-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 14px; }
+.opt-chip{ min-width:52px; padding:9px 14px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:13.5px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
+.opt-chip.active{ border-color:var(--ignis); background:rgba(255,102,71,.1); color:var(--ignis-deep); }
+.opt-label{ margin:10px 0 0; font-size:12.5px; font-weight:700; color:var(--muted); }
+.admin-size-chip{ padding:5px 10px; border-radius:999px; border:1.5px solid var(--line); background:#fff; font-size:12px; font-weight:700; color:var(--muted); font-family:var(--font-body); }
+.admin-size-chip.on{ border-color:var(--ink); background:var(--ink); color:#fff; }
 .shell-option{ flex:1; padding:10px 6px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:12.5px; font-weight:600; color:var(--muted); font-family:var(--font-body); }
 .shell-option.active{ border-color:var(--ink); background:var(--ink); color:#fff; }
 .btn{ font-family:var(--font-body); font-weight:700; font-size:14px; padding:13px 22px; border-radius:var(--r-full); border:none; cursor:pointer; transition:transform .15s ease; }
@@ -338,6 +344,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div id="orderModalExtraPhotos" style="display:none;gap:8px;margin:-6px 0 14px;overflow-x:auto;"></div>
 <h3 id="orderModalTitle"></h3>
 <p class="modal-sub" id="orderModalSub"></p>
+<div id="orderModalOptions" style="display:none;"></div>
 <div class="gacha-shell-choice" id="gachaShellChoice">
 <button class="shell-option active" type="button" data-shell="no">不留蛋殼</button>
 <button class="shell-option" type="button" data-shell="yes">留蛋殼 +NT$10</button>
@@ -644,7 +651,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261005-2300';
+var APP_VERSION = '20261005-2340';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -708,6 +715,13 @@ var REWARD_THRESHOLD = 2500;
 var LUXURY_THRESHOLD = 5000;
 var LUXURY_COUPON_VALUE = 50;
 var REWARD_COUPON_VALUE = 60;
+// 商品選項（尺寸／顏色…）：後台用逗號分開填寫，例如「XS, S, M, L」或「01 粉色, 02 膚色」
+var SIZE_PRESET = ['XS','S','M','L','XL','2XL'];
+function parseOptionList(raw){
+var seen = {}, out = [];
+String(raw || '').split(/[,，、\n]/).forEach(function(x){ x = x.trim(); if(x && !seen[x]){ seen[x] = true; out.push(x); } });
+return out;
+}
 var PRODUCTS = [];
 // 商品照片網址：檔名不變（{id}.jpg），所以換照片後手機和CDN會一直拿舊的快取。
 // 每次上傳都會更新商品的 image_version，網址後面帶 ?v=版本，換照片後網址不同，就一定會抓到新的。
@@ -739,7 +753,7 @@ async function loadProducts(){
 var res = await supabaseClient.from('products').select('*').order('featured', { ascending:false });
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0 };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '' };
 });
 rememberImageVersions(PRODUCTS);
 await loadLiveZones();
@@ -1976,6 +1990,7 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 + '<select class="gate-input" id="npCat">'+catOptions+'</select>'
 + '<input type="text" class="gate-input" id="npNewCatName" placeholder="新分類名稱" style="display:none;">'
 + '<input type="number" class="gate-input" id="npPrice" placeholder="價格">'
++ adminOptionsEditorHTML('new', '', '')
 + (isLiveMode
 ? '<input type="hidden" id="npStock" value="live_limited">'
 + '<select class="gate-input" id="npZone">' + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(adminLiveZoneFilter===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('') + '</select>'
@@ -2006,6 +2021,7 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + '</div>'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
++ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
@@ -2042,6 +2058,41 @@ html += '<div class="admin-photo-slot" data-product-id="'+p.id+'" data-slot="'+s
 html += '</div>';
 return html;
 }
+// 後台選項編輯：選項名稱＋選項清單，尺寸可以直接點 XS～2XL 快速加入
+function adminOptionsEditorHTML(key, label, options){
+var list = parseOptionList(options);
+return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:0 0 8px;padding:10px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);">'
++ '<p style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--text-dark);">客人可選的規格（尺寸／顏色，沒有就留空）</p>'
++ '<input type="text" class="gate-input admin-opt-label" value="'+escAttr(label)+'" placeholder="選項名稱，例如：尺寸、顏色" style="margin-bottom:6px;">'
++ '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px;"><span style="font-size:11.5px;color:var(--muted);align-self:center;">快速選尺寸：</span>'
++ SIZE_PRESET.map(function(sz){ return '<button type="button" class="admin-size-chip'+(list.indexOf(sz)!==-1?' on':'')+'" data-size="'+sz+'">'+sz+'</button>'; }).join('')
++ '</div>'
++ '<textarea class="gate-input admin-opt-values" rows="2" placeholder="選項用逗號分開，例如：S, M, L 或 01 粉色, 02 膚色" style="margin-bottom:0;resize:vertical;">'+escHtml(list.join(', '))+'</textarea>'
++ '</div>';
+}
+function bindAdminOptionEditors(container){
+var editors = container.querySelectorAll('.admin-opt-editor');
+for(var e=0; e<editors.length; e++){
+(function(ed){
+var chips = ed.querySelectorAll('.admin-size-chip');
+var values = ed.querySelector('.admin-opt-values');
+var labelInput = ed.querySelector('.admin-opt-label');
+for(var c=0; c<chips.length; c++){
+chips[c].addEventListener('click', function(){
+var sz = this.getAttribute('data-size');
+var list = parseOptionList(values.value);
+var idx = list.indexOf(sz);
+if(idx === -1){ list.push(sz); this.classList.add('on'); } else { list.splice(idx,1); this.classList.remove('on'); }
+// 尺寸照 XS→2XL 排好，其他自訂選項放後面
+var sizes = SIZE_PRESET.filter(function(x){ return list.indexOf(x) !== -1; });
+var others = list.filter(function(x){ return SIZE_PRESET.indexOf(x) === -1; });
+values.value = sizes.concat(others).join(', ');
+if(!labelInput.value.trim() && sizes.length) labelInput.value = '尺寸';
+});
+}
+})(editors[e]);
+}
+}
 async function handleAdminSaveProductInfo(btn){
 var productId = btn.getAttribute('data-product-id');
 var nameInput = document.querySelector('.admin-name-input[data-product-id="'+productId+'"]');
@@ -2052,7 +2103,10 @@ var price = parseInt(priceInput.value);
 if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
 try{
-await callMemberApi('admin-update-product-info', { productId: productId, name: name, sub: subInput.value.trim(), price: price });
+var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]');
+var optPayload = optEd ? { optionLabel: optEd.querySelector('.admin-opt-label').value.trim(), options: optEd.querySelector('.admin-opt-values').value } : {};
+await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price }, optPayload));
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); } } }
 showToast('已儲存');
 }catch(e){
 alert('儲存失敗：' + e.message);
@@ -2060,6 +2114,7 @@ alert('儲存失敗：' + e.message);
 btn.disabled = false; btn.textContent = oldText;
 }
 function bindAdminProductActions(container){
+bindAdminOptionEditors(container);
 var toggle = document.getElementById('adminNewProductToggle');
 if(toggle){ toggle.addEventListener('click', function(){
 var form = document.getElementById('adminNewProductForm');
@@ -2325,7 +2380,9 @@ var zoneSelect = document.getElementById('npZone');
 var res = await callMemberApi('admin-create-product', {
 name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: stock, qty: qty,
 liveZoneId: zoneSelect ? zoneSelect.value : null,
-isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked)
+isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked),
+optionLabel: (document.querySelector('.admin-opt-editor[data-key="new"] .admin-opt-label') || {value:''}).value.trim(),
+options: (document.querySelector('.admin-opt-editor[data-key="new"] .admin-opt-values') || {value:''}).value
 });
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
@@ -2417,6 +2474,7 @@ return '<article class="card">'
 + (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
 + (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 品牌選物</span>' : '')
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
++ ((p.options || []).length ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">共'+p.options.length+'種'+escHtml(p.optionLabel || '規格')+'可選</p>' : '')
 + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
 + orderBtnHTML
@@ -2665,6 +2723,7 @@ var orderModalProduct = null;
 var orderModalQty = 1;
 var orderModalMax = null;
 var orderModalShell = 'no';
+var orderModalOption = null;
 function updateOrderModalSub(){
 var extra = orderModalShell === 'yes' ? 10 : 0;
 var unitPrice = orderModalProduct.price + extra;
@@ -2718,6 +2777,26 @@ return function(){ openProductGallery(product.id, img.getAttribute('data-zoom'))
 })(extraImgs[ei]));
 }
 document.getElementById('orderModalTitle').textContent = product.name;
+// 選項（尺寸／顏色）：客人點一個就好
+orderModalOption = null;
+var optBox = document.getElementById('orderModalOptions');
+var opts = product.options || [];
+if(opts.length){
+optBox.style.display = 'block';
+optBox.innerHTML = '<p class="opt-label">請選擇'+escHtml(product.optionLabel || '規格')+'</p>'
++ '<div class="opt-chips">' + opts.map(function(o){ return '<button type="button" class="opt-chip" data-opt="'+escAttr(o)+'">'+escHtml(o)+'</button>'; }).join('') + '</div>';
+var chips = optBox.querySelectorAll('.opt-chip');
+for(var oc=0; oc<chips.length; oc++){
+chips[oc].addEventListener('click', function(){
+orderModalOption = this.getAttribute('data-opt');
+var all = optBox.querySelectorAll('.opt-chip');
+for(var k=0;k<all.length;k++){ all[k].classList.toggle('active', all[k] === this); }
+});
+}
+} else {
+optBox.style.display = 'none';
+optBox.innerHTML = '';
+}
 var shellBox = document.getElementById('gachaShellChoice');
 var isGacha = product.cat === 'gacha';
 shellBox.style.display = isGacha ? 'flex' : 'none';
@@ -2789,7 +2868,14 @@ btn.disabled = true; btn.textContent = '送出中...';
 var isGacha = orderModalProduct.cat === 'gacha';
 var extra = (isGacha && orderModalShell === 'yes') ? 10 : 0;
 var finalPrice = orderModalProduct.price + extra;
+var hasOpts = (orderModalProduct.options || []).length > 0;
+if(hasOpts && !orderModalOption){
+btn.disabled = false; btn.textContent = '加入喊單';
+alert('請先選擇' + (orderModalProduct.optionLabel || '規格'));
+return;
+}
 var variantText = orderModalProduct.sub;
+if(hasOpts){ variantText = (variantText ? variantText + '・' : '') + orderModalOption; }
 if(isGacha){ variantText += orderModalShell === 'yes' ? '・留蛋殼' : '・不留蛋殼'; }
 try{
 await callMemberApi('submit-order', {
@@ -2797,7 +2883,8 @@ product_id: orderModalProduct.id,
 product_name: orderModalProduct.name,
 variant: variantText,
 quantity: orderModalQty,
-price: finalPrice
+price: finalPrice,
+option: orderModalOption
 });
 }catch(e){
 btn.disabled = false; btn.textContent = '加入喊單';
