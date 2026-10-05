@@ -643,7 +643,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261005-1510';
+var APP_VERSION = '20261005-1520';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2010,6 +2010,7 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + '</div>'
 + '<p style="font-size:12px;color:var(--muted);margin:12px 0 6px;">更多照片（最多4張，點縮圖可直接換照片）</p>'
 + adminExtraPhotoSlotsHTML(p)
++ '<button type="button" class="btn btn--full admin-delete-product-btn" data-product-id="'+p.id+'" data-name="'+escAttr(p.name)+'" style="margin-top:14px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);font-size:13px;">刪除這件商品</button>'
 + '</div>';
 }
 function adminExtraPhotoSlotsHTML(p){
@@ -2054,6 +2055,22 @@ if(submit){ submit.addEventListener('click', handleCreateProduct); }
 var saveInfoBtns = container.querySelectorAll('.admin-save-info-btn');
 for(var s=0;s<saveInfoBtns.length;s++){
 saveInfoBtns[s].addEventListener('click', function(){ handleAdminSaveProductInfo(this); });
+}
+var delProdBtns = container.querySelectorAll('.admin-delete-product-btn');
+for(var dp=0; dp<delProdBtns.length; dp++){
+delProdBtns[dp].addEventListener('click', async function(){
+var b = this, pid = b.getAttribute('data-product-id');
+if(!window.confirm('確定要刪除「'+b.getAttribute('data-name')+'」嗎？\n\n刪除後：\n・商品和照片都會刪掉，無法復原\n・客人已經結單／付款的紀錄不受影響\n・還有客人喊單但沒結單的商品不能刪')) return;
+b.disabled = true; b.textContent = '刪除中...';
+try{
+await callMemberApi('admin-delete-product', { productId: pid });
+showToast('商品已刪除');
+await loadAdminProducts();
+}catch(e){
+alert('刪除失敗：' + e.message);
+b.disabled = false; b.textContent = '刪除這件商品';
+}
+});
 }
 var luxToggles = container.querySelectorAll('.admin-luxury-toggle');
 for(var lt=0; lt<luxToggles.length; lt++){
