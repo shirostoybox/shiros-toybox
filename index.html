@@ -105,10 +105,16 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .lightbox-overlay.is-open{ display:flex; }
 .lightbox-img{ max-width:92%; max-height:82vh; object-fit:contain; border-radius:12px; }
 .lightbox-close{ position:absolute; top:20px; right:20px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:16px; z-index:2; }
-.lightbox-nav{ position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:24px; line-height:1; display:flex; align-items:center; justify-content:center; z-index:2; }
-.lightbox-nav.lightbox-prev{ left:10px; }
-.lightbox-nav.lightbox-next{ right:10px; }
-.lightbox-counter{ position:absolute; bottom:26px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.18); color:#fff; font-size:12px; padding:4px 13px; border-radius:20px; z-index:2; }
+.lightbox-nav{ position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%; border:2px solid rgba(255,255,255,.9); background:#1a1c24; color:#fff; font-size:30px; font-weight:700; line-height:1; padding-bottom:3px; display:flex; align-items:center; justify-content:center; z-index:2; box-shadow:0 3px 12px rgba(0,0,0,.55); }
+.lightbox-nav.lightbox-prev{ left:6px; }
+.lightbox-nav.lightbox-next{ right:6px; }
+.lightbox-nav.nudge{ animation:lbNudge 1s ease-in-out 3; }
+@keyframes lbNudge{ 0%,100%{ transform:translateY(-50%) translateX(0); } 50%{ transform:translateY(-50%) translateX(6px); } }
+.lightbox-counter{ position:absolute; bottom:calc(28px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:10px; z-index:2; white-space:nowrap; }
+.lightbox-dots{ display:flex; gap:8px; }
+.lightbox-dot{ width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.35); border:none; padding:0; }
+.lightbox-dot.active{ background:#fff; width:22px; border-radius:5px; }
+.lightbox-hint{ background:rgba(255,255,255,.95); color:#1a1c24; font-size:13px; font-weight:700; padding:6px 16px; border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,.4); }
 .modal-photo{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:var(--r-md); margin-bottom:14px; background:var(--paper); cursor:pointer; }
 .cat-badge{ width:54px; height:54px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--text-dark); }
 .cat-badge svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; }
@@ -651,7 +657,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261005-2340';
+var APP_VERSION = '20261006-0020';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2814,11 +2820,23 @@ var galleryIndex = 0;
 var galleryLoadToken = 0;
 function renderGalleryNav(){
 var multi = galleryUrls.length > 1;
-document.getElementById('lightboxPrev').style.display = multi ? 'flex' : 'none';
-document.getElementById('lightboxNext').style.display = multi ? 'flex' : 'none';
+var prevBtn = document.getElementById('lightboxPrev');
+var nextBtn = document.getElementById('lightboxNext');
+var wasHidden = nextBtn.style.display === 'none';
+prevBtn.style.display = multi ? 'flex' : 'none';
+nextBtn.style.display = multi ? 'flex' : 'none';
+if(multi && wasHidden){ nextBtn.classList.remove('nudge'); void nextBtn.offsetWidth; nextBtn.classList.add('nudge'); }
 var counter = document.getElementById('lightboxCounter');
 counter.style.display = multi ? '' : 'none';
-counter.textContent = (galleryIndex+1) + ' / ' + galleryUrls.length;
+if(!multi) return;
+var dots = '';
+for(var i=0;i<galleryUrls.length;i++){ dots += '<button class="lightbox-dot' + (i===galleryIndex?' active':'') + '" data-i="' + i + '"></button>'; }
+var hint = galleryIndex < galleryUrls.length - 1
+? '第 ' + (galleryIndex+1) + ' / ' + galleryUrls.length + ' 張・左右滑動看下一張 ›'
+: '第 ' + (galleryIndex+1) + ' / ' + galleryUrls.length + ' 張・已是最後一張';
+counter.innerHTML = '<div class="lightbox-dots">' + dots + '</div><div class="lightbox-hint">' + hint + '</div>';
+var dotEls = counter.querySelectorAll('.lightbox-dot');
+for(var j=0;j<dotEls.length;j++){ dotEls[j].addEventListener('click', function(e){ e.stopPropagation(); galleryShowIndex(parseInt(this.getAttribute('data-i'),10)); }); }
 }
 function galleryShowIndex(i){
 galleryIndex = (i + galleryUrls.length) % galleryUrls.length;
