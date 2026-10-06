@@ -63,6 +63,9 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .gacha-price-row span:last-child{ font-weight:700; color:var(--text-dark); }
 .gacha-info-note{ margin:10px 0 0; font-size:12px; color:var(--muted); }
 .gacha-shell-choice{ display:none; gap:8px; margin:0 0 18px; }
+.admin-photo-slot::before{ content:'+'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:22px; }
+.admin-photo-slot .admin-extra-thumb{ position:relative; z-index:1; }
+.admin-photo-slot .admin-slot-delete-btn{ z-index:2; }
 .opt-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 14px; }
 .opt-chip{ min-width:52px; padding:9px 14px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:13.5px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
 .opt-chip.active{ border-color:var(--ignis); background:rgba(255,102,71,.1); color:var(--ignis-deep); }
@@ -657,7 +660,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261006-0020';
+var APP_VERSION = '20261006-1520';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -723,6 +726,26 @@ var LUXURY_COUPON_VALUE = 50;
 var REWARD_COUPON_VALUE = 60;
 // 商品選項（尺寸／顏色…）：後台用逗號分開填寫，例如「XS, S, M, L」或「01 粉色, 02 膚色」
 var SIZE_PRESET = ['XS','S','M','L','XL','2XL'];
+// 更多照片欄位 2～11 號（加封面總共 11 張）
+var EXTRA_PHOTO_SLOTS = [2,3,4,5,6,7,8,9,10,11];
+// 每件商品記錄「哪幾格有更多照片」（photo_slots，例如 "2,3,5"），只讀有照片的格子。
+// 還沒記錄過的舊商品（null）才退回去 10 格都檢查一遍，舊照片不會不見
+var PHOTO_SLOTS = {};
+function parsePhotoSlots(raw){
+if(raw === null || raw === undefined) return null;
+return String(raw).split(',').map(function(x){ return parseInt(x,10); }).filter(function(n){ return EXTRA_PHOTO_SLOTS.indexOf(n) !== -1; });
+}
+function rememberPhotoSlots(list){
+(list || []).forEach(function(p){ if(p && p.id && p.photo_slots !== undefined) PHOTO_SLOTS[p.id] = parsePhotoSlots(p.photo_slots); });
+}
+function knownPhotoSlots(productId){
+var v = PHOTO_SLOTS[productId];
+return (v === undefined) ? null : v;
+}
+function extraSlotsToLoad(productId){
+var known = knownPhotoSlots(productId);
+return known ? known : EXTRA_PHOTO_SLOTS;
+}
 function parseOptionList(raw){
 var seen = {}, out = [];
 String(raw || '').split(/[,，、\n]/).forEach(function(x){ x = x.trim(); if(x && !seen[x]){ seen[x] = true; out.push(x); } });
@@ -757,9 +780,10 @@ return 'zone-' + (['gold','blue','purple','green'].indexOf(c) !== -1 ? c : 'gold
 }
 async function loadProducts(){
 var res = await supabaseClient.from('products').select('*').order('featured', { ascending:false });
+if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '' };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '' };
 });
 rememberImageVersions(PRODUCTS);
 await loadLiveZones();
@@ -2027,7 +2051,7 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + '</div>'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
-+ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '')
++ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
@@ -2044,19 +2068,21 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + '<input type="file" accept="image/*" class="gate-input admin-image-input" data-product-id="'+p.id+'" style="margin-bottom:0;flex:1;padding:8px;">'
 + '<button type="button" class="btn btn--dark admin-image-btn" data-product-id="'+p.id+'" style="white-space:nowrap;">上傳圖片</button>'
 + '</div>'
-+ '<p style="font-size:12px;color:var(--muted);margin:12px 0 6px;">更多照片（最多4張，點縮圖可直接換照片）</p>'
++ '<p style="font-size:12px;color:var(--muted);margin:12px 0 6px;">更多照片（最多 '+EXTRA_PHOTO_SLOTS.length+' 張，點空格上傳、點縮圖可直接換照片）</p>'
 + adminExtraPhotoSlotsHTML(p)
 + '<button type="button" class="btn btn--full admin-duplicate-product-btn" data-product-id="'+p.id+'" style="margin-top:14px;border:1.5px solid var(--ink);color:var(--ink);font-size:13px;">📋 複製這件商品（改規格用）</button>'
 + '<button type="button" class="btn btn--full admin-delete-product-btn" data-product-id="'+p.id+'" data-name="'+escAttr(p.name)+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);font-size:13px;">刪除這件商品</button>'
 + '</div>';
 }
 function adminExtraPhotoSlotsHTML(p){
-var slots = [2,3,4,5];
-var html = '<div style="display:flex;gap:8px;">';
+var slots = EXTRA_PHOTO_SLOTS;
+if(p.photo_slots !== undefined) PHOTO_SLOTS[p.id] = parsePhotoSlots(p.photo_slots);
+var toLoad = extraSlotsToLoad(p.id);
+var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
 slots.forEach(function(slotNum){
 var slotUrl = productImageUrl(p.id, slotNum);
 html += '<div class="admin-photo-slot" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="position:relative;width:52px;height:52px;flex-shrink:0;border:1.5px dashed var(--line);border-radius:10px;cursor:pointer;">'
-+ '<img src="'+slotUrl+'" class="admin-extra-thumb" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;display:block;" onload="this.nextElementSibling.style.display=\'flex\';" onerror="this.style.visibility=\'hidden\';">'
++ '<img '+(toLoad.indexOf(slotNum)!==-1 ? 'src="'+slotUrl+'"' : 'style="visibility:hidden;"')+' class="admin-extra-thumb" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;display:block;" onload="this.nextElementSibling.style.display=\'flex\';" onerror="this.style.visibility=\'hidden\';">'
 + '<button type="button" class="admin-slot-delete-btn" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--ignis-deep);color:#fff;border:none;font-size:11px;line-height:20px;padding:0;">✕</button>'
 + '<input type="file" accept="image/*" class="admin-slot-file-input" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;">'
 + '</div>';
@@ -2064,21 +2090,44 @@ html += '<div class="admin-photo-slot" data-product-id="'+p.id+'" data-slot="'+s
 html += '</div>';
 return html;
 }
-// 後台選項編輯：選項名稱＋選項清單，尺寸可以直接點 XS～2XL 快速加入
-function adminOptionsEditorHTML(key, label, options){
+// 後台選項編輯：最多兩組規格（例如：顏色＋尺寸），尺寸可以直接點 XS～2XL 快速加入
+function adminOptionGroupHTML(g, label, options, labelPh, valuesPh){
 var list = parseOptionList(options);
-return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:0 0 8px;padding:10px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);">'
-+ '<p style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--text-dark);">客人可選的規格（尺寸／顏色，沒有就留空）</p>'
-+ '<input type="text" class="gate-input admin-opt-label" value="'+escAttr(label)+'" placeholder="選項名稱，例如：尺寸、顏色" style="margin-bottom:6px;">'
+return '<div class="admin-opt-group" data-g="'+g+'" style="margin-top:'+(g===1?'0':'10px')+';">'
++ '<p style="margin:0 0 4px;font-size:11.5px;font-weight:700;color:var(--muted);">規格'+(g===1?'一':'二')+'</p>'
++ '<input type="text" class="gate-input admin-opt-label" value="'+escAttr(label)+'" placeholder="'+labelPh+'" style="margin-bottom:6px;">'
 + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px;"><span style="font-size:11.5px;color:var(--muted);align-self:center;">快速選尺寸：</span>'
 + SIZE_PRESET.map(function(sz){ return '<button type="button" class="admin-size-chip'+(list.indexOf(sz)!==-1?' on':'')+'" data-size="'+sz+'">'+sz+'</button>'; }).join('')
 + '</div>'
-+ '<textarea class="gate-input admin-opt-values" rows="2" placeholder="選項用逗號分開，例如：S, M, L 或 01 粉色, 02 膚色" style="margin-bottom:0;resize:vertical;">'+escHtml(list.join(', '))+'</textarea>'
++ '<textarea class="gate-input admin-opt-values" rows="2" placeholder="'+valuesPh+'" style="margin-bottom:0;resize:vertical;">'+escHtml(list.join(', '))+'</textarea>'
 + '</div>';
 }
+function adminOptionsEditorHTML(key, label, options, label2, options2){
+return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:0 0 8px;padding:10px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);">'
++ '<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:var(--text-dark);">客人可選的規格（最多兩組，例如顏色＋尺寸；沒有就留空）</p>'
++ adminOptionGroupHTML(1, label, options, '規格名稱，例如：顏色', '選項用逗號分開，例如：黑色, 灰色, 卡其')
++ adminOptionGroupHTML(2, label2 || '', options2 || '', '規格名稱，例如：尺寸', '選項用逗號分開，例如：S, M, L')
++ '</div>';
+}
+function readAdminOptionEditor(ed){
+if(!ed) return {};
+var g1 = ed.querySelector('.admin-opt-group[data-g="1"]');
+var g2 = ed.querySelector('.admin-opt-group[data-g="2"]');
+var out = {
+optionLabel: g1.querySelector('.admin-opt-label').value.trim(),
+options: g1.querySelector('.admin-opt-values').value,
+optionLabel2: g2.querySelector('.admin-opt-label').value.trim(),
+options2: g2.querySelector('.admin-opt-values').value
+};
+// 只填了規格二、規格一空著 → 自動挪到規格一
+if(!parseOptionList(out.options).length && parseOptionList(out.options2).length){
+out.optionLabel = out.optionLabel2; out.options = out.options2; out.optionLabel2 = ''; out.options2 = '';
+}
+return out;
+}
 function bindAdminOptionEditors(container){
-var editors = container.querySelectorAll('.admin-opt-editor');
-for(var e=0; e<editors.length; e++){
+var groups = container.querySelectorAll('.admin-opt-group');
+for(var e=0; e<groups.length; e++){
 (function(ed){
 var chips = ed.querySelectorAll('.admin-size-chip');
 var values = ed.querySelector('.admin-opt-values');
@@ -2096,7 +2145,7 @@ values.value = sizes.concat(others).join(', ');
 if(!labelInput.value.trim() && sizes.length) labelInput.value = '尺寸';
 });
 }
-})(editors[e]);
+})(groups[e]);
 }
 }
 async function handleAdminSaveProductInfo(btn){
@@ -2110,9 +2159,9 @@ if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
 try{
 var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]');
-var optPayload = optEd ? { optionLabel: optEd.querySelector('.admin-opt-label').value.trim(), options: optEd.querySelector('.admin-opt-values').value } : {};
+var optPayload = readAdminOptionEditor(optEd);
 await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price }, optPayload));
-for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); } } }
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); } } }
 showToast('已儲存');
 }catch(e){
 alert('儲存失敗：' + e.message);
@@ -2239,13 +2288,18 @@ for(var sd=0;sd<slotDeleteBtns.length;sd++){
 slotDeleteBtns[sd].addEventListener('click', function(e){ e.stopPropagation(); handleAdminSlotDelete(this); });
 }
 }
+function setCachedPhotoSlots(productId, slotsText){
+PHOTO_SLOTS[productId] = parsePhotoSlots(slotsText);
+for(var i=0;i<adminProductsCache.length;i++){ if(adminProductsCache[i].id === productId) adminProductsCache[i].photo_slots = slotsText; }
+}
 async function handleAdminSlotUpload(input){
 var productId = input.getAttribute('data-product-id');
 var slot = input.getAttribute('data-slot');
 if(!input.files || !input.files[0]) return;
 try{
 var compressed = await compressImage(input.files[0]);
-await callMemberApi('admin-upload-product-image', { productId: productId, slot: slot, imageData: compressed });
+var upRes = await callMemberApi('admin-upload-product-image', { productId: productId, slot: slot, imageData: compressed });
+if(upRes && upRes.photoSlots !== undefined) setCachedPhotoSlots(productId, upRes.photoSlots);
 showToast('已上傳');
 var img = document.querySelector('.admin-photo-slot[data-product-id="'+productId+'"][data-slot="'+slot+'"] .admin-extra-thumb');
 if(img){ img.style.visibility = 'visible'; IMAGE_VERSIONS[productId] = Date.now(); img.src = productImageUrl(productId, slot); }
@@ -2259,7 +2313,8 @@ if(!window.confirm('確定要刪除這張照片嗎？')) return;
 var productId = btn.getAttribute('data-product-id');
 var slot = btn.getAttribute('data-slot');
 try{
-await callMemberApi('admin-delete-product-image', { productId: productId, slot: slot });
+var delRes = await callMemberApi('admin-delete-product-image', { productId: productId, slot: slot });
+if(delRes && delRes.photoSlots !== undefined) setCachedPhotoSlots(productId, delRes.photoSlots);
 showToast('已刪除');
 var img = document.querySelector('.admin-photo-slot[data-product-id="'+productId+'"][data-slot="'+slot+'"] .admin-extra-thumb');
 if(img){ img.style.visibility = 'hidden'; }
@@ -2383,12 +2438,13 @@ var btn = document.getElementById('npSubmit');
 btn.disabled = true; btn.textContent = '建立中...';
 try{
 var zoneSelect = document.getElementById('npZone');
+var newOpt = readAdminOptionEditor(document.querySelector('.admin-opt-editor[data-key="new"]'));
 var res = await callMemberApi('admin-create-product', {
 name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: stock, qty: qty,
 liveZoneId: zoneSelect ? zoneSelect.value : null,
 isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked),
-optionLabel: (document.querySelector('.admin-opt-editor[data-key="new"] .admin-opt-label') || {value:''}).value.trim(),
-options: (document.querySelector('.admin-opt-editor[data-key="new"] .admin-opt-values') || {value:''}).value
+optionLabel: newOpt.optionLabel || '', options: newOpt.options || '',
+optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || ''
 });
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
@@ -2480,7 +2536,7 @@ return '<article class="card">'
 + (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
 + (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 品牌選物</span>' : '')
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
-+ ((p.options || []).length ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">共'+p.options.length+'種'+escHtml(p.optionLabel || '規格')+'可選</p>' : '')
++ ((p.options || []).length ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
 + '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
 + orderBtnHTML
@@ -2730,6 +2786,7 @@ var orderModalQty = 1;
 var orderModalMax = null;
 var orderModalShell = 'no';
 var orderModalOption = null;
+var orderModalOption2 = null;
 function updateOrderModalSub(){
 var extra = orderModalShell === 'yes' ? 10 : 0;
 var unitPrice = orderModalProduct.price + extra;
@@ -2770,7 +2827,7 @@ photoEl.src = imgUrl;
 photoEl.setAttribute('data-zoom', imgUrl);
 var extraRow = document.getElementById('orderModalExtraPhotos');
 var extraHtml = '';
-[2,3,4,5].forEach(function(slotNum){
+extraSlotsToLoad(product.id).forEach(function(slotNum){
 var slotUrl = productImageUrl(product.id, slotNum);
 extraHtml += '<img src="'+slotUrl+'" class="modal-extra-thumb zoomable" data-zoom="'+slotUrl+'" alt="" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;" onerror="this.remove();">';
 });
@@ -2783,21 +2840,29 @@ return function(){ openProductGallery(product.id, img.getAttribute('data-zoom'))
 })(extraImgs[ei]));
 }
 document.getElementById('orderModalTitle').textContent = product.name;
-// 選項（尺寸／顏色）：客人點一個就好
+// 選項（顏色／尺寸）：最多兩組，每組各點一個
 orderModalOption = null;
+orderModalOption2 = null;
 var optBox = document.getElementById('orderModalOptions');
-var opts = product.options || [];
-if(opts.length){
+var optGroups = [[1, product.options || [], product.optionLabel], [2, product.options2 || [], product.optionLabel2]].filter(function(g){ return g[1].length; });
+if(optGroups.length){
 optBox.style.display = 'block';
-optBox.innerHTML = '<p class="opt-label">請選擇'+escHtml(product.optionLabel || '規格')+'</p>'
-+ '<div class="opt-chips">' + opts.map(function(o){ return '<button type="button" class="opt-chip" data-opt="'+escAttr(o)+'">'+escHtml(o)+'</button>'; }).join('') + '</div>';
-var chips = optBox.querySelectorAll('.opt-chip');
+optBox.innerHTML = optGroups.map(function(g){
+return '<p class="opt-label">請選擇'+escHtml(g[2] || '規格')+'</p>'
++ '<div class="opt-chips" data-g="'+g[0]+'">' + g[1].map(function(o){ return '<button type="button" class="opt-chip" data-opt="'+escAttr(o)+'">'+escHtml(o)+'</button>'; }).join('') + '</div>';
+}).join('');
+var chipRows = optBox.querySelectorAll('.opt-chips');
+for(var cr=0; cr<chipRows.length; cr++){
+(function(row){
+var g = row.getAttribute('data-g');
+var chips = row.querySelectorAll('.opt-chip');
 for(var oc=0; oc<chips.length; oc++){
 chips[oc].addEventListener('click', function(){
-orderModalOption = this.getAttribute('data-opt');
-var all = optBox.querySelectorAll('.opt-chip');
-for(var k=0;k<all.length;k++){ all[k].classList.toggle('active', all[k] === this); }
+if(g === '2') orderModalOption2 = this.getAttribute('data-opt'); else orderModalOption = this.getAttribute('data-opt');
+for(var k=0;k<chips.length;k++){ chips[k].classList.toggle('active', chips[k] === this); }
 });
+}
+})(chipRows[cr]);
 }
 } else {
 optBox.style.display = 'none';
@@ -2854,8 +2919,19 @@ galleryIndex = 0;
 document.getElementById('lightboxImg').src = shownUrl;
 renderGalleryNav();
 document.getElementById('lightboxOverlay').classList.add('is-open');
-var slotNums = [2,3,4,5];
-var results = [null,null,null,null];
+var knownSlots = productId ? knownPhotoSlots(productId) : null;
+if(knownSlots){
+// 已經知道有哪幾格照片，直接排好，不用一格一格去試
+var known = [cover].concat(knownSlots.map(function(n){ return productImageUrl(productId, n); }));
+galleryUrls = known;
+var kIdx = known.indexOf(shownUrl);
+galleryIndex = kIdx !== -1 ? kIdx : 0;
+document.getElementById('lightboxImg').src = galleryUrls[galleryIndex];
+renderGalleryNav();
+return;
+}
+var slotNums = productId ? EXTRA_PHOTO_SLOTS : [];
+var results = slotNums.map(function(){ return null; });
 var pending = slotNums.length;
 slotNums.forEach(function(slotNum, i){
 var slotUrl = productImageUrl(productId, slotNum);
@@ -2887,13 +2963,20 @@ var isGacha = orderModalProduct.cat === 'gacha';
 var extra = (isGacha && orderModalShell === 'yes') ? 10 : 0;
 var finalPrice = orderModalProduct.price + extra;
 var hasOpts = (orderModalProduct.options || []).length > 0;
+var hasOpts2 = (orderModalProduct.options2 || []).length > 0;
 if(hasOpts && !orderModalOption){
 btn.disabled = false; btn.textContent = '加入喊單';
 alert('請先選擇' + (orderModalProduct.optionLabel || '規格'));
 return;
 }
+if(hasOpts2 && !orderModalOption2){
+btn.disabled = false; btn.textContent = '加入喊單';
+alert('請先選擇' + (orderModalProduct.optionLabel2 || '規格'));
+return;
+}
 var variantText = orderModalProduct.sub;
 if(hasOpts){ variantText = (variantText ? variantText + '・' : '') + orderModalOption; }
+if(hasOpts2){ variantText = (variantText ? variantText + '・' : '') + orderModalOption2; }
 if(isGacha){ variantText += orderModalShell === 'yes' ? '・留蛋殼' : '・不留蛋殼'; }
 try{
 await callMemberApi('submit-order', {
@@ -2902,7 +2985,8 @@ product_name: orderModalProduct.name,
 variant: variantText,
 quantity: orderModalQty,
 price: finalPrice,
-option: orderModalOption
+option: orderModalOption,
+option2: orderModalOption2
 });
 }catch(e){
 btn.disabled = false; btn.textContent = '加入喊單';
