@@ -106,7 +106,11 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .visual-fallback{ display:none; align-items:center; justify-content:center; position:absolute; inset:0; }
 .lightbox-overlay{ position:fixed; inset:0; background:rgba(10,11,15,.94); display:none; align-items:center; justify-content:center; z-index:250; }
 .lightbox-overlay.is-open{ display:flex; }
-.lightbox-img{ max-width:92%; max-height:82vh; object-fit:contain; border-radius:12px; }
+.lightbox-img{ max-width:92%; max-height:82vh; object-fit:contain; border-radius:12px; transition:opacity .15s; }
+.lightbox-img.is-loading{ opacity:.35; }
+.lightbox-spinner{ position:absolute; top:50%; left:50%; width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:50%; border:3px solid rgba(255,255,255,.3); border-top-color:#fff; animation:lbSpin .8s linear infinite; z-index:3; display:none; pointer-events:none; }
+.lightbox-spinner.on{ display:block; }
+@keyframes lbSpin{ to{ transform:rotate(360deg); } }
 .lightbox-close{ position:absolute; top:20px; right:20px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:16px; z-index:2; }
 .lightbox-nav{ position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%; border:2px solid rgba(255,255,255,.9); background:#1a1c24; color:#fff; font-size:30px; font-weight:700; line-height:1; padding-bottom:3px; display:flex; align-items:center; justify-content:center; z-index:2; box-shadow:0 3px 12px rgba(0,0,0,.55); }
 .lightbox-nav.lightbox-prev{ left:6px; }
@@ -371,6 +375,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <button class="lightbox-close" id="lightboxClose">✕</button>
 <button class="lightbox-nav lightbox-prev" id="lightboxPrev" style="display:none;">‹</button>
 <img class="lightbox-img" id="lightboxImg" src="" alt="">
+<div class="lightbox-spinner" id="lightboxSpinner"></div>
 <button class="lightbox-nav lightbox-next" id="lightboxNext" style="display:none;">›</button>
 <div class="lightbox-counter" id="lightboxCounter" style="display:none;"></div>
 </div>
@@ -660,7 +665,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261006-2015';
+var APP_VERSION = '20261007-0030';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2903,9 +2908,30 @@ counter.innerHTML = '<div class="lightbox-dots">' + dots + '</div><div class="li
 var dotEls = counter.querySelectorAll('.lightbox-dot');
 for(var j=0;j<dotEls.length;j++){ dotEls[j].addEventListener('click', function(e){ e.stopPropagation(); galleryShowIndex(parseInt(this.getAttribute('data-i'),10)); }); }
 }
+// 打開大圖時，把這件商品的所有照片先在背景下載好，點下一張就能馬上顯示
+var galleryPreloaded = {};
+function preloadGallery(){
+galleryUrls.forEach(function(u){
+if(galleryPreloaded[u]) return;
+var im = new Image();
+im.decoding = 'async';
+im.src = u;
+galleryPreloaded[u] = im;
+});
+}
+function setLightboxSrc(url){
+var img = document.getElementById('lightboxImg');
+var spinner = document.getElementById('lightboxSpinner');
+var pre = galleryPreloaded[url];
+var ready = pre && pre.complete && pre.naturalWidth > 0;
+if(!ready){ img.classList.add('is-loading'); spinner.classList.add('on'); }
+img.onload = img.onerror = function(){ img.classList.remove('is-loading'); spinner.classList.remove('on'); };
+img.src = url;
+if(img.complete){ img.classList.remove('is-loading'); spinner.classList.remove('on'); }
+}
 function galleryShowIndex(i){
 galleryIndex = (i + galleryUrls.length) % galleryUrls.length;
-document.getElementById('lightboxImg').src = galleryUrls[galleryIndex];
+setLightboxSrc(galleryUrls[galleryIndex]);
 renderGalleryNav();
 }
 function galleryPrev(){ galleryShowIndex(galleryIndex - 1); }
@@ -2916,7 +2942,7 @@ var shownUrl = startUrl || cover;
 var token = ++galleryLoadToken;
 galleryUrls = [shownUrl];
 galleryIndex = 0;
-document.getElementById('lightboxImg').src = shownUrl;
+setLightboxSrc(shownUrl);
 renderGalleryNav();
 document.getElementById('lightboxOverlay').classList.add('is-open');
 var knownSlots = productId ? knownPhotoSlots(productId) : null;
@@ -2926,7 +2952,8 @@ var known = [cover].concat(knownSlots.map(function(n){ return productImageUrl(pr
 galleryUrls = known;
 var kIdx = known.indexOf(shownUrl);
 galleryIndex = kIdx !== -1 ? kIdx : 0;
-document.getElementById('lightboxImg').src = galleryUrls[galleryIndex];
+if(kIdx === -1) setLightboxSrc(galleryUrls[0]);
+preloadGallery();
 renderGalleryNav();
 return;
 }
@@ -2936,6 +2963,7 @@ var pending = slotNums.length;
 slotNums.forEach(function(slotNum, i){
 var slotUrl = productImageUrl(productId, slotNum);
 var probe = new Image();
+galleryPreloaded[slotUrl] = probe;
 probe.onload = function(){ results[i] = slotUrl; settle(); };
 probe.onerror = function(){ settle(); };
 probe.src = slotUrl;
