@@ -665,7 +665,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261007-0030';
+var APP_VERSION = '20261007-1710';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1150,13 +1150,20 @@ var liveBadge = o.is_live_limited
 var luxuryBadge = o.is_luxury
 ? '<span style="display:inline-block;background:#1B1E27;color:#E9C46A;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🏷️品牌選物</span>'
 : '';
+// 訂金標籤跟客人那邊一致：還沒收到錢＝需訂金・未付；收到了＝已付訂（確認後變已付訂・已確認）
+var depositPaidAmt = Number(o.deposit_amount || 0);
+var depositBadgeText = depositPaidAmt > 0 ? (o.status === '已確認' ? '💰已付訂・已確認' : '💰已付訂') : '💰需訂金・未付';
+var depositBadgeStyle = depositPaidAmt > 0 ? 'background:#DCFCE7;color:#166534;' : 'background:#FEF3C7;color:#92400E;';
 var depositBadge = o.deposit_required
-? '<span style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">💰需訂金</span>'
+? '<span style="display:inline-block;'+depositBadgeStyle+'font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">'+depositBadgeText+'</span>'
 : '';
 // 只有這筆訂單當初判斷需要訂金，才顯示這個輸入格；客人付了多少你就key多少，之後確認／取消都會一起存這個金額。
 var suggestedDeposit = total ? Math.round(total/2) : 0;
+var depositLabel = depositPaidAmt > 0
+? '💰客人已付訂金（應收 NT$'+suggestedDeposit+'）'
+: '💰收到訂金後，在這裡輸入金額（應收 NT$'+suggestedDeposit+'）';
 var depositInputHtml = o.deposit_required
-? '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">💰客人已付訂金（建議NT$'+suggestedDeposit+'）</label><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="尚未輸入" style="margin-bottom:0;"></div>'
+? '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">'+depositLabel+'</label><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="尚未收到訂金" style="margin-bottom:0;"></div>'
 : '';
 return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
