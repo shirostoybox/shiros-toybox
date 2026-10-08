@@ -219,12 +219,22 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .live-entry.zone-gold{ background:linear-gradient(125deg,#7A5410 0%,#C8962B 50%,#F2D07A 100%); box-shadow:0 12px 26px -14px rgba(160,115,20,.9); }
 .live-entry.zone-blue{ background:linear-gradient(125deg,#1E3A8A 0%,#2F6FE0 55%,#8EC5FF 100%); box-shadow:0 12px 26px -14px rgba(37,99,235,.9); }
 .live-entry.zone-purple{ background:linear-gradient(125deg,#4C1D95 0%,#7C4DDB 55%,#C9B2FF 100%); box-shadow:0 12px 26px -14px rgba(109,40,217,.9); }
+.live-entry.zone-black{ background:linear-gradient(125deg,#07080B 0%,#1C1F2B 60%,#3A3F52 100%); box-shadow:0 12px 26px -14px rgba(0,0,0,.85); }
+.live-entry.zone-black::after{ display:none; }
+.live-entry.zone-black .live-entry-top{ flex-wrap:wrap; row-gap:4px; }
+.live-entry.zone-black .live-entry-title{ font-size:16.5px; white-space:nowrap; }
+.regular-badge{ white-space:nowrap; flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; background:#fff; color:#111; font-size:11px; font-weight:800; letter-spacing:.02em; }
+.regular-badge .dot{ width:7px; height:7px; border-radius:50%; background:#22C55E; }
+.regular-badge.is-paused{ background:#F5C26B; color:#3B2600; }
+.regular-badge.is-paused .dot{ background:#B45309; }
+.live-zone-hero.zone-black{ background:linear-gradient(125deg,#07080B,#1C1F2B 60%,#3A3F52); }
 .live-entry.zone-green{ background:linear-gradient(125deg,#065F46 0%,#139E72 55%,#7EE2B8 100%); box-shadow:0 12px 26px -14px rgba(4,120,87,.9); }
 .live-entry.zone-gold .live-badge{ color:#8A6414; } .live-entry.zone-gold .live-dot{ background:#C8962B; }
 .live-entry.zone-blue .live-badge{ color:#1E4FC2; } .live-entry.zone-blue .live-dot{ background:#2F6FE0; }
 .live-entry.zone-purple .live-badge{ color:#5B2BB5; } .live-entry.zone-purple .live-dot{ background:#7C4DDB; }
 .live-entry.zone-green .live-badge{ color:#067A57; } .live-entry.zone-green .live-dot{ background:#139E72; }
-.live-zone-hero{ margin:4px 20px 12px; padding:16px; border-radius:var(--r-md); color:#fff; }
+.live-zone-hero{ margin:4px 20px 12px; padding:16px; border-radius:var(--r-md); color:#fff; position:relative; }
+.zone-share-btn{ position:absolute; top:12px; right:12px; background:rgba(255,255,255,.22); color:#fff; border:1px solid rgba(255,255,255,.45); border-radius:var(--r-full); font-size:12px; font-weight:700; padding:5px 11px; font-family:var(--font-body); }
 .live-zone-hero.zone-gold{ background:linear-gradient(125deg,#7A5410,#C8962B 55%,#F2D07A); }
 .live-zone-hero.zone-blue{ background:linear-gradient(125deg,#1E3A8A,#2F6FE0 55%,#8EC5FF); }
 .live-zone-hero.zone-purple{ background:linear-gradient(125deg,#4C1D95,#7C4DDB 55%,#C9B2FF); }
@@ -453,8 +463,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </section>
 <div class="live-entries" id="liveEntries"></div>
 <div class="paused-notice-slot" id="homePausedNotice"></div>
-<p class="section-label">熱門分類</p>
-<div class="cat-grid"></div>
+<div class="live-entries" id="regularEntry" style="margin-top:14px;"></div>
 <div class="picks-header">
 <h2>本週嚴選</h2>
 <span class="see-more" data-target="shop">查看更多 →</span>
@@ -463,9 +472,8 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </section>
 <!-- SHOP -->
 <section class="view" data-view="shop">
-<div class="shop-topline">
-<div><h2>所有商品</h2><span class="count-pill" id="shopCount"></span></div>
-</div>
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><span class="count-pill" id="shopCount" style="margin-left:auto;"></span></div>
+<div id="regularZoneHero"></div>
 <div class="live-entries" id="shopLiveEntries" style="margin:0 0 14px;"></div>
 <div class="search-bar">
 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -665,7 +673,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261007-1730';
+var APP_VERSION = '20261008-2350';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -802,6 +810,7 @@ siteSettings = data.settings || {};
 applySiteSettings();
 }
 function applySiteSettings(){
+try{ renderRegularEntry(); renderRegularHero(); }catch(e){}
 var tripEl = document.getElementById('heroNextTrip');
 if(tripEl && siteSettings.next_trip){
 var newText = '✈︎ 下一站｜' + siteSettings.next_trip;
@@ -1894,6 +1903,24 @@ var saveTripBtn = document.getElementById('adminSaveNextTrip');
 if(saveTripBtn){ saveTripBtn.addEventListener('click', handleAdminSaveNextTrip); }
 var pauseBtn = document.getElementById('adminToggleRegularPaused');
 if(pauseBtn){ pauseBtn.addEventListener('click', handleAdminToggleRegularPaused); }
+var noteBtn = document.getElementById('adminSaveRegularNote');
+if(noteBtn){ noteBtn.addEventListener('click', handleAdminSaveRegularNote); }
+}
+async function handleAdminSaveRegularNote(){
+var btn = document.getElementById('adminSaveRegularNote');
+var input = document.getElementById('adminRegularNoteInput');
+if(!input) return;
+var value = input.value.trim();
+btn.disabled = true; btn.textContent = '儲存中...';
+try{
+await callMemberApi('admin-update-site-setting', { key: 'regular_note', value: value });
+siteSettings.regular_note = value;
+applySiteSettings();
+showToast('已儲存');
+}catch(e){
+alert('儲存失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = '儲存狀態文字';
 }
 function adminSiteSettingsHTML(){
 var tripVal = siteSettings.next_trip || '';
@@ -1913,13 +1940,16 @@ return '<div style="background:var(--card);border:1.5px solid var(--line);border
 + (function(){
 var paused = isRegularPaused();
 return '<div style="'+(paused ? 'background:#FFF7E6;border:1.5px solid #F5C26B;' : 'background:var(--card);border:1.5px solid var(--line);')+'border-radius:var(--r-md);padding:14px;margin-bottom:16px;">'
-+ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 6px;">現貨／預購連線喊單</p>'
++ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 6px;">⬛ 現貨・預購連線專區</p>'
++ '<p style="font-size:12px;color:var(--muted);margin:0 0 4px;">目前狀態文字（顯示在首頁黑色專區卡片和專區頁上，不想顯示就留空）</p>'
++ '<input type="text" class="gate-input" id="adminRegularNoteInput" value="'+escAttr(siteSettings.regular_note || '')+'" placeholder="例如：11/20 前喊單，月底統一出貨" style="margin-bottom:8px;">'
++ '<button type="button" class="btn btn--dark btn--full" id="adminSaveRegularNote" style="margin-bottom:12px;">儲存狀態文字</button>'
 + '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">'
 + (paused
 ? '⏸ 目前<b>暫停中</b>：客人不能喊現貨／預購連線商品，已喊單的現貨／預購結單倒數也暫停中、不能結單。按下恢復後，從那一刻重新倒數3天。限時連線專區照常可以喊單。'
 : '🟢 目前<b>開放中</b>。限時連線忙不過來時，可以一鍵暫停現貨／預購連線喊單（結單倒數也會一起暫停），限時連線專區不受影響。')
 + '</p>'
-+ '<button type="button" class="btn '+(paused ? 'btn--primary' : 'btn--dark')+' btn--full" id="adminToggleRegularPaused">'+(paused ? '恢復現貨／預購喊單' : '暫停現貨／預購喊單')+'</button>'
++ '<button type="button" class="btn '+(paused ? 'btn--primary' : 'btn--dark')+' btn--full" id="adminToggleRegularPaused">'+(paused ? '▶︎ 開啟專區（恢復現貨／預購喊單）' : '⏸ 關閉專區（暫停現貨／預購喊單）')+'</button>'
 + '</div>';
 })()
 + '<p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 16px;">限時連線的開啟／關閉在「限時連線」分頁，每個專區各自開關、各自結單倒數。</p>';
@@ -2642,8 +2672,42 @@ var goWish = el.querySelector('.paused-go-wish');
 if(goWish) goWish.addEventListener('click', function(){ showView('wish'); });
 });
 }
+// 現貨・預購連線專區：首頁黑色入口卡片＋商品頁上方的黑色專區標題。
+// 開放／暫停沿用「暫停現貨／預購喊單」開關（regular_paused），狀態文字存在 regular_note，後台設定分頁可以改。
+var BOX_ICON_SVG = '<svg viewBox="0 0 24 24"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z" stroke-linejoin="round"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" stroke-linejoin="round"/></svg>';
+function regularZoneBadgeHTML(){
+return isRegularPaused()
+? '<span class="regular-badge is-paused"><span class="dot"></span>暫停中</span>'
+: '<span class="regular-badge"><span class="dot"></span>開放中</span>';
+}
+function renderRegularEntry(){
+var wrap = document.getElementById('regularEntry');
+if(!wrap) return;
+var list = regularProducts().filter(function(p){ return p.stock === 'in' || p.stock === 'preorder'; });
+var note = siteSettings.regular_note || '';
+var sub = isRegularPaused()
+? '⏸ 暫停喊單中，可以先逛逛或許願 ♡'
+: (list.length ? '🟢 ' + list.length + ' 件現貨・預購商品開放喊單中' : '商品陸續上架中，敬請期待');
+wrap.innerHTML = '<button type="button" class="live-entry zone-black" id="regularEntryBtn">'
++ '<span class="live-entry-icon">'+BOX_ICON_SVG+'</span>'
++ '<span class="live-entry-text">'
++ '<span class="live-entry-top"><span class="live-entry-title">現貨・預購連線專區</span>'+regularZoneBadgeHTML()+'</span>'
++ (note ? '<span class="live-entry-note">'+escHtml(note)+'</span> ' : '')
++ '<span class="live-entry-sub">'+sub+'</span>'
++ '</span><span class="live-entry-arrow">›</span></button>';
+document.getElementById('regularEntryBtn').addEventListener('click', function(){ setCategory('all'); showView('shop'); });
+}
+function renderRegularHero(){
+var el = document.getElementById('regularZoneHero');
+if(!el) return;
+var note = siteSettings.regular_note || '';
+el.innerHTML = '<div class="live-zone-hero zone-black"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">現貨・預購連線專區</h2>'+regularZoneBadgeHTML()+'</div>'
++ (note ? '<span class="live-entry-note" style="margin:8px 0 0;">'+escHtml(note)+'</span>' : '')
++ '<p>現貨與預購連線商品都在這裡，可以依分類慢慢逛 ♡</p></div>';
+}
 function renderHome(){
 renderPausedNotices();
+renderRegularEntry();
 var grid = document.getElementById('homeGrid');
 var list = [];
 var regList = regularProducts();
@@ -2664,6 +2728,7 @@ return catOk && haystack.indexOf(q) !== -1;
 }
 function renderShop(){
 renderPausedNotices();
+renderRegularHero();
 renderLiveEntries();
 var grid = document.getElementById('shopGrid');
 var list = getFilteredShop();
@@ -2729,10 +2794,12 @@ var isOpen = !!(zone && zone.is_open);
 var heroEl = document.getElementById('liveZoneHero');
 if(heroEl){
 heroEl.innerHTML = zone
-? '<div class="live-zone-hero '+zoneColorClass(zone)+'"><h2>'+escHtml(zone.name || '限時連線專區')+'</h2>'
+? '<div class="live-zone-hero '+zoneColorClass(zone)+'"><button type="button" class="zone-share-btn" id="zoneShareBtn">🔗 分享專區</button><h2 style="padding-right:96px;">'+escHtml(zone.name || '限時連線專區')+'</h2>'
 + (zone.note ? '<span class="live-entry-note" style="margin:6px 0 0;">'+escHtml(zone.note)+'</span>' : '')
 + '<p>'+(isOpen ? '限時連線進行中，商品數量有限，喊單後依結單規則完成付款即可 ♡' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
 : '';
+var shareBtn = document.getElementById('zoneShareBtn');
+if(shareBtn && zone){ shareBtn.addEventListener('click', function(){ shareZoneLink(zone); }); }
 }
 var all = (zone && isOpen) ? zoneProducts(zone.id) : [];
 var cats = {}, catKeys = [];
@@ -3544,7 +3611,38 @@ html += '<div class="view-heading" style="margin-top:20px;"><h2>已取消</h2><s
 listEl.innerHTML = html;
 }
 /* ---------- view switching ---------- */
+// 網址跟著目前頁面變：進到限時連線專區時網址會變成 ?view=live&zone=專區編號，
+// 重新整理、分享、加書籤都會回到同一頁（網址打開時由 checkDeepLink 處理）
+function updatePageUrl(name){
+try{
+var url = window.location.pathname;
+if(name && name !== 'home'){
+var q = 'view=' + encodeURIComponent(name);
+if(name === 'live' && currentLiveZoneId) q += '&zone=' + encodeURIComponent(currentLiveZoneId);
+url += '?' + q;
+}
+if(url !== window.location.pathname + window.location.search){ history.replaceState(null, '', url); }
+}catch(e){}
+}
+// 分享專區連結：用 LINE 的 LIFF 網址，客人在 LINE 裡點開會直接登入並進到這個專區
+function zoneShareUrl(zone){
+return 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURIComponent(zone.id);
+}
+async function shareZoneLink(zone){
+var url = zoneShareUrl(zone);
+var title = (zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '');
+try{
+if(navigator.share){ await navigator.share({ title: '四郎玩具箱・' + title, text: '四郎玩具箱・' + title, url: url }); return; }
+}catch(e){ if(e && e.name === 'AbortError') return; }
+try{
+await navigator.clipboard.writeText(url);
+showToast('已複製專區連結');
+}catch(e){
+window.prompt('長按複製這個連結：', url);
+}
+}
 function showView(name){
+updatePageUrl(name);
 var views = document.querySelectorAll('.view');
 for(var i=0;i<views.length;i++){ views[i].classList.toggle('is-active', views[i].getAttribute('data-view')===name); }
 var navs = document.querySelectorAll('.nav-item');
