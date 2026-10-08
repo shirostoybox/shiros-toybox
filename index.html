@@ -227,6 +227,9 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .regular-badge .dot{ width:7px; height:7px; border-radius:50%; background:#22C55E; }
 .regular-badge.is-paused{ background:#F5C26B; color:#3B2600; }
 .regular-badge.is-paused .dot{ background:#B45309; }
+.regular-hero-actions{ display:flex; gap:8px; margin-top:10px; }
+.regular-hero-btn{ flex:1; padding:9px 10px; border-radius:var(--r-full); border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff; font-size:13px; font-weight:700; font-family:var(--font-body); }
+.regular-hero-btn.is-primary{ background:#fff; color:#111; border-color:#fff; }
 .live-zone-hero.zone-black{ background:linear-gradient(125deg,#07080B,#1C1F2B 60%,#3A3F52); }
 .live-entry.zone-green{ background:linear-gradient(125deg,#065F46 0%,#139E72 55%,#7EE2B8 100%); box-shadow:0 12px 26px -14px rgba(4,120,87,.9); }
 .live-entry.zone-gold .live-badge{ color:#8A6414; } .live-entry.zone-gold .live-dot{ background:#C8962B; }
@@ -673,7 +676,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261008-2350';
+var APP_VERSION = '20261009-0045';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2661,7 +2664,8 @@ function renderPausedNotices(){
 ['homePausedNotice','shopPausedNotice'].forEach(function(id){
 var el = document.getElementById(id);
 if(!el) return;
-el.innerHTML = isRegularPaused() ? pausedNoticeHTML() : '';
+// 暫停提示已經合併進黑色的現貨・預購專區卡片和標題，這裡不再另外顯示
+el.innerHTML = '';
 var goLive = el.querySelector('.paused-go-live');
 if(goLive) goLive.addEventListener('click', function(){
 var zs = openZones();
@@ -2686,7 +2690,7 @@ if(!wrap) return;
 var list = regularProducts().filter(function(p){ return p.stock === 'in' || p.stock === 'preorder'; });
 var note = siteSettings.regular_note || '';
 var sub = isRegularPaused()
-? '⏸ 暫停喊單中，可以先逛逛或許願 ♡'
+? '⏸ 暫停喊單中'
 : (list.length ? '🟢 ' + list.length + ' 件現貨・預購商品開放喊單中' : '商品陸續上架中，敬請期待');
 wrap.innerHTML = '<button type="button" class="live-entry zone-black" id="regularEntryBtn">'
 + '<span class="live-entry-icon">'+BOX_ICON_SVG+'</span>'
@@ -2703,7 +2707,20 @@ if(!el) return;
 var note = siteSettings.regular_note || '';
 el.innerHTML = '<div class="live-zone-hero zone-black"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">現貨・預購連線專區</h2>'+regularZoneBadgeHTML()+'</div>'
 + (note ? '<span class="live-entry-note" style="margin:8px 0 0;">'+escHtml(note)+'</span>' : '')
-+ '<p>現貨與預購連線商品都在這裡，可以依分類慢慢逛 ♡</p></div>';
++ (isRegularPaused()
+? '<div class="regular-hero-actions">'
++ (openZones().length ? '<button type="button" class="regular-hero-btn is-primary" id="regularHeroGoLive">看限時連線</button>' : '')
++ '<button type="button" class="regular-hero-btn" id="regularHeroGoWish">我要許願</button></div>'
+: '<p>現貨與預購連線商品都在這裡，可以依分類慢慢逛 ♡</p>')
++ '</div>';
+var goLive = document.getElementById('regularHeroGoLive');
+if(goLive) goLive.addEventListener('click', function(){
+var zs = openZones();
+if(zs.length === 1){ openLiveZone(zs[0].id); }
+else { showView('home'); var w = document.getElementById('liveEntries'); if(w) w.scrollIntoView({behavior:'smooth', block:'center'}); }
+});
+var goWish = document.getElementById('regularHeroGoWish');
+if(goWish) goWish.addEventListener('click', function(){ showView('wish'); });
 }
 function renderHome(){
 renderPausedNotices();
