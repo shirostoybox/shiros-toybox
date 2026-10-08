@@ -227,6 +227,14 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .regular-badge .dot{ width:7px; height:7px; border-radius:50%; background:#22C55E; }
 .regular-badge.is-paused{ background:#F5C26B; color:#3B2600; }
 .regular-badge.is-paused .dot{ background:#B45309; }
+.regular-closed-img{ display:block; width:calc(100% - 40px); margin:4px 20px 20px; border-radius:var(--r-md); box-shadow:0 10px 24px -14px rgba(0,0,0,.35); }
+.admin-status-imgs{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:0 0 10px; }
+.admin-status-img{ position:relative; border:2.5px solid transparent; border-radius:12px; padding:0; background:var(--paper); overflow:hidden; font-family:var(--font-body); }
+.admin-status-img img{ display:block; width:100%; aspect-ratio:4/3; object-fit:cover; }
+.admin-status-img span{ display:block; font-size:12px; font-weight:700; padding:5px 0; color:var(--text-dark); }
+.admin-status-img.on{ border-color:var(--ignis); }
+.admin-status-img.on span{ color:var(--ignis-deep); }
+.admin-status-img.none-opt{ display:flex; align-items:center; justify-content:center; aspect-ratio:auto; min-height:80px; }
 .regular-hero-actions{ display:flex; gap:8px; margin-top:10px; }
 .regular-hero-btn{ flex:1; padding:9px 10px; border-radius:var(--r-full); border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff; font-size:13px; font-weight:700; font-family:var(--font-body); }
 .regular-hero-btn.is-primary{ background:#fff; color:#111; border-color:#fff; }
@@ -467,17 +475,21 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="live-entries" id="liveEntries"></div>
 <div class="paused-notice-slot" id="homePausedNotice"></div>
 <div class="live-entries" id="regularEntry" style="margin-top:14px;"></div>
+<div id="homePicks">
 <div class="picks-header">
 <h2>本週嚴選</h2>
 <span class="see-more" data-target="shop">查看更多 →</span>
 </div>
 <div class="grid" id="homeGrid"></div>
+</div>
 </section>
 <!-- SHOP -->
 <section class="view" data-view="shop">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><span class="count-pill" id="shopCount" style="margin-left:auto;"></span></div>
-<div id="regularZoneHero"></div>
 <div class="live-entries" id="shopLiveEntries" style="margin:0 0 14px;"></div>
+<div id="regularZoneHero"></div>
+<div id="regularClosedImage"></div>
+<div id="regularShopBody">
 <div class="search-bar">
 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
 <input type="text" id="shopSearch" placeholder="搜尋商品...">
@@ -493,6 +505,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <p class="gacha-info-note">🥚 想留蛋殼 +NT$10</p>
 </div>
 <div class="grid" id="shopGrid"></div>
+</div>
 </section>
 <!-- LIVE CONNECTION -->
 <section class="view" data-view="live">
@@ -676,7 +689,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-0045';
+var APP_VERSION = '20261009-0110';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1908,6 +1921,19 @@ var pauseBtn = document.getElementById('adminToggleRegularPaused');
 if(pauseBtn){ pauseBtn.addEventListener('click', handleAdminToggleRegularPaused); }
 var noteBtn = document.getElementById('adminSaveRegularNote');
 if(noteBtn){ noteBtn.addEventListener('click', handleAdminSaveRegularNote); }
+var imgBtns = listEl.querySelectorAll('.admin-status-img');
+for(var ib=0; ib<imgBtns.length; ib++){
+imgBtns[ib].addEventListener('click', async function(){
+var key = this.getAttribute('data-key');
+try{
+await callMemberApi('admin-update-site-setting', { key: 'regular_status_image', value: key });
+siteSettings.regular_status_image = key;
+applySiteSettings();
+showToast('已更換關閉時的圖片');
+loadAdminSettings();
+}catch(e){ alert('儲存失敗：' + e.message); }
+});
+}
 }
 async function handleAdminSaveRegularNote(){
 var btn = document.getElementById('adminSaveRegularNote');
@@ -1947,6 +1973,14 @@ return '<div style="'+(paused ? 'background:#FFF7E6;border:1.5px solid #F5C26B;'
 + '<p style="font-size:12px;color:var(--muted);margin:0 0 4px;">目前狀態文字（顯示在首頁黑色專區卡片和專區頁上，不想顯示就留空）</p>'
 + '<input type="text" class="gate-input" id="adminRegularNoteInput" value="'+escAttr(siteSettings.regular_note || '')+'" placeholder="例如：11/20 前喊單，月底統一出貨" style="margin-bottom:8px;">'
 + '<button type="button" class="btn btn--dark btn--full" id="adminSaveRegularNote" style="margin-bottom:12px;">儲存狀態文字</button>'
++ '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">關閉專區時顯示的圖片（商品會全部隱藏，改顯示這張圖，點一下就換）</p>'
++ '<div class="admin-status-imgs">'
++ REGULAR_STATUS_IMAGES.map(function(it){
+var cur = siteSettings.regular_status_image; if(cur === undefined || cur === null) cur = 'prep';
+return '<button type="button" class="admin-status-img'+(cur===it[0]?' on':'')+'" data-key="'+it[0]+'"><img src="'+it[2]+'?v='+APP_VERSION+'" alt=""><span>'+(cur===it[0]?'✓ ':'')+it[1]+'</span></button>';
+}).join('')
++ '<button type="button" class="admin-status-img none-opt'+(siteSettings.regular_status_image===''?' on':'')+'" data-key=""><span>'+(siteSettings.regular_status_image===''?'✓ ':'')+'不顯示圖片</span></button>'
++ '</div>'
 + '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">'
 + (paused
 ? '⏸ 目前<b>暫停中</b>：客人不能喊現貨／預購連線商品，已喊單的現貨／預購結單倒數也暫停中、不能結單。按下恢復後，從那一刻重新倒數3天。限時連線專區照常可以喊單。'
@@ -2685,6 +2719,7 @@ return isRegularPaused()
 : '<span class="regular-badge"><span class="dot"></span>開放中</span>';
 }
 function renderRegularEntry(){
+applyRegularClosedState();
 var wrap = document.getElementById('regularEntry');
 if(!wrap) return;
 var list = regularProducts().filter(function(p){ return p.stock === 'in' || p.stock === 'preorder'; });
@@ -2701,7 +2736,32 @@ wrap.innerHTML = '<button type="button" class="live-entry zone-black" id="regula
 + '</span><span class="live-entry-arrow">›</span></button>';
 document.getElementById('regularEntryBtn').addEventListener('click', function(){ setCategory('all'); showView('shop'); });
 }
+// 關閉專區時，商品全部不顯示，改顯示你選的狀態圖片（圖片檔放在網站同一層）
+var REGULAR_STATUS_IMAGES = [
+['prep', '準備中', 'status-prep.jpg'],
+['busy', '限時連線忙碌中', 'status-busy.jpg'],
+['vacation', '休假中', 'status-vacation.jpg']
+];
+function regularStatusImageFile(){
+var key = siteSettings.regular_status_image;
+if(key === undefined || key === null) key = 'prep';
+for(var i=0;i<REGULAR_STATUS_IMAGES.length;i++){ if(REGULAR_STATUS_IMAGES[i][0] === key) return REGULAR_STATUS_IMAGES[i][2]; }
+return '';
+}
+function applyRegularClosedState(){
+var paused = isRegularPaused();
+var body = document.getElementById('regularShopBody');
+if(body) body.style.display = paused ? 'none' : '';
+var picks = document.getElementById('homePicks');
+if(picks) picks.style.display = paused ? 'none' : '';
+var imgWrap = document.getElementById('regularClosedImage');
+if(imgWrap){
+var file = paused ? regularStatusImageFile() : '';
+imgWrap.innerHTML = file ? '<img class="regular-closed-img" src="'+file+'?v='+APP_VERSION+'" alt="">' : '';
+}
+}
 function renderRegularHero(){
+applyRegularClosedState();
 var el = document.getElementById('regularZoneHero');
 if(!el) return;
 var note = siteSettings.regular_note || '';
@@ -2751,7 +2811,7 @@ var grid = document.getElementById('shopGrid');
 var list = getFilteredShop();
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
-document.getElementById('shopCount').textContent = list.length + ' 件';
+document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件';
 }
 var liveCategory = 'all';
 var currentLiveZoneId = null;
