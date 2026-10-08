@@ -234,7 +234,10 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .admin-status-img span{ display:block; font-size:12px; font-weight:700; padding:5px 0; color:var(--text-dark); }
 .admin-status-img.on{ border-color:var(--ignis); }
 .admin-status-img.on span{ color:var(--ignis-deep); }
-.admin-status-img.none-opt{ display:flex; align-items:center; justify-content:center; aspect-ratio:auto; min-height:80px; }
+.admin-status-cell{ display:flex; flex-direction:column; gap:6px; }
+.admin-status-empty{ display:none; align-items:center; justify-content:center; aspect-ratio:4/3; font-style:normal; font-size:12px; color:var(--muted); background:var(--card); }
+.admin-status-upload{ padding:7px 0; border-radius:var(--r-full); border:1px solid var(--line); background:var(--card); font-size:12.5px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
+.admin-status-img.none-opt{ display:flex; align-items:center; justify-content:center; aspect-ratio:auto; min-height:80px; flex:1; }
 .regular-hero-actions{ display:flex; gap:8px; margin-top:10px; }
 .regular-hero-btn{ flex:1; padding:9px 10px; border-radius:var(--r-full); border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff; font-size:13px; font-weight:700; font-family:var(--font-body); }
 .regular-hero-btn.is-primary{ background:#fff; color:#111; border-color:#fff; }
@@ -689,7 +692,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-0110';
+var APP_VERSION = '20261009-0125';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1921,6 +1924,35 @@ var pauseBtn = document.getElementById('adminToggleRegularPaused');
 if(pauseBtn){ pauseBtn.addEventListener('click', handleAdminToggleRegularPaused); }
 var noteBtn = document.getElementById('adminSaveRegularNote');
 if(noteBtn){ noteBtn.addEventListener('click', handleAdminSaveRegularNote); }
+var upBtns = listEl.querySelectorAll('.admin-status-upload');
+for(var ub=0; ub<upBtns.length; ub++){
+upBtns[ub].addEventListener('click', function(){
+var input = listEl.querySelector('.admin-status-file[data-storage="'+this.getAttribute('data-storage')+'"]');
+if(input) input.click();
+});
+}
+var upInputs = listEl.querySelectorAll('.admin-status-file');
+for(var ui=0; ui<upInputs.length; ui++){
+upInputs[ui].addEventListener('change', async function(){
+if(!this.files || !this.files[0]) return;
+var storageId = this.getAttribute('data-storage');
+var btn = listEl.querySelector('.admin-status-upload[data-storage="'+storageId+'"]');
+if(btn){ btn.disabled = true; btn.textContent = '上傳中...'; }
+try{
+var data = await compressImage(this.files[0]);
+await callMemberApi('admin-upload-product-image', { productId: storageId, imageData: data });
+var v = String(Date.now());
+await callMemberApi('admin-update-site-setting', { key: 'status_img_v', value: v });
+siteSettings.status_img_v = v;
+applySiteSettings();
+showToast('圖片已上傳');
+loadAdminSettings();
+}catch(e){
+alert('上傳失敗：' + e.message);
+if(btn){ btn.disabled = false; btn.textContent = '📷 上傳'; }
+}
+});
+}
 var imgBtns = listEl.querySelectorAll('.admin-status-img');
 for(var ib=0; ib<imgBtns.length; ib++){
 imgBtns[ib].addEventListener('click', async function(){
@@ -1973,13 +2005,20 @@ return '<div style="'+(paused ? 'background:#FFF7E6;border:1.5px solid #F5C26B;'
 + '<p style="font-size:12px;color:var(--muted);margin:0 0 4px;">目前狀態文字（顯示在首頁黑色專區卡片和專區頁上，不想顯示就留空）</p>'
 + '<input type="text" class="gate-input" id="adminRegularNoteInput" value="'+escAttr(siteSettings.regular_note || '')+'" placeholder="例如：11/20 前喊單，月底統一出貨" style="margin-bottom:8px;">'
 + '<button type="button" class="btn btn--dark btn--full" id="adminSaveRegularNote" style="margin-bottom:12px;">儲存狀態文字</button>'
-+ '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">關閉專區時顯示的圖片（商品會全部隱藏，改顯示這張圖，點一下就換）</p>'
++ '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">關閉專區時顯示的圖片（商品會全部隱藏，改顯示這張圖）。點圖片＝選用這張；按「📷 上傳」＝從手機相簿換圖片</p>'
 + '<div class="admin-status-imgs">'
 + REGULAR_STATUS_IMAGES.map(function(it){
 var cur = siteSettings.regular_status_image; if(cur === undefined || cur === null) cur = 'prep';
-return '<button type="button" class="admin-status-img'+(cur===it[0]?' on':'')+'" data-key="'+it[0]+'"><img src="'+it[2]+'?v='+APP_VERSION+'" alt=""><span>'+(cur===it[0]?'✓ ':'')+it[1]+'</span></button>';
+return '<div class="admin-status-cell">'
++ '<button type="button" class="admin-status-img'+(cur===it[0]?' on':'')+'" data-key="'+it[0]+'">'
++ '<img src="'+statusImageUrl(it[2])+'" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
++ '<em class="admin-status-empty">尚未上傳</em>'
++ '<span>'+(cur===it[0]?'✓ ':'')+it[1]+'</span></button>'
++ '<button type="button" class="admin-status-upload" data-storage="'+it[2]+'">📷 上傳</button>'
++ '<input type="file" accept="image/*" class="admin-status-file" data-storage="'+it[2]+'" style="display:none;">'
++ '</div>';
 }).join('')
-+ '<button type="button" class="admin-status-img none-opt'+(siteSettings.regular_status_image===''?' on':'')+'" data-key=""><span>'+(siteSettings.regular_status_image===''?'✓ ':'')+'不顯示圖片</span></button>'
++ '<div class="admin-status-cell"><button type="button" class="admin-status-img none-opt'+(siteSettings.regular_status_image===''?' on':'')+'" data-key=""><span>'+(siteSettings.regular_status_image===''?'✓ ':'')+'不顯示圖片</span></button></div>'
 + '</div>'
 + '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">'
 + (paused
@@ -2736,16 +2775,20 @@ wrap.innerHTML = '<button type="button" class="live-entry zone-black" id="regula
 + '</span><span class="live-entry-arrow">›</span></button>';
 document.getElementById('regularEntryBtn').addEventListener('click', function(){ setCategory('all'); showView('shop'); });
 }
-// 關閉專區時，商品全部不顯示，改顯示你選的狀態圖片（圖片檔放在網站同一層）
+// 關閉專區時，商品全部不顯示，改顯示你選的狀態圖片。
+// 圖片從後台直接上傳（跟商品照片一樣存在 Supabase 的 product-images，檔名 status-prep.jpg 等）
 var REGULAR_STATUS_IMAGES = [
-['prep', '準備中', 'status-prep.jpg'],
-['busy', '限時連線忙碌中', 'status-busy.jpg'],
-['vacation', '休假中', 'status-vacation.jpg']
+['prep', '準備中', 'status-prep'],
+['busy', '限時連線忙碌中', 'status-busy'],
+['vacation', '休假中', 'status-vacation']
 ];
+function statusImageUrl(storageId){
+return SUPABASE_URL + '/storage/v1/object/public/product-images/' + storageId + '.jpg?v=' + encodeURIComponent(siteSettings.status_img_v || '1');
+}
 function regularStatusImageFile(){
 var key = siteSettings.regular_status_image;
 if(key === undefined || key === null) key = 'prep';
-for(var i=0;i<REGULAR_STATUS_IMAGES.length;i++){ if(REGULAR_STATUS_IMAGES[i][0] === key) return REGULAR_STATUS_IMAGES[i][2]; }
+for(var i=0;i<REGULAR_STATUS_IMAGES.length;i++){ if(REGULAR_STATUS_IMAGES[i][0] === key) return statusImageUrl(REGULAR_STATUS_IMAGES[i][2]); }
 return '';
 }
 function applyRegularClosedState(){
@@ -2757,7 +2800,7 @@ if(picks) picks.style.display = paused ? 'none' : '';
 var imgWrap = document.getElementById('regularClosedImage');
 if(imgWrap){
 var file = paused ? regularStatusImageFile() : '';
-imgWrap.innerHTML = file ? '<img class="regular-closed-img" src="'+file+'?v='+APP_VERSION+'" alt="">' : '';
+imgWrap.innerHTML = file ? '<img class="regular-closed-img" src="'+file+'" alt="" onerror="this.remove();">' : '';
 }
 }
 function renderRegularHero(){
