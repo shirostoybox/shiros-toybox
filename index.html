@@ -148,6 +148,36 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .card-order-btn:active{ transform:scale(.97); }
 /* orders */
 .order-list{ display:flex; flex-direction:column; gap:12px; padding:6px 20px 24px; }
+.adm-seg{ display:flex; gap:6px; padding:4px; margin:0 0 12px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-full); }
+.adm-seg-btn{ flex:1; padding:9px 0; border:none; border-radius:var(--r-full); background:transparent; font-size:13.5px; font-weight:700; color:var(--muted); font-family:var(--font-body); }
+.adm-seg-btn.on{ background:var(--ink); color:#fff; }
+.adm-link{ border:none; background:none; padding:0; color:var(--muted); font-size:12px; font-weight:700; text-decoration:underline; font-family:var(--font-body); }
+.adm-group-head{ display:flex; align-items:center; gap:10px; width:100%; padding:0; border:none; background:none; text-align:left; font-family:var(--font-body); cursor:pointer; }
+.adm-group-name{ flex:0 0 auto; font-size:16px; font-weight:800; color:var(--text-dark); }
+.adm-group-sum{ flex:1; display:flex; flex-wrap:wrap; gap:5px; }
+.adm-group-arrow{ flex:0 0 auto; font-size:14px; color:var(--muted); transition:transform .15s; }
+.admin-group.is-open .adm-group-arrow{ transform:rotate(90deg); }
+.admin-group.is-open .adm-group-head{ margin-bottom:6px; }
+.adm-sum{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:rgba(0,0,0,.05); color:var(--muted); }
+.adm-sum.is-wait{ background:#FDECEA; color:#C8321C; }
+.adm-sum.is-ok{ background:#E7F6EC; color:#1E7A3C; }
+.adm-sum.is-dep{ background:#FEF3C7; color:#92400E; }
+.adm-sum.is-pay{ background:#E0E7FF; color:#3730A3; }
+.adm-sum.is-over{ background:#1B1E27; color:#fff; }
+.adm-sum.is-ban{ background:#1B1E27; color:#fff; }
+.adm-p-cat{ margin:16px 0 6px; font-size:12.5px; font-weight:800; color:var(--muted); letter-spacing:.04em; }
+.adm-p-item{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:11px 13px; margin-bottom:8px; }
+.adm-p-top{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.adm-p-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.4; }
+.adm-p-name span{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); }
+.adm-p-qty{ flex:0 0 auto; font-size:20px; font-weight:800; color:var(--ignis-deep); line-height:1.1; }
+.adm-p-who{ margin:6px 0 0; font-size:12.5px; color:var(--text-dark); line-height:1.6; }
+.adm-p-sts{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
+.adm-p-st{ display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.adm-p-st.is-wait{ background:#FDECEA; color:#C8321C; }
+.adm-p-st.is-ok{ background:#E7F6EC; color:#1E7A3C; }
+.adm-p-st.is-dep{ background:#FEF3C7; color:#92400E; }
+.adm-p-amt{ margin-left:auto; font-size:12px; color:var(--muted); font-weight:700; }
 .order-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; }
 .order-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .order-no{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--muted); }
@@ -709,7 +739,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-2155';
+var APP_VERSION = '20261009-2230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1102,6 +1132,28 @@ if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdmi
 }
 await loadAdminGroups();
 }
+// ---------- 後台訂單：客人訂單（可收合＋快速篩選）／採購清單 ----------
+var adminOrdersView = 'customers';     // 'customers' 客人訂單 / 'purchase' 採購清單
+var adminOrderFilter = 'all';          // all / pending / deposit / unpaid
+var adminOrderQuery = '';
+var adminExpanded = {};                // 手動展開的客人
+var adminGroupsCache = [];
+var adminPurchaseStatus = 'all';       // all / pending / confirmed
+var adminPurchaseZone = 'all';         // all / regular / 專區id
+function orderNeedsDeposit(o){ return !!o.deposit_required && !(Number(o.deposit_amount || 0) > 0); }
+function adminGroupKey(g){ return String(g.lineUid || g.nickname || ''); }
+function adminGroupCounts(g){
+var c = { pending:0, confirmed:0, deposit:0, unpaid:0, overdue:false };
+(g.openOrders || []).forEach(function(o){
+if(o.status === '待確認') c.pending++;
+if(o.status === '已確認') c.confirmed++;
+if(orderNeedsDeposit(o)) c.deposit++;
+});
+(g.settlements || []).forEach(function(st){ if(st.status !== '已付款') c.unpaid++; });
+var gc = g.cycle || {};
+Object.keys(gc).forEach(function(k){ if(gc[k] && !gc[k].paused && gc[k].hasPending && gc[k].dayNumber >= 4) c.overdue = true; });
+return c;
+}
 async function loadAdminGroups(){
 var listEl = document.getElementById('adminTabContent');
 var data;
@@ -1112,41 +1164,207 @@ if(data.zones) LIVE_ZONES = data.zones;
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
 return;
 }
-var groups = data.groups || [];
-if(!listEl) return;
-if(groups.length === 0){
-listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
-return;
+adminGroupsCache = data.groups || [];
+renderAdminOrders();
 }
-var searchHtml = '<input type="text" class="gate-input" id="adminOrderSearch" placeholder="搜尋任何字：暱稱、商品、單號、小吉、訂金、待付款…" style="margin-bottom:6px;">'
-+ '<p id="adminOrderSearchHint" style="font-size:12px;color:var(--muted);margin:0 0 14px;">可以用空白隔開多個關鍵字，例如「小吉 訂金」</p>';
-listEl.innerHTML = searchHtml + groups.map(adminGroupHTML).join('');
+function adminChip(label, active, attrs){
+return '<button type="button" class="cat-tab'+(active?' active':'')+'" '+attrs+' style="padding:7px 13px;font-size:13px;">'+label+'</button>';
+}
+function renderAdminOrders(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl) return;
+var viewToggle = '<div class="adm-seg">'
++ '<button type="button" class="adm-seg-btn'+(adminOrdersView==='customers'?' on':'')+'" data-view="customers">👥 客人訂單</button>'
++ '<button type="button" class="adm-seg-btn'+(adminOrdersView==='purchase'?' on':'')+'" data-view="purchase">🛒 採購清單</button>'
++ '</div>';
+var groups = adminGroupsCache;
+var body = '';
+if(groups.length === 0){
+body = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
+} else if(adminOrdersView === 'purchase'){
+body = adminPurchaseListHTML(groups);
+} else {
+var tot = { pending:0, deposit:0, unpaid:0 };
+groups.forEach(function(g){ var c = adminGroupCounts(g); tot.pending += c.pending; tot.deposit += c.deposit; tot.unpaid += c.unpaid; });
+body = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;">'
++ adminChip('全部', adminOrderFilter==='all', 'data-ofilter="all"')
++ adminChip('待確認 ('+tot.pending+')', adminOrderFilter==='pending', 'data-ofilter="pending"')
++ adminChip('💰需訂金未付 ('+tot.deposit+')', adminOrderFilter==='deposit', 'data-ofilter="deposit"')
++ adminChip('待付款結單 ('+tot.unpaid+')', adminOrderFilter==='unpaid', 'data-ofilter="unpaid"')
++ '</div>'
++ '<input type="text" class="gate-input" id="adminOrderSearch" value="'+escAttr(adminOrderQuery)+'" placeholder="搜尋：暱稱、商品、單號、小吉…" style="margin-bottom:6px;">'
++ '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;">'
++ '<p id="adminOrderSearchHint" style="font-size:12px;color:var(--muted);margin:0;"></p>'
++ '<span style="font-size:12px;white-space:nowrap;"><button type="button" class="adm-link" id="admExpandAll">全部展開</button>・<button type="button" class="adm-link" id="admCollapseAll">全部收起</button></span>'
++ '</div>'
++ groups.map(adminGroupHTML).join('');
+}
+listEl.innerHTML = viewToggle + body;
+var segBtns = listEl.querySelectorAll('.adm-seg-btn');
+for(var sb=0; sb<segBtns.length; sb++){
+segBtns[sb].addEventListener('click', function(){ adminOrdersView = this.getAttribute('data-view'); renderAdminOrders(); });
+}
+if(groups.length === 0) return;
+if(adminOrdersView === 'purchase'){ bindAdminPurchaseList(listEl); return; }
 bindAdminGroupActions(listEl);
-// 搜尋範圍＝客人卡片上「看得到的所有文字」（包含收起來的已取消／已付款），再加上一些畫面上沒顯示的資料。
-// 這樣之後畫面上多了什麼新標籤（例如專區名稱、需訂金），不用另外設定就能直接搜到。
+var fBtns = listEl.querySelectorAll('[data-ofilter]');
+for(var fb=0; fb<fBtns.length; fb++){
+fBtns[fb].addEventListener('click', function(){ adminOrderFilter = this.getAttribute('data-ofilter'); renderAdminOrders(); });
+}
+var heads = listEl.querySelectorAll('.adm-group-head');
+for(var h=0; h<heads.length; h++){
+heads[h].addEventListener('click', function(){
+var card = this.closest('.admin-group');
+var bodyEl = card.querySelector('.adm-group-body');
+var open = bodyEl.style.display === 'none';
+bodyEl.style.display = open ? '' : 'none';
+card.classList.toggle('is-open', open);
+adminExpanded[card.getAttribute('data-gkey')] = open;
+});
+}
+document.getElementById('admExpandAll').addEventListener('click', function(){ setAllAdminGroups(true); });
+document.getElementById('admCollapseAll').addEventListener('click', function(){ setAllAdminGroups(false); });
 var normalizeSearchText = function(t){ return String(t || '').toLowerCase().replace(/[\s｜|・·\/／,，、()（）#＃]/g, ''); };
 var cards = listEl.querySelectorAll('.admin-group');
 for(var c=0;c<cards.length;c++){
 cards[c].setAttribute('data-search-full', normalizeSearchText((cards[c].getAttribute('data-search-text') || '') + ' ' + cards[c].textContent));
 }
 var searchInput = document.getElementById('adminOrderSearch');
-if(searchInput){
-searchInput.addEventListener('input', function(){
-var terms = this.value.trim().split(/\s+/).map(normalizeSearchText).filter(function(t){ return !!t; });
+searchInput.addEventListener('input', function(){ adminOrderQuery = this.value; applyAdminOrderFilters(); });
+applyAdminOrderFilters();
+}
+function setAllAdminGroups(open){
+var cards = document.querySelectorAll('#adminTabContent .admin-group');
+for(var i=0;i<cards.length;i++){
+if(cards[i].style.display === 'none') continue;
+cards[i].querySelector('.adm-group-body').style.display = open ? '' : 'none';
+cards[i].classList.toggle('is-open', open);
+adminExpanded[cards[i].getAttribute('data-gkey')] = open;
+}
+}
+// 篩選＋搜尋：篩選時只留下符合的那幾筆（其他訂單、已付款／已取消、倒數提示先藏起來），客人卡片自動展開
+function applyAdminOrderFilters(){
+var normalizeSearchText = function(t){ return String(t || '').toLowerCase().replace(/[\s｜|・·\/／,，、()（）#＃]/g, ''); };
+var terms = String(adminOrderQuery || '').trim().split(/\s+/).map(normalizeSearchText).filter(function(t){ return !!t; });
+var cards = document.querySelectorAll('#adminTabContent .admin-group');
+var filtering = adminOrderFilter !== 'all';
 var shown = 0;
 for(var i=0;i<cards.length;i++){
-var text = cards[i].getAttribute('data-search-full') || '';
-var ok = terms.every(function(t){ return text.indexOf(t) !== -1; });
-cards[i].style.display = ok ? '' : 'none';
-if(ok) shown++;
+var card = cards[i];
+var text = card.getAttribute('data-search-full') || '';
+var okSearch = terms.every(function(t){ return text.indexOf(t) !== -1; });
+var okFilter = !filtering || Number(card.getAttribute('data-c-' + adminOrderFilter) || 0) > 0;
+var ok = okSearch && okFilter;
+card.style.display = ok ? '' : 'none';
+if(!ok) continue;
+shown++;
+var rows = card.querySelectorAll('.adm-row');
+for(var r=0;r<rows.length;r++){
+var keep = !filtering
+|| (adminOrderFilter === 'pending' && rows[r].getAttribute('data-pending') === '1')
+|| (adminOrderFilter === 'deposit' && rows[r].getAttribute('data-deposit') === '1')
+|| (adminOrderFilter === 'unpaid' && rows[r].getAttribute('data-unpaid') === '1');
+rows[r].style.display = keep ? '' : 'none';
+}
+var extras = card.querySelectorAll('.adm-extra');
+for(var x=0;x<extras.length;x++){ extras[x].style.display = filtering ? 'none' : ''; }
+var key = card.getAttribute('data-gkey');
+var open = (filtering || terms.length) ? (adminExpanded[key] !== false) : !!adminExpanded[key];
+card.querySelector('.adm-group-body').style.display = open ? '' : 'none';
+card.classList.toggle('is-open', open);
 }
 var hint = document.getElementById('adminOrderSearchHint');
-if(hint){
-hint.textContent = terms.length === 0 ? '可以用空白隔開多個關鍵字，例如「小吉 訂金」'
-: (shown === 0 ? '找不到符合的客人' : '找到 ' + shown + ' 位客人');
+if(hint) hint.textContent = shown === 0 ? '沒有符合的客人' : '共 ' + shown + ' 位客人';
 }
+// 採購清單：把還沒結單的喊單依「商品＋規格」合併，告訴你每樣要買幾個、誰訂的
+function adminPurchaseItems(groups){
+var map = {}, order = [];
+groups.forEach(function(g){
+(g.openOrders || []).forEach(function(o){
+if(adminPurchaseStatus === 'pending' && o.status !== '待確認') return;
+if(adminPurchaseStatus === 'confirmed' && o.status !== '已確認') return;
+if(o.status !== '待確認' && o.status !== '已確認') return;
+if(adminPurchaseZone === 'regular' && o.is_live_limited) return;
+if(adminPurchaseZone !== 'all' && adminPurchaseZone !== 'regular' && (!o.is_live_limited || (o.live_zone_id || 'z_default') !== adminPurchaseZone)) return;
+var key = (o.product_id || o.product_name) + '|' + (o.variant || '');
+if(!map[key]){
+var prod = null;
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === o.product_id){ prod = PRODUCTS[i]; break; } }
+map[key] = { name:o.product_name, variant:o.variant || '', cat: prod ? (prod.catLabel || catLabelFor(prod.cat)) : '其他', qty:0, amount:0, pending:0, confirmed:0, deposit:0, who:{} , whoOrder:[] };
+order.push(key);
+}
+var it = map[key], q = Number(o.quantity || 1);
+it.qty += q; it.amount += Number(o.price || 0) * q;
+if(o.status === '待確認') it.pending += q; else it.confirmed += q;
+if(orderNeedsDeposit(o)) it.deposit += q;
+var nm = g.nickname || '客人';
+if(!it.who[nm]){ it.who[nm] = 0; it.whoOrder.push(nm); }
+it.who[nm] += q;
 });
+});
+return order.map(function(k){ return map[k]; });
 }
+function adminPurchaseListHTML(groups){
+var zoneIds = {};
+groups.forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(o.is_live_limited) zoneIds[o.live_zone_id || 'z_default'] = true; }); });
+var zoneChips = adminChip('全部', adminPurchaseZone==='all', 'data-pzone="all"')
++ adminChip('📦 現貨・預購', adminPurchaseZone==='regular', 'data-pzone="regular"')
++ Object.keys(zoneIds).map(function(zid){ var z = zoneById(zid); return adminChip('⚡ '+escHtml(z ? zoneDisplayName(z.name, z.note) : '限時連線'), adminPurchaseZone===zid, 'data-pzone="'+escAttr(zid)+'"'); }).join('');
+var items = adminPurchaseItems(groups);
+var byCat = {}, cats = [];
+items.forEach(function(it){ if(!byCat[it.cat]){ byCat[it.cat] = []; cats.push(it.cat); } byCat[it.cat].push(it); });
+cats.forEach(function(c){ byCat[c].sort(function(a,b){ return (a.name+a.variant).localeCompare(b.name+b.variant, 'zh-Hant'); }); });
+var totalQty = items.reduce(function(a,it){ return a + it.qty; }, 0);
+var list = cats.map(function(c){
+return '<p class="adm-p-cat">'+escHtml(c)+'</p>'
++ byCat[c].map(function(it){
+var who = it.whoOrder.map(function(n){ return escHtml(n)+' ×'+it.who[n]; }).join('、');
+var st = [];
+if(it.pending) st.push('<span class="adm-p-st is-wait">待確認 '+it.pending+'</span>');
+if(it.confirmed) st.push('<span class="adm-p-st is-ok">已確認 '+it.confirmed+'</span>');
+if(it.deposit) st.push('<span class="adm-p-st is-dep">💰未付訂 '+it.deposit+'</span>');
+return '<div class="adm-p-item">'
++ '<div class="adm-p-top"><p class="adm-p-name">'+escHtml(it.name)+(it.variant ? '<span>'+escHtml(it.variant)+'</span>' : '')+'</p><span class="adm-p-qty">×'+it.qty+'</span></div>'
++ '<p class="adm-p-who">'+who+'</p>'
++ '<div class="adm-p-sts">'+st.join('')+'<span class="adm-p-amt">NT$'+it.amount+'</span></div>'
++ '</div>';
+}).join('');
+}).join('');
+return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'
++ adminChip('待確認＋已確認', adminPurchaseStatus==='all', 'data-pstatus="all"')
++ adminChip('只看待確認', adminPurchaseStatus==='pending', 'data-pstatus="pending"')
++ adminChip('只看已確認', adminPurchaseStatus==='confirmed', 'data-pstatus="confirmed"')
++ '</div>'
++ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">'+zoneChips+'</div>'
++ '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;">'
++ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0;">共 '+items.length+' 樣・'+totalQty+' 件</p>'
++ (items.length ? '<button type="button" class="btn btn--dark" id="admCopyPurchase" style="padding:8px 14px;font-size:12.5px;">📋 複製清單</button>' : '')
++ '</div>'
++ (items.length ? list : '<p style="font-size:14px;color:var(--muted);">沒有需要採購的商品</p>')
++ '<p style="font-size:11.5px;color:var(--muted);margin:14px 0 0;line-height:1.6;">只算還沒結單的喊單（已取消、已結單的不算）。</p>';
+}
+function bindAdminPurchaseList(listEl){
+var sBtns = listEl.querySelectorAll('[data-pstatus]');
+for(var i=0;i<sBtns.length;i++){ sBtns[i].addEventListener('click', function(){ adminPurchaseStatus = this.getAttribute('data-pstatus'); renderAdminOrders(); }); }
+var zBtns = listEl.querySelectorAll('[data-pzone]');
+for(var j=0;j<zBtns.length;j++){ zBtns[j].addEventListener('click', function(){ adminPurchaseZone = this.getAttribute('data-pzone'); renderAdminOrders(); }); }
+var copyBtn = document.getElementById('admCopyPurchase');
+if(copyBtn) copyBtn.addEventListener('click', async function(){
+var items = adminPurchaseItems(adminGroupsCache);
+var lastCat = null, lines = [];
+var byCat = {}, cats = [];
+items.forEach(function(it){ if(!byCat[it.cat]){ byCat[it.cat] = []; cats.push(it.cat); } byCat[it.cat].push(it); });
+cats.forEach(function(c){
+lines.push('【'+c+'】');
+byCat[c].forEach(function(it){
+lines.push('・'+it.name+(it.variant ? '（'+it.variant+'）' : '')+' ×'+it.qty+'｜'+it.whoOrder.map(function(n){ return n+'×'+it.who[n]; }).join('、'));
+});
+lines.push('');
+});
+var text = lines.join('\n').trim();
+try{ await navigator.clipboard.writeText(text); showToast('已複製採購清單'); }
+catch(e){ window.prompt('長按複製：', text); }
+});
 }
 function adminCycleBannerHTML(cycle, label){
 if(!cycle || !cycle.hasPending) return '';
@@ -1211,7 +1429,7 @@ var depositLabel = depositPaidAmt > 0
 var depositInputHtml = o.deposit_required
 ? '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">'+depositLabel+'</label><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="尚未收到訂金" style="margin-bottom:0;"></div>'
 : '';
-return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
+return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'" data-deposit="'+(orderNeedsDeposit(o)?'1':'0')+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
@@ -1245,7 +1463,7 @@ var actionBtn = isPaid
 var deleteBtn = '<button type="button" class="btn btn--full admin-delete-settlement-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);">刪除這筆結單</button>';
 var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
 var fillColor = color ? color.mid : '#F3F4F6';
-return '<div data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
+return '<div class="adm-row" data-unpaid="'+(isPaid?'0':'1')+'" data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + (function(){
@@ -1295,33 +1513,48 @@ return parts.join(' ');
 }
 function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
-var header = '<h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">'+(g.nickname||'客人')+'</h2>';
+var cnt = adminGroupCounts(g);
+var key = adminGroupKey(g);
+var sum = [];
+if(cnt.overdue) sum.push('<span class="adm-sum is-over">⛔逾期</span>');
+if(cnt.pending) sum.push('<span class="adm-sum is-wait">待確認 '+cnt.pending+'</span>');
+if(cnt.confirmed) sum.push('<span class="adm-sum is-ok">已確認 '+cnt.confirmed+'</span>');
+if(cnt.deposit) sum.push('<span class="adm-sum is-dep">💰未付訂 '+cnt.deposit+'</span>');
+if(cnt.unpaid) sum.push('<span class="adm-sum is-pay">待付款 '+cnt.unpaid+'</span>');
+if(g.orderRestricted) sum.push('<span class="adm-sum is-ban">🚫限制下單</span>');
+if(!sum.length) sum.push('<span class="adm-sum">只有已付款／已取消</span>');
+var header = '<button type="button" class="adm-group-head">'
++ '<span class="adm-group-name">'+escHtml(g.nickname||'客人')+'</span>'
++ '<span class="adm-group-sum">'+sum.join('')+'</span>'
++ '<span class="adm-group-arrow">▸</span></button>';
 var restrictedBadge = g.orderRestricted
-? '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
+? '<div class="adm-extra" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
 + '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);">🚫 已限制下單資格</span>'
 + '<button class="admin-unrestrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">恢復下單資格</button>'
 + '</div>'
 : '';
 var gc = g.cycle || {};
 var gcKeys = sortedCycleKeys(gc);
-var cycleHtml = gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k])); }).join('');
-var isOverdue = gcKeys.some(function(k){ return !gc[k].paused && gc[k].dayNumber >= 4; });
-var restrictBtnHtml = (!g.orderRestricted && isOverdue)
-? '<button class="admin-restrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
+var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k])); }).join('') + '</div>';
+var restrictBtnHtml = (!g.orderRestricted && cnt.overdue)
+? '<button class="admin-restrict-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
 : '';
 var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
-? '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
+? '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
 : '';
 // 還沒付款的結單直接顯示（要處理的）；已付款的收進「已付款」折疊區，跟已取消一樣點開才看得到。
 var unpaidSettlements = g.settlements.filter(function(s){ return s.status !== '已付款'; });
 var paidSettlements = g.settlements.filter(function(s){ return s.status === '已付款'; });
 var settleHtml = unpaidSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
 if(paidSettlements.length > 0){
-settleHtml += '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已付款 ('+paidSettlements.length+')</summary>'
+settleHtml += '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已付款 ('+paidSettlements.length+')</summary>'
 + paidSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('') + '</details>';
 }
-return '<div class="order-card admin-group" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:20px;background:'+color.bg+';border-left:4px solid '+color.mid+';">' + header + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>';
+return '<div class="order-card admin-group" data-gkey="'+escAttr(key)+'" data-c-pending="'+cnt.pending+'" data-c-deposit="'+cnt.deposit+'" data-c-unpaid="'+cnt.unpaid+'" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:12px;background:'+color.bg+';border-left:4px solid '+color.mid+';">'
++ header
++ '<div class="adm-group-body" style="display:none;">' + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>'
++ '</div>';
 }
 function bindAdminGroupActions(container){
 var confirmBtns = container.querySelectorAll('.admin-confirm-btn');
