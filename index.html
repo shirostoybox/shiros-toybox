@@ -211,6 +211,23 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .live-entry-arrow{ flex:0 0 auto; font-size:22px; opacity:.9; }
 .live-status-note{ margin:0 20px 10px; padding:10px 14px; border-radius:var(--r-md); font-size:12.5px; font-weight:600; line-height:1.55; }
 .live-status-note.is-on{ background:#FEF2F2; color:#C8321C; border:1px solid rgba(226,71,42,.35); }
+.live-notice{ margin:0 20px 12px; padding:14px 16px; border-radius:var(--r-md); background:#FFF8F6; border:1px solid rgba(226,71,42,.22); }
+.live-notice-head{ display:flex; align-items:center; gap:7px; font-size:14.5px; font-weight:800; color:#C8321C; margin:0 0 6px; }
+.live-notice-dot{ width:9px; height:9px; border-radius:50%; background:#E2472A; box-shadow:0 0 0 4px rgba(226,71,42,.15); animation:live-pulse 1.6s ease-in-out infinite; }
+@keyframes live-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
+.live-notice-text{ margin:0; font-size:12.5px; line-height:1.75; color:#4B5060; }
+.live-notice-divider{ height:1px; background:rgba(226,71,42,.15); margin:11px 0 10px; }
+.live-notice-sub{ margin:0 0 6px; font-size:13px; font-weight:800; color:var(--text-dark); }
+.live-notice ul{ margin:0; padding:0; list-style:none; }
+.live-notice li{ position:relative; padding-left:14px; font-size:12.5px; line-height:1.75; color:#4B5060; margin-bottom:3px; }
+.live-notice li::before{ content:''; position:absolute; left:2px; top:.72em; width:5px; height:5px; border-radius:50%; background:#E2472A; opacity:.7; }
+.live-notice .st{ display:inline-block; padding:0 8px; border-radius:999px; font-size:11.5px; font-weight:700; line-height:1.7; }
+.live-notice .st-wait{ background:#FDECEA; color:#C8321C; }
+.live-notice .st-ok{ background:#E7F6EC; color:#1E7A3C; }
+.live-zone-hero.is-compact{ padding:12px 14px; }
+.live-zone-hero.is-compact p{ margin-top:6px; font-size:12px; line-height:1.5; }
+.live-zone-hero.is-compact h2{ font-size:17px; padding-right:92px !important; }
+.live-zone-hero.is-compact .zone-share-btn{ top:10px; right:10px; padding:4px 10px; font-size:11.5px; }
 .live-status-note.is-off{ background:var(--card); color:var(--muted); border:1px solid var(--line); }
 .live-empty{ padding:30px 20px; text-align:center; font-size:13.5px; color:var(--muted); line-height:1.7; }
 .live-entries{ display:flex; flex-direction:column; gap:12px; margin:20px 0 2px; }
@@ -692,7 +709,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-2110';
+var APP_VERSION = '20261009-2145';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2953,9 +2970,9 @@ var isOpen = !!(zone && zone.is_open);
 var heroEl = document.getElementById('liveZoneHero');
 if(heroEl){
 heroEl.innerHTML = zone
-? '<div class="live-zone-hero '+zoneColorClass(zone)+'"><button type="button" class="zone-share-btn" id="zoneShareBtn">🔗 分享專區</button><h2 style="padding-right:96px;">'+escHtml(zone.name || '限時連線專區')+'</h2>'
+? '<div class="live-zone-hero is-compact '+zoneColorClass(zone)+'"><button type="button" class="zone-share-btn" id="zoneShareBtn">🔗 分享專區</button><h2 style="padding-right:96px;">'+escHtml(zone.name || '限時連線專區')+'</h2>'
 + (zone.note ? '<span class="live-entry-note" style="margin:6px 0 0;">'+escHtml(zone.note)+'</span>' : '')
-+ '<p>'+(isOpen ? '限時連線進行中，商品數量有限，喊單後依結單規則完成付款即可 ♡' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
++ '<p>'+(isOpen ? '限時連線進行中，商品數量有限，喊單後依結單規則完成付款即可 ♥' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
 : '';
 var shareBtn = document.getElementById('zoneShareBtn');
 if(shareBtn && zone){ shareBtn.addEventListener('click', function(){ shareZoneLink(zone); }); }
@@ -2994,7 +3011,10 @@ if(countEl) countEl.textContent = list.length ? list.length + ' 件' : '';
 var noteEl = document.getElementById('liveStatusNote');
 if(noteEl){
 noteEl.innerHTML = isOpen
-? '<p class="live-status-note is-on">🔴 連線進行中！這個專區的結單倒數會在連線結束後才開始計算，現在不用急著結單 ♡</p>' : '';
+? '<div class="live-status-note is-on">'
++ '<p style="margin:0;">🔴 連線進行中！連線結束後才統一開始結單倒數，方便大家累積商品、減少重複轉帳 ♡</p>'
++ '<p style="margin:6px 0 0;font-weight:500;">📌 喊單即視同購買，請勿棄單。狀態顯示「已確認」即代表訂單成立，恕不更改或取消。</p>'
++ '</div>' : '';
 }
 var emptyEl = document.getElementById('liveEmpty');
 if(emptyEl){
