@@ -692,7 +692,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-0135';
+var APP_VERSION = '20261009-2110';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1042,7 +1042,7 @@ setCategory(cat);
 }
 }
 /* ---------- admin (owner-only) ---------- */
-// 後台角色：'owner' 老闆（全部權限）／'helper' 小幫手（看不到庫存分頁，只能管限時連線商品）
+// 後台角色：'owner' 老闆（全部權限）／'helper' 小幫手（除了設定小幫手、看操作紀錄以外都可以）
 var adminRole = null;
 function isHelperRole(){ return adminRole === 'helper'; }
 async function checkAdminAndMaybeShow(){
@@ -1065,10 +1065,11 @@ var el = document.getElementById('adminView');
 el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>後台</h2></div>'
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 12px;">'
 + '<button type="button" class="cat-tab active admin-tab-btn" data-tab="orders">訂單</button>'
-+ (isHelperRole() ? '' : '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>')
++ '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">庫存</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="live">限時連線</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="members">會員</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="settings">設定</button>'
++ (adminRole === 'owner' ? '<button type="button" class="cat-tab admin-tab-btn" data-tab="logs">📜 紀錄</button>' : '')
 + '</div>'
 + '<div class="guide-content" id="adminTabContent"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
 var backBtn = el.querySelector('.back-btn');
@@ -1079,7 +1080,7 @@ tabBtns[t].addEventListener('click', function(){
 for(var j=0;j<tabBtns.length;j++){ tabBtns[j].classList.remove('active'); }
 this.classList.add('active');
 var tab = this.getAttribute('data-tab');
-if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts('regular'); } else if(tab === 'live'){ loadAdminProducts('live'); } else if(tab === 'settings'){ loadAdminSettings(); } else { loadAdminMembers(); }
+if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts('regular'); } else if(tab === 'live'){ loadAdminProducts('live'); } else if(tab === 'settings'){ loadAdminSettings(); } else if(tab === 'logs'){ loadAdminLogs(); } else { loadAdminMembers(); }
 });
 }
 await loadAdminGroups();
@@ -1557,7 +1558,7 @@ for(var sf=0; sf<staffBtns.length; sf++){
 staffBtns[sf].addEventListener('click', async function(){
 var b = this, toHelper = b.getAttribute('data-helper') === '1';
 var msg = toHelper
-? '確定要把這位設為小幫手嗎？\n\n小幫手可以：\n・限時連線分頁（新增／編輯商品、上傳照片、建立／開關／刪除專區）\n・訂單分頁（查看、確認、標記已付款、取消、刪除結單）\n・會員分頁（查看、修改回饋券／累積消費、限制下單）\n・設定分頁\n\n小幫手不能：\n・看或修改「庫存」分頁（現貨／預購商品）\n・設定其他小幫手'
+? '確定要把這位設為小幫手嗎？\n\n小幫手可以使用後台所有功能（訂單、庫存、限時連線、會員、設定）。\n\n小幫手不能：\n・設定或取消其他小幫手\n・查看操作紀錄\n\n小幫手做的每個操作都會記在「📜 紀錄」分頁，只有你看得到。'
 : '確定要取消這位的小幫手權限嗎？取消後就進不了後台。';
 if(!window.confirm(msg)) return;
 b.disabled = true;
@@ -1914,6 +1915,44 @@ if(newCatInputInit){ newCatInputInit.style.display = 'block'; }
 }
 }
 }
+// 操作紀錄（只有老闆看得到）：誰、什麼時間、做了什麼
+var adminLogsActor = '';
+async function loadAdminLogs(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl) return;
+listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取中...</p>';
+var data;
+try{
+data = await callMemberApi('admin-list-logs', { limit: 300 });
+}catch(e){
+listEl.innerHTML = '<p style="font-size:14px;color:var(--ignis-deep);">讀取失敗：'+escHtml(e.message)+'</p>';
+return;
+}
+var logs = data.logs || [];
+var actors = {};
+logs.forEach(function(l){ if(l.actor_uid) actors[l.actor_uid] = (l.actor_name || '未命名') + (l.actor_role === 'owner' ? '（老闆）' : '（小幫手）'); });
+var chips = '<button type="button" class="cat-tab admin-log-filter'+(adminLogsActor===''?' active':'')+'" data-actor="">全部</button>'
++ Object.keys(actors).map(function(k){ return '<button type="button" class="cat-tab admin-log-filter'+(adminLogsActor===k?' active':'')+'" data-actor="'+escAttr(k)+'">'+escHtml(actors[k])+'</button>'; }).join('');
+var shown = logs.filter(function(l){ return !adminLogsActor || l.actor_uid === adminLogsActor; });
+var rows = shown.map(function(l){
+var isHelper = l.actor_role !== 'owner';
+return '<div style="border-top:1px solid var(--line);padding:10px 0;">'
++ '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">'
++ '<span style="font-size:13px;font-weight:700;color:'+(isHelper?'#6D28D9':'var(--text-dark)')+';">'+(isHelper?'🧑‍💼 ':'👑 ')+escHtml(l.actor_name || '未命名')+'</span>'
++ '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;">'+formatDate(l.created_at)+'</span></div>'
++ '<p style="margin:3px 0 0;font-size:13.5px;font-weight:700;color:var(--text-dark);">'+escHtml(l.action_label || l.action)+'</p>'
++ (l.target ? '<p style="margin:2px 0 0;font-size:12.5px;color:var(--text-dark);">'+escHtml(l.target)+'</p>' : '')
++ (l.detail ? '<p style="margin:2px 0 0;font-size:12px;color:var(--muted);">'+escHtml(l.detail)+'</p>' : '')
++ '</div>';
+}).join('');
+listEl.innerHTML = '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">後台每個會改到資料的操作都會記在這裡（最近 300 筆），只有你看得到。</p>'
++ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'+chips+'</div>'
++ (rows || '<p style="font-size:14px;color:var(--muted);">還沒有紀錄</p>');
+var fBtns = listEl.querySelectorAll('.admin-log-filter');
+for(var f=0; f<fBtns.length; f++){
+fBtns[f].addEventListener('click', function(){ adminLogsActor = this.getAttribute('data-actor'); loadAdminLogs(); });
+}
+}
 async function loadAdminSettings(){
 var listEl = document.getElementById('adminTabContent');
 if(!listEl) return;
@@ -2158,7 +2197,7 @@ function escAttr(s){
 return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 }
 function adminProductRowHTML(p, catColor){
-var options = ADMIN_STOCK_OPTIONS.filter(function(o){ return !isHelperRole() || o[0] === 'live_limited' || o[0] === 'live_ended'; }).map(function(o){
+var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
 }).join('');
 var imgUrl = productImageUrl(p.id);
