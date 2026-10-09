@@ -709,7 +709,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-2145';
+var APP_VERSION = '20261009-2150';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3430,6 +3430,7 @@ return '<div class="cycle-banner cycle-banner--day1">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🔴</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
 + '<p class="cycle-main-text">連線進行中・還可以繼續喊單</p>'
 + '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>連線結束後才會開始3天結單倒數，到時候再一起結單就好 ♡</p>'
++ '<p class="cycle-sub-text" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);color:#B4532A;">📌 小提醒：喊單即代表確定購買，訂單「已確認」後就無法更改或取消囉，請確認需求後再喊單，謝謝大家的體諒與支持 🙏</p>'
 + '</div>';
 }
 var day = pc.dayNumber;
