@@ -321,6 +321,24 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .cycle-banner--day1{ background:var(--card); border:1.5px solid var(--line); }
 .cycle-banner--day2{ background:rgba(255,102,71,.1); border:1.5px solid rgba(255,102,71,.35); }
 .cycle-banner--day3{ background:rgba(226,71,42,.12); border:1.5px solid var(--ignis-deep); }
+.cycle-banner.grp-regular, .cycle-banner.grp-zone{ border-left-width:5px; }
+.cycle-banner.grp-regular{ border-left-color:#1C1F2B; }
+.cycle-banner.grp-zone.zone-gold{ border-left-color:#C8962B; }
+.cycle-banner.grp-zone.zone-blue{ border-left-color:#2F6FE0; }
+.cycle-banner.grp-zone.zone-purple{ border-left-color:#7C4DDB; }
+.cycle-banner.grp-zone.zone-green{ border-left-color:#139E72; }
+.cycle-banner--day1.grp-regular, .cycle-banner--day1.grp-zone{ border:none; color:#fff; }
+.cycle-banner--day1.grp-regular{ background:linear-gradient(125deg,#07080B 0%,#1C1F2B 60%,#3A3F52 100%); box-shadow:0 12px 26px -14px rgba(0,0,0,.85); }
+.cycle-banner--day1.grp-zone.zone-gold{ background:linear-gradient(125deg,#7A5410 0%,#C8962B 50%,#F2D07A 100%); box-shadow:0 12px 26px -14px rgba(160,115,20,.9); }
+.cycle-banner--day1.grp-zone.zone-blue{ background:linear-gradient(125deg,#1E3A8A 0%,#2F6FE0 55%,#8EC5FF 100%); box-shadow:0 12px 26px -14px rgba(37,99,235,.9); }
+.cycle-banner--day1.grp-zone.zone-purple{ background:linear-gradient(125deg,#4C1D95 0%,#7C4DDB 55%,#C9B2FF 100%); box-shadow:0 12px 26px -14px rgba(109,40,217,.9); }
+.cycle-banner--day1.grp-zone.zone-green{ background:linear-gradient(125deg,#065F46 0%,#139E72 55%,#7EE2B8 100%); box-shadow:0 12px 26px -14px rgba(4,120,87,.9); }
+.cycle-banner--day1.grp-regular .cycle-day-label, .cycle-banner--day1.grp-zone .cycle-day-label,
+.cycle-banner--day1.grp-regular .cycle-main-text, .cycle-banner--day1.grp-zone .cycle-main-text,
+.cycle-banner--day1.grp-regular .cycle-sub-text b, .cycle-banner--day1.grp-zone .cycle-sub-text b{ color:#fff; }
+.cycle-banner--day1.grp-regular .cycle-sub-text, .cycle-banner--day1.grp-zone .cycle-sub-text{ color:rgba(255,255,255,.88); }
+.cycle-banner--day1 .cycle-reminder{ color:#B4532A; border-top:1px dashed rgba(0,0,0,.15); }
+.cycle-banner--day1.grp-regular .cycle-reminder, .cycle-banner--day1.grp-zone .cycle-reminder{ color:#FFF1E6 !important; border-top-color:rgba(255,255,255,.35) !important; }
 .cycle-banner--overdue{ background:var(--ink); border:1.5px solid var(--ink-2); }
 .cycle-banner--overdue .cycle-day-label, .cycle-banner--overdue .cycle-main-text{ color:var(--text-light); }
 .cycle-banner--overdue .cycle-sub-text{ color:var(--muted-light); }
@@ -739,7 +757,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-2230';
+var APP_VERSION = '20261009-2255';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1366,17 +1384,18 @@ try{ await navigator.clipboard.writeText(text); showToast('已複製採購清單
 catch(e){ window.prompt('長按複製：', text); }
 });
 }
-function adminCycleBannerHTML(cycle, label){
+function adminCycleBannerHTML(cycle, label, groupKey){
+var gcls = cycleGroupClass(groupKey);
 if(!cycle || !cycle.hasPending) return '';
 if(cycle.paused && cycle.kind === 'regular'){
-return '<div class="cycle-banner cycle-banner--day1">'
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">⏸</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
 + '<p class="cycle-main-text">暫停喊單中・暫停倒數</p>'
 + '<p class="cycle-sub-text">共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal+'・到「設定」恢復現貨／預購喊單後，重新倒數3天</p>'
 + '</div>';
 }
 if(cycle.paused){
-return '<div class="cycle-banner cycle-banner--day1">'
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🔴</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
 + '<p class="cycle-main-text">連線進行中・暫停倒數</p>'
 + '<p class="cycle-sub-text">共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal+'・關閉這個專區後才開始3天結單倒數</p>'
@@ -1394,7 +1413,7 @@ cls = 'cycle-banner--overdue'; icon = '⛔';
 mainText = '已逾期（第'+day+'天）';
 subText = '共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal+'・請盡快私訊客人確認狀況';
 }
-return '<div class="cycle-banner '+cls+'">'
+return '<div class="cycle-banner '+cls+' '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">'+escHtml(label)+'・結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + '<p class="cycle-sub-text">'+subText+'</p>'
@@ -1535,7 +1554,7 @@ var restrictedBadge = g.orderRestricted
 : '';
 var gc = g.cycle || {};
 var gcKeys = sortedCycleKeys(gc);
-var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k])); }).join('') + '</div>';
+var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k]), k); }).join('') + '</div>';
 var restrictBtnHtml = (!g.orderRestricted && cnt.overdue)
 ? '<button class="admin-restrict-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
 : '';
@@ -3646,23 +3665,30 @@ alert('兌換失敗：' + e.message);
 if(btn){ btn.disabled = false; btn.textContent = '兌換回饋券（-NT$'+REWARD_THRESHOLD.toLocaleString('en-US')+'）'; }
 }
 }
+// 結單倒數卡片的底色跟專區顏色一致：現貨／預購＝黑灰色，限時連線＝該專區設定的顏色
+function cycleGroupClass(group){
+if(!group || group === 'regular') return 'grp-regular';
+var zid = String(group).replace(/^zone:/, '');
+return 'grp-zone ' + zoneColorClass(zoneById(zid));
+}
 function cycleBannerHTML(group){
+var gcls = cycleGroupClass(group);
 var pc = pendingCycles[group];
 if(!pc || !pc.hasPending) return '';
 var label = cycleGroupLabel(group, pc);
 if(pc.paused && group === 'regular'){
-return '<div class="cycle-banner cycle-banner--day1">'
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">⏸</span><p class="cycle-day-label">'+escHtml(label)+'・結單倒數暫停中</p></div>'
 + '<p class="cycle-main-text">限時連線忙碌中，現貨／預購暫停喊單</p>'
 + '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>暫停期間結單倒數也一起暫停，恢復後會<b>重新倒數3天</b>，到時候再結單就好，不用擔心逾期 ♡</p>'
 + '</div>';
 }
 if(pc.paused){
-return '<div class="cycle-banner cycle-banner--day1">'
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🔴</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
 + '<p class="cycle-main-text">連線進行中・還可以繼續喊單</p>'
 + '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>連線結束後才會開始3天結單倒數，到時候再一起結單就好 ♡</p>'
-+ '<p class="cycle-sub-text" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);color:#B4532A;">📌 小提醒：喊單即代表確定購買，訂單「已確認」後就無法更改或取消囉，請確認需求後再喊單，謝謝大家的體諒與支持 🙏</p>'
++ '<p class="cycle-sub-text cycle-reminder" style="margin-top:8px;padding-top:8px;border-top-width:1px;border-top-style:dashed;">📌 小提醒：喊單即代表確定購買，訂單「已確認」後就無法更改或取消囉，請確認需求後再喊單，謝謝大家的體諒與支持 🙏</p>'
 + '</div>';
 }
 var day = pc.dayNumber;
@@ -3683,7 +3709,7 @@ mainText = '已逾期';
 warningHTML = '<p class="cycle-warning-text">已逾期，請立即私訊官方LINE說明原因，否則將清空優惠券、移出社團並永久封鎖，恕不再開放加入。</p>';
 subText = '共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal;
 }
-return '<div class="cycle-banner '+cls+'">'
+return '<div class="cycle-banner '+cls+' '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">'+escHtml(label)+'・結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + warningHTML
@@ -3699,6 +3725,7 @@ today.setHours(0,0,0,0);
 return Math.round((today - start) / 86400000) + 1;
 }
 function settlementCycleBannerHTML(s){
+var gcls = cycleGroupClass(s.live_zone_id ? 'zone:' + s.live_zone_id : 'regular');
 var anchor = s.created_at || s.cycle_deadline;
 var day = daysSinceDate(anchor);
 var deadline = new Date(anchor);
@@ -3719,7 +3746,7 @@ mainText = '已逾期';
 warningHTML = '<p class="cycle-warning-text">已逾期，請立即私訊官方LINE說明原因，否則將清空優惠券、移出社團並永久封鎖，恕不再開放加入。</p>';
 subText = (s.order_no||'此筆訂單')+'・應付NT$'+s.total;
 }
-return '<div class="cycle-banner '+cls+'">'
+return '<div class="cycle-banner '+cls+' '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">付款倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + warningHTML
