@@ -148,6 +148,12 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .card-order-btn:active{ transform:scale(.97); }
 /* orders */
 .order-list{ display:flex; flex-direction:column; gap:12px; padding:6px 20px 24px; }
+.adm-prod-head{ display:flex; gap:10px; align-items:center; cursor:pointer; }
+.adm-prod-info{ flex:1; min-width:0; }
+.adm-prod-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.adm-prod-meta{ margin:3px 0 0; font-size:12px; color:var(--muted); font-weight:600; }
+.adm-prod-arrow{ flex:0 0 auto; font-size:14px; color:var(--muted); transition:transform .15s; }
+.adm-prod.is-open .adm-prod-arrow{ transform:rotate(90deg); }
 .adm-seg{ display:flex; gap:6px; padding:4px; margin:0 0 12px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-full); }
 .adm-seg-btn{ flex:1; padding:9px 0; border:none; border-radius:var(--r-full); background:transparent; font-size:13.5px; font-weight:700; color:var(--muted); font-family:var(--font-body); }
 .adm-seg-btn.on{ background:var(--ink); color:#fff; }
@@ -802,7 +808,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261010-1330';
+var APP_VERSION = '20261010-1355';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2565,17 +2571,26 @@ var ADMIN_STOCK_OPTIONS = [
 function escAttr(s){
 return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 }
+// 後台商品卡片預設收起來，只顯示縮圖＋名稱＋價格，點一下才展開編輯（記住展開過的）
+var adminProductExpanded = {};
 function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
 }).join('');
 var imgUrl = productImageUrl(p.id);
 var borderStyle = catColor ? 'border-left:3px solid '+catColor.tagText+';' : '';
-return '<div class="order-card" style="'+borderStyle+'">'
-+ '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">'
+var stockLabel = '';
+ADMIN_STOCK_OPTIONS.forEach(function(o){ if(o[0] === p.stock_status) stockLabel = o[1]; });
+var isOpen = !!adminProductExpanded[p.id];
+return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-id="'+p.id+'" style="'+borderStyle+'">'
++ '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
-+ '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin-bottom:0;flex:1;font-weight:700;">'
++ '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+'</p>'
++ '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">NT$'+p.price+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+'</p></div>'
++ '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
++ '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
++ '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
 + adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '')
@@ -2599,6 +2614,7 @@ return '<div class="order-card" style="'+borderStyle+'">'
 + adminExtraPhotoSlotsHTML(p)
 + '<button type="button" class="btn btn--full admin-duplicate-product-btn" data-product-id="'+p.id+'" style="margin-top:14px;border:1.5px solid var(--ink);color:var(--ink);font-size:13px;">📋 複製這件商品（改規格用）</button>'
 + '<button type="button" class="btn btn--full admin-delete-product-btn" data-product-id="'+p.id+'" data-name="'+escAttr(p.name)+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);font-size:13px;">刪除這件商品</button>'
++ '</div>'
 + '</div>';
 }
 function adminExtraPhotoSlotsHTML(p){
@@ -2688,6 +2704,8 @@ try{
 var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]');
 var optPayload = readAdminOptionEditor(optEd);
 await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price }, optPayload));
+var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
+var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = 'NT$' + price;
 for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); } } }
 showToast('已儲存');
 }catch(e){
@@ -2789,6 +2807,18 @@ qtyBtns[q].addEventListener('click', function(){ handleAdminUpdateQty(this); });
 var imgBtns = container.querySelectorAll('.admin-image-btn');
 for(var m=0;m<imgBtns.length;m++){
 imgBtns[m].addEventListener('click', function(){ handleAdminUploadImage(this); });
+}
+var prodHeads = container.querySelectorAll('.adm-prod-head');
+for(var ph=0; ph<prodHeads.length; ph++){
+prodHeads[ph].addEventListener('click', function(e){
+if(e.target.classList.contains('admin-product-thumb')) return;
+var card = this.closest('.adm-prod');
+var bodyEl = card.querySelector('.adm-prod-body');
+var open = bodyEl.style.display === 'none';
+bodyEl.style.display = open ? '' : 'none';
+card.classList.toggle('is-open', open);
+adminProductExpanded[this.getAttribute('data-product-id')] = open;
+});
 }
 var thumbImgs = container.querySelectorAll('.admin-product-thumb');
 for(var t=0;t<thumbImgs.length;t++){
