@@ -448,6 +448,58 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .toast{ position:fixed; bottom:96px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff; padding:12px 22px; border-radius:var(--r-full); font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease; z-index:200; white-space:nowrap; }
 .toast.is-visible{ opacity:1; transform:translateX(-50%) translateY(0); }
 @media (prefers-reduced-motion: reduce){ .disc{ animation:none; } }
+/* 分潤結算 */
+.pf-hint{ font-size:12.5px; color:var(--muted); line-height:1.6; margin:0 0 10px; }
+.pf-h{ font-size:13px; font-weight:800; color:var(--text-dark); margin:14px 0 8px; }
+.pf-li{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 12px 12px 14px; margin:0 0 8px; background:var(--card); border:1px solid var(--line); border-left:5px solid #111; border-radius:14px; font-family:var(--font-body); }
+.pf-li.zone-gold{ border-left-color:#D9A23A; } .pf-li.zone-blue{ border-left-color:#3B82F6; } .pf-li.zone-purple{ border-left-color:#8B5CF6; } .pf-li.zone-green{ border-left-color:#22A06B; }
+.pf-li-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.pf-li-title{ font-size:14px; font-weight:800; color:var(--text-dark); }
+.pf-li-sub{ font-size:11.5px; color:var(--muted); font-weight:600; }
+.pf-li-profit{ font-size:13px; font-weight:800; color:#1E7A4C; white-space:nowrap; }
+.pf-li-profit.neg{ color:#C8321C; }
+.pf-li-todo{ font-size:12px; font-weight:700; color:#B45309; white-space:nowrap; }
+.pf-li-arrow{ color:var(--muted); font-size:18px; }
+.pf-done{ font-size:11px; font-weight:800; color:#1E7A4C; background:rgba(33,132,82,.12); padding:2px 7px; border-radius:var(--r-full); margin-left:4px; }
+.pf-title{ margin:8px 0 10px; font-size:18px; font-weight:900; color:var(--text-dark); }
+.pf-warn{ font-size:12.5px; color:#92400E; background:#FEF3C7; border-radius:10px; padding:8px 10px; margin:0 0 8px; line-height:1.5; }
+.pf-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin:0 0 12px; }
+.pf-ch{ margin:0 0 10px; font-size:14.5px; font-weight:900; color:var(--text-dark); }
+.pf-line{ display:flex; justify-content:space-between; gap:10px; font-size:13.5px; color:var(--text-dark); padding:4px 0; }
+.pf-total{ border-top:1px dashed var(--line); margin-top:6px; padding-top:8px; font-weight:800; }
+.pf-big{ font-size:17px; font-weight:900; color:#1E7A4C; border-top:1px solid var(--line); margin-top:6px; padding-top:8px; }
+.pf-big.neg{ color:#C8321C; }
+.pf-badge{ font-size:11px; font-weight:800; color:#B45309; background:#FEF3C7; padding:2px 8px; border-radius:var(--r-full); }
+.pf-in{ width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:10px; font-size:16px; font-family:var(--font-body); background:#fff; color:var(--text-dark); }
+.pf-mini{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; font-weight:700; color:var(--muted); flex:1; min-width:0; margin-bottom:8px; }
+.pf-prod{ border-top:1px solid var(--line); padding:10px 0 4px; }
+.pf-prod.is-missing .pf-unit{ border-color:#F59E0B; background:#FFFBEB; }
+.pf-prod-top{ display:flex; justify-content:space-between; gap:8px; }
+.pf-prod-name{ font-size:13.5px; font-weight:800; color:var(--text-dark); line-height:1.35; }
+.pf-prod-q{ font-size:13.5px; font-weight:800; color:var(--text-dark); white-space:nowrap; }
+.pf-prod-var{ margin:2px 0 0; font-size:11.5px; color:var(--muted); }
+.pf-prod-row{ display:flex; gap:8px; margin-top:8px; }
+.pf-prod-sum{ margin:0 0 4px; font-size:12px; color:var(--muted); }
+.pf-prod-sum b{ color:var(--text-dark); }
+.pf-feebox{ display:flex; gap:8px; border-top:1px solid var(--line); padding-top:10px; margin-top:4px; }
+.pf-extra{ display:grid; grid-template-columns:1fr 1fr 28px; gap:6px; align-items:center; padding:10px 0 4px; border-top:1px solid var(--line); }
+.pf-extra .pf-xlabel{ grid-column:1 / -1; font-weight:700; }
+.pf-extra .pf-in{ font-size:14px; padding:8px; }
+.pf-extra-hint{ grid-column:1 / -1; margin:-2px 0 2px; font-size:11.5px; color:var(--muted); }
+.pf-x{ border:none; background:none; color:var(--muted); font-size:15px; padding:4px; }
+.pf-partner{ display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+.pf-result{ border:2px solid var(--ink); }
+.pf-table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:12.5px; }
+.pf-table th{ font-size:11px; color:var(--muted); font-weight:700; text-align:right; padding:4px 2px; }
+.pf-table td{ text-align:right; padding:6px 2px; border-top:1px solid var(--line); color:var(--text-dark); }
+.pf-table td:first-child, .pf-table th:first-child{ text-align:left; font-weight:800; }
+.pf-transfer{ margin:6px 0 0; font-size:14px; color:var(--text-dark); background:#F0FDF4; border-radius:10px; padding:9px 10px; }
+.pf-transfer span{ float:right; font-weight:900; }
+.pf-donebox{ display:flex; gap:8px; align-items:center; font-size:13.5px; font-weight:700; color:var(--text-dark); margin:4px 0 10px; }
+.pf-actions{ position:sticky; bottom:10px; display:flex; gap:8px; padding:8px 0; z-index:5; }
+.pf-btn{ flex:1; padding:13px; border:none; border-radius:var(--r-full); background:var(--ink); color:#fff; font-size:14.5px; font-weight:800; font-family:var(--font-body); box-shadow:0 4px 14px rgba(0,0,0,.15); }
+.pf-btn.ghost{ background:#fff; color:var(--text-dark); border:1px solid var(--line); }
+.pf-btn:disabled{ opacity:.6; }
 </style>
 </head>
 <body>
@@ -808,7 +860,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261010-1410';
+var APP_VERSION = '20261010-2250';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1160,6 +1212,7 @@ setCategory(cat);
 /* ---------- admin (owner-only) ---------- */
 // 後台角色：'owner' 老闆（全部權限）／'helper' 小幫手（除了設定小幫手、看操作紀錄以外都可以）
 var adminRole = null;
+var adminProfitAccess = false;   // 小幫手是否被開放看分潤
 function isHelperRole(){ return adminRole === 'helper'; }
 async function checkAdminAndMaybeShow(){
 var data;
@@ -1170,6 +1223,7 @@ return;
 }
 if(data && data.isAdmin){
 adminRole = data.role || 'owner';
+adminProfitAccess = !!data.profitAccess;
 showView('admin');
 await renderAdminShell();
 } else {
@@ -1185,6 +1239,7 @@ el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back=
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="live">限時連線</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="members">會員</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="settings">設定</button>'
++ ((adminRole === 'owner' || adminProfitAccess) ? '<button type="button" class="cat-tab admin-tab-btn" data-tab="profit">💰 分潤</button>' : '')
 + (adminRole === 'owner' ? '<button type="button" class="cat-tab admin-tab-btn" data-tab="logs">📜 紀錄</button>' : '')
 + '</div>'
 + '<div class="guide-content" id="adminTabContent"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
@@ -1196,7 +1251,7 @@ tabBtns[t].addEventListener('click', function(){
 for(var j=0;j<tabBtns.length;j++){ tabBtns[j].classList.remove('active'); }
 this.classList.add('active');
 var tab = this.getAttribute('data-tab');
-if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts('regular'); } else if(tab === 'live'){ loadAdminProducts('live'); } else if(tab === 'settings'){ loadAdminSettings(); } else if(tab === 'logs'){ loadAdminLogs(); } else { loadAdminMembers(); }
+if(tab === 'orders'){ loadAdminGroups(); } else if(tab === 'products'){ loadAdminProducts('regular'); } else if(tab === 'live'){ loadAdminProducts('live'); } else if(tab === 'settings'){ loadAdminSettings(); } else if(tab === 'logs'){ loadAdminLogs(); } else if(tab === 'profit'){ pfKey = null; loadAdminProfit(); } else { loadAdminMembers(); }
 });
 }
 await loadAdminGroups();
@@ -1899,7 +1954,8 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + restrictToggleBtn
 + (adminRole === 'owner'
 ? (m.staffRole === 'helper'
-? '<button type="button" class="btn btn--full admin-member-staff-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-helper="0" style="margin-top:8px;border:1.5px dashed var(--muted);color:var(--muted);">取消小幫手權限</button>'
+? '<button type="button" class="btn btn--full admin-member-profit-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-allow="'+(m.profitAccess ? '0' : '1')+'" style="margin-top:8px;border:1.5px solid '+(m.profitAccess ? 'var(--muted)' : '#1E7A4C')+';color:'+(m.profitAccess ? 'var(--muted)' : '#1E7A4C')+';">'+(m.profitAccess ? '💰 取消分潤權限（目前看得到）' : '💰 開放分潤權限（一起看分潤）')+'</button>'
++ '<button type="button" class="btn btn--full admin-member-staff-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-helper="0" style="margin-top:8px;border:1.5px dashed var(--muted);color:var(--muted);">取消小幫手權限</button>'
 : '<button type="button" class="btn btn--full admin-member-staff-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-helper="1" style="margin-top:8px;border:1.5px dashed #6D28D9;color:#6D28D9;">設為小幫手</button>')
 : '')
 + '</div>';
@@ -1940,6 +1996,23 @@ b.disabled = true;
 try{
 await callMemberApi('admin-set-staff', { lineUid: b.getAttribute('data-line-uid'), isHelper: toHelper });
 showToast(toHelper ? '已設為小幫手' : '已取消小幫手');
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){ alert('操作失敗：' + e.message); b.disabled = false; }
+});
+}
+var profitBtns = container.querySelectorAll('.admin-member-profit-btn');
+for(var pb=0; pb<profitBtns.length; pb++){
+profitBtns[pb].addEventListener('click', async function(){
+var b = this, allow = b.getAttribute('data-allow') === '1';
+var msg = allow
+? '確定要開放這位小幫手看「💰 分潤」嗎？\n\n開放後她可以：\n・看到每個專區、每個月的收入、成本、利潤\n・填寫和修改成本（例如她刷卡的金額）\n\n她修改分潤的紀錄會出現在「📜 紀錄」分頁。'
+: '確定要取消這位的分潤權限嗎？取消後她就看不到「💰 分潤」分頁。';
+if(!window.confirm(msg)) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-profit-access', { lineUid: b.getAttribute('data-line-uid'), allow: allow });
+showToast(allow ? '已開放分潤權限' : '已取消分潤權限');
 var input = document.getElementById('adminMemberSearch');
 await handleAdminSearchMembers(input ? input.value.trim() : '');
 }catch(e){ alert('操作失敗：' + e.message); b.disabled = false; }
@@ -2327,6 +2400,438 @@ var fBtns = listEl.querySelectorAll('.admin-log-filter');
 for(var f=0; f<fBtns.length; f++){
 fBtns[f].addEventListener('click', function(){ adminLogsActor = this.getAttribute('data-actor'); loadAdminLogs(); });
 }
+}
+// ---------- 分潤結算（只有老闆） ----------
+// 每個限時連線專區一張、現貨／預購每月一張。收入＝已付款結單實收（已扣掉各種券），成本＝商品刷卡＋手續費＋包材運費，利潤平分。
+var pfOverview = null;     // { sheets, zones, settlements }
+var pfKey = null;          // 目前打開的結算表
+var pfDetail = null;       // { settlements, items, openCount }
+var pfData = null;         // 目前編輯中的資料
+var pfDirty = false;
+var PF_DEFAULT_PARTNERS = [{ id:'p1', name:'LULU' }, { id:'p2', name:'同事' }];
+function pfMoney(n){ n = Math.round(Number(n) || 0); return (n < 0 ? '−' : '') + 'NT$' + Math.abs(n).toLocaleString('en-US'); }
+function pfNum(v){ var n = Number(String(v == null ? '' : v).replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; }
+function pfTaipeiMonth(iso){ var d = new Date(new Date(iso).getTime() + 8*3600000); return d.toISOString().slice(0,7); }
+function pfSettlementIncome(s){ return (Number(s.subtotal)||0) + (Number(s.shipping_fee)||0) - (Number(s.coupon_discount)||0); }
+function pfSheetRow(key){
+var rows = (pfOverview && pfOverview.sheets) || [];
+for(var i=0;i<rows.length;i++){ if(rows[i].key === key) return rows[i]; }
+return null;
+}
+function pfDefaults(){
+var r = pfSheetRow('_defaults');
+var d = (r && r.data) || {};
+return { partners: (d.partners && d.partners.length) ? d.partners : PF_DEFAULT_PARTNERS, feeRate: d.feeRate != null ? d.feeRate : 1.5 };
+}
+async function loadAdminProfit(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl) return;
+listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取中...</p>';
+try{
+pfOverview = await callMemberApi('admin-profit-overview');
+}catch(e){
+listEl.innerHTML = '<p style="font-size:14px;color:var(--ignis-deep);">讀取失敗：'+escHtml(e.message)+'</p>';
+return;
+}
+if(pfKey){ await openProfitSheet(pfKey); } else { renderProfitList(); }
+}
+function renderProfitList(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl || !pfOverview) return;
+var sts = pfOverview.settlements || [];
+var stat = {};
+sts.forEach(function(s){
+var key = s.live_zone_id ? 'zone:' + s.live_zone_id : 'regular:' + pfTaipeiMonth(s.cycle_deadline);
+var x = stat[key] || (stat[key] = { paid:0, paidCount:0, unpaidCount:0 });
+if(s.status === '已付款'){ x.paid += pfSettlementIncome(s); x.paidCount++; } else { x.unpaidCount++; }
+});
+function rowHTML(key, title, sub, cls){
+var x = stat[key] || { paid:0, paidCount:0, unpaidCount:0 };
+var sh = pfSheetRow(key);
+var sum = sh && sh.data && sh.data.summary;
+var done = sh && sh.data && sh.data.done;
+var right = sum
+? '<span class="pf-li-profit'+(sum.profit < 0 ? ' neg' : '')+'">利潤 '+pfMoney(sum.profit)+'</span>'
+: '<span class="pf-li-todo">還沒填成本</span>';
+return '<button type="button" class="pf-li '+cls+'" data-pfkey="'+escAttr(key)+'">'
++ '<span class="pf-li-main"><span class="pf-li-title">'+escHtml(title)+(done ? ' <span class="pf-done">✓ 已分完</span>' : '')+'</span>'
++ '<span class="pf-li-sub">'+escHtml(sub)+'・實收 '+pfMoney(x.paid)+'（'+x.paidCount+' 筆）'+(x.unpaidCount ? '・'+x.unpaidCount+' 筆未付' : '')+'</span></span>'
++ right + '<span class="pf-li-arrow">›</span></button>';
+}
+var zones = pfOverview.zones || [];
+var zoneRows = zones.map(function(z){
+return rowHTML('zone:' + z.id, z.note || z.name || '限時連線專區', z.is_open ? '開放中' : '已關閉', 'pf-z ' + zoneColorClass(z));
+}).join('');
+var months = {};
+months[pfTaipeiMonth(new Date().toISOString())] = true;
+sts.forEach(function(s){ if(!s.live_zone_id) months[pfTaipeiMonth(s.cycle_deadline)] = true; });
+var monthRows = Object.keys(months).sort().reverse().map(function(m){
+return rowHTML('regular:' + m, '現貨・預購 ' + Number(m.slice(0,4)) + ' 年 ' + Number(m.slice(5,7)) + ' 月', '依結單月份', 'pf-r');
+}).join('');
+listEl.innerHTML = '<p class="pf-hint">每個限時連線專區一張結算表，現貨・預購每個月一張。收入直接用已付款結單的實收金額（已經扣掉免運券、回饋券、品牌選物券），你只要補上成本。'+(adminRole === 'owner' ? '只有你和被開放「分潤權限」的小幫手看得到（到「會員」分頁設定）。' : '')+'</p>'
++ '<p class="pf-h">限時連線</p>' + (zoneRows || '<p class="pf-hint">還沒有專區</p>')
++ '<p class="pf-h">現貨・預購</p>' + monthRows;
+var btns = listEl.querySelectorAll('.pf-li');
+for(var i=0;i<btns.length;i++){
+btns[i].addEventListener('click', function(){ openProfitSheet(this.getAttribute('data-pfkey')); });
+}
+}
+function pfTitle(key){
+if(key.indexOf('zone:') === 0){
+var z = null, zs = (pfOverview && pfOverview.zones) || [];
+for(var i=0;i<zs.length;i++){ if('zone:' + zs[i].id === key) z = zs[i]; }
+return z ? (z.note || z.name || '限時連線專區') : '限時連線專區';
+}
+var m = key.slice(8);
+return '現貨・預購 ' + Number(m.slice(0,4)) + ' 年 ' + Number(m.slice(5,7)) + ' 月';
+}
+// 同一個商品在其他結算表填過的單個成本，拿來當預設值
+function pfLastUnitCost(pid, exceptKey){
+var rows = ((pfOverview && pfOverview.sheets) || []).filter(function(r){ return r.key !== exceptKey && r.key !== '_defaults'; });
+rows.sort(function(a,b){ return String(b.updated_at).localeCompare(String(a.updated_at)); });
+for(var i=0;i<rows.length;i++){
+var pc = rows[i].data && rows[i].data.productCosts;
+if(pc && pc[pid] && Number(pc[pid].unit) > 0) return Number(pc[pid].unit);
+}
+return 0;
+}
+async function openProfitSheet(key){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl) return;
+pfKey = key;
+listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取中...</p>';
+var res;
+try{
+res = await callMemberApi('admin-profit-detail', { key: key });
+}catch(e){
+listEl.innerHTML = '<p style="font-size:14px;color:var(--ignis-deep);">讀取失敗：'+escHtml(e.message)+'</p>';
+return;
+}
+pfDetail = res;
+var defs = pfDefaults();
+if(res.defaults && res.defaults.data){
+var dd = res.defaults.data;
+if(dd.partners && dd.partners.length) defs.partners = dd.partners;
+if(dd.feeRate != null) defs.feeRate = dd.feeRate;
+}
+var saved = res.sheet && res.sheet.data;
+var isZone = key.indexOf('zone:') === 0;
+pfData = saved ? JSON.parse(JSON.stringify(saved)) : {
+partners: JSON.parse(JSON.stringify(defs.partners)),
+receiver: defs.partners[0].id,
+productPayer: isZone ? (defs.partners[1] ? defs.partners[1].id : defs.partners[0].id) : 'split',
+productCosts: {},
+feeRate: defs.feeRate,
+feeActual: '',
+extraCosts: [
+{ label:'紙箱・氣泡紙', amount:'', payer: defs.partners[0].id },
+{ label:'超商寄件運費（實際付的）', amount:'', payer: defs.partners[0].id, ship:true }
+],
+done: false
+};
+if(!pfData.productCosts) pfData.productCosts = {};
+if(!pfData.extraCosts) pfData.extraCosts = [];
+pfDirty = false;
+renderProfitSheet();
+}
+// 把結單裡的商品依商品合併
+function pfProducts(){
+var map = {}, order = [];
+var paidIds = {};
+(pfDetail.settlements || []).forEach(function(s){ if(s.status === '已付款') paidIds[s.id] = true; });
+(pfDetail.items || []).forEach(function(o){
+var pid = o.product_id || ('name:' + o.product_name);
+var p = map[pid];
+if(!p){ p = map[pid] = { pid: pid, name: o.product_name || '', qty:0, sales:0, unpaidQty:0, variants:{} }; order.push(pid); }
+var q = Number(o.quantity) || 1;
+p.qty += q;
+p.sales += (Number(o.price) || 0) * q;
+if(!paidIds[o.settlement_id]) p.unpaidQty += q;
+if(o.variant) p.variants[o.variant] = (p.variants[o.variant] || 0) + q;
+});
+var list = order.map(function(k){ return map[k]; });
+list.sort(function(a,b){ return a.name.localeCompare(b.name, 'zh-Hant'); });
+return list;
+}
+function pfPartnerName(id){
+var ps = pfData.partners || [];
+for(var i=0;i<ps.length;i++){ if(ps[i].id === id) return ps[i].name || '未命名'; }
+return id === 'split' ? '平分' : '未指定';
+}
+function pfPayerOptions(selected, allowSplit){
+var html = (pfData.partners || []).map(function(p){
+return '<option value="'+escAttr(p.id)+'"'+(p.id === selected ? ' selected' : '')+'>'+escHtml(p.name || '未命名')+'</option>';
+}).join('');
+if(allowSplit) html += '<option value="split"'+(selected === 'split' ? ' selected' : '')+'>平分（大家一起刷）</option>';
+return html;
+}
+// 核心計算：只算已付款結單；成本依「誰墊的」記到每個人身上
+function pfCompute(){
+var sts = pfDetail.settlements || [];
+var inc = { subtotal:0, ship:0, coupon:0, paid:0, paidCount:0, unpaid:0, unpaidCount:0 };
+sts.forEach(function(s){
+if(s.status === '已付款'){
+inc.subtotal += Number(s.subtotal)||0; inc.ship += Number(s.shipping_fee)||0; inc.coupon += Number(s.coupon_discount)||0;
+inc.paid += pfSettlementIncome(s); inc.paidCount++;
+} else { inc.unpaid += pfSettlementIncome(s); inc.unpaidCount++; }
+});
+var partners = pfData.partners || [];
+var n = partners.length || 1;
+var paidBy = {}; partners.forEach(function(p){ paidBy[p.id] = 0; });
+function charge(payer, amt){
+if(!amt) return;
+if(payer === 'split' || paidBy[payer] == null){ partners.forEach(function(p){ paidBy[p.id] += amt / n; }); }
+else paidBy[payer] += amt;
+}
+var products = pfProducts();
+var productCost = 0, missing = 0, cardBy = {};
+products.forEach(function(p){
+var c = pfData.productCosts[p.pid] || {};
+var unit = pfNum(c.unit);
+var payer = c.payer || pfData.productPayer || 'split';
+p.unit = unit; p.payer = payer; p.cost = unit * p.qty;
+if(!(unit > 0)) missing++;
+productCost += p.cost;
+cardBy[payer] = (cardBy[payer] || 0) + p.cost;
+});
+var feeActualStr = String(pfData.feeActual == null ? '' : pfData.feeActual).trim();
+var fee = feeActualStr !== '' ? pfNum(feeActualStr) : productCost * pfNum(pfData.feeRate) / 100;
+Object.keys(cardBy).forEach(function(payer){
+charge(payer, cardBy[payer]);
+if(productCost > 0) charge(payer, fee * cardBy[payer] / productCost);
+});
+var extra = 0, shipCost = 0;
+(pfData.extraCosts || []).forEach(function(x){
+var a = pfNum(x.amount); extra += a; if(x.ship) shipCost += a;
+charge(x.payer, a);
+});
+var totalCost = productCost + fee + extra;
+var profit = inc.paid - totalCost;
+var share = profit / n;
+var people = partners.map(function(p){
+var received = p.id === pfData.receiver ? inc.paid : 0;
+var paid = paidBy[p.id] || 0;
+return { id:p.id, name:p.name || '未命名', paid: paid, received: received, gets: paid + share, balance: received - (paid + share) };
+});
+// 多拿的人轉給少拿的人
+var give = people.filter(function(x){ return x.balance > 0.5; }).map(function(x){ return { name:x.name, v:x.balance }; });
+var take = people.filter(function(x){ return x.balance < -0.5; }).map(function(x){ return { name:x.name, v:-x.balance }; });
+var transfers = [];
+var gi = 0, ti = 0;
+while(gi < give.length && ti < take.length){
+var v = Math.min(give[gi].v, take[ti].v);
+if(Math.round(v) > 0) transfers.push({ from: give[gi].name, to: take[ti].name, amount: Math.round(v) });
+give[gi].v -= v; take[ti].v -= v;
+if(give[gi].v < 0.5) gi++;
+if(take[ti].v < 0.5) ti++;
+}
+return { inc:inc, products:products, productCost:productCost, fee:fee, feeIsActual: feeActualStr !== '', extra:extra, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing };
+}
+function pfProdSumHTML(p){
+var mult = p.unit > 0 ? (p.sales / p.qty / p.unit) : 0;
+return '售價 '+pfMoney(p.sales)+'・成本 '+(p.unit > 0 ? pfMoney(p.cost) + '・<b>約 ×'+mult.toFixed(2)+'</b>' : '<span style="color:#B45309;">還沒填</span>');
+}
+function pfMissingHTML(c){ return c.missing ? '<span class="pf-badge">'+c.missing+' 個還沒填</span>' : ''; }
+function pfFeeHTML(c){
+return '<p class="pf-hint" style="margin:6px 0 0;">'+(c.feeIsActual ? '用帳單實際手續費 ' : '先用 '+escHtml(String(pfData.feeRate))+'% 估算 ')+pfMoney(c.fee)+'，算在刷卡的人身上。</p>'
++ '<div class="pf-line pf-total"><span>商品＋手續費</span><span>'+pfMoney(c.productCost + c.fee)+'</span></div>';
+}
+function pfResultHTML(c){
+var peopleRows = c.people.map(function(p){
+return '<tr><td>'+escHtml(p.name)+'</td><td>'+pfMoney(p.paid)+'</td><td>'+pfMoney(p.received)+'</td><td><b>'+pfMoney(p.gets)+'</b></td></tr>';
+}).join('');
+var transferHTML = c.transfers.length
+? c.transfers.map(function(t){ return '<p class="pf-transfer">👉 <b>'+escHtml(t.from)+'</b> 轉給 <b>'+escHtml(t.to)+'</b> <span>'+pfMoney(t.amount)+'</span></p>'; }).join('')
+: '<p class="pf-transfer" style="color:var(--muted);">不用互相轉帳</p>';
+var margin = c.inc.paid > 0 ? Math.round(c.profit / c.inc.paid * 100) : 0;
+return '<p class="pf-ch">④ 利潤・分潤</p>'
++ '<div class="pf-line"><span>實收</span><span>'+pfMoney(c.inc.paid)+'</span></div>'
++ '<div class="pf-line"><span>− 總成本</span><span>'+pfMoney(-c.totalCost)+'</span></div>'
++ '<div class="pf-line pf-big'+(c.profit < 0 ? ' neg' : '')+'"><span>利潤'+(c.inc.paid > 0 ? '（'+margin+'%）' : '')+'</span><span>'+pfMoney(c.profit)+'</span></div>'
++ '<div class="pf-line"><span>'+c.people.length+' 人平分，每人</span><span><b>'+pfMoney(c.share)+'</b></span></div>'
++ '<table class="pf-table"><tr><th></th><th>墊付</th><th>收到</th><th>應得</th></tr>'+peopleRows+'</table>'
++ '<p class="pf-hint" style="margin:4px 0 8px;">應得＝自己墊的成本拿回來＋平分的利潤</p>'
++ transferHTML
++ (c.missing ? '<p class="pf-warn" style="margin-top:8px;">還有商品沒填成本，利潤會偏高。</p>' : '');
+}
+// 打字時只更新算出來的數字，不重畫輸入框（iPhone 鍵盤才不會跳走）
+function pfRefresh(){
+var c = pfCompute();
+c.products.forEach(function(p){
+var row = document.querySelector('.pf-prod[data-prodpid="'+p.pid.replace(/"/g,'\\"')+'"]');
+if(row){ row.classList.toggle('is-missing', !(p.unit > 0)); var sm = row.querySelector('.pf-prod-sum'); if(sm) sm.innerHTML = pfProdSumHTML(p); }
+});
+var m = document.getElementById('pfMissing'); if(m) m.innerHTML = pfMissingHTML(c);
+var f = document.getElementById('pfFeeHint'); if(f) f.innerHTML = pfFeeHTML(c);
+var x = document.getElementById('pfExtraTotal'); if(x) x.textContent = pfMoney(c.extra);
+var r = document.getElementById('pfResult'); if(r) r.innerHTML = pfResultHTML(c);
+var sb = document.getElementById('pfSave'); if(sb) sb.textContent = '儲存';
+}
+function renderProfitSheet(){
+var listEl = document.getElementById('adminTabContent');
+if(!listEl || !pfData) return;
+var c = pfCompute();
+var partnersHTML = (pfData.partners || []).map(function(p, i){
+return '<div class="pf-partner"><input class="pf-in pf-pname" data-i="'+i+'" value="'+escAttr(p.name || '')+'" placeholder="名字">'
++ ((pfData.partners.length > 1) ? '<button type="button" class="pf-x pf-pdel" data-i="'+i+'" aria-label="移除">✕</button>' : '') + '</div>';
+}).join('');
+var prodRows = c.products.map(function(p){
+var vs = Object.keys(p.variants).map(function(v){ return v + '×' + p.variants[v]; }).join('、');
+var cc = pfData.productCosts[p.pid] || {};
+var hint = pfLastUnitCost(p.pid, pfKey);
+return '<div class="pf-prod'+(p.unit > 0 ? '' : ' is-missing')+'" data-prodpid="'+escAttr(p.pid)+'">'
++ '<div class="pf-prod-top"><span class="pf-prod-name">'+escHtml(p.name)+'</span><span class="pf-prod-q">×'+p.qty+'</span></div>'
++ (vs ? '<p class="pf-prod-var">'+escHtml(vs)+'</p>' : '')
++ (p.unpaidQty ? '<p class="pf-prod-var" style="color:#B45309;">其中 '+p.unpaidQty+' 個的結單還沒付款</p>' : '')
++ '<div class="pf-prod-row">'
++ '<label class="pf-mini">單個刷卡台幣<input class="pf-in pf-unit" inputmode="numeric" data-pid="'+escAttr(p.pid)+'" value="'+escAttr(cc.unit == null ? '' : cc.unit)+'" placeholder="'+(hint ? '上次 '+hint : '例如 520')+'"></label>'
++ '<label class="pf-mini">誰刷的<select class="pf-in pf-ppayer" data-pid="'+escAttr(p.pid)+'">'+pfPayerOptions(p.payer, true)+'</select></label>'
++ '</div>'
++ '<p class="pf-prod-sum" data-sumpid="'+escAttr(p.pid)+'">'+pfProdSumHTML(p)+'</p>'
++ '</div>';
+}).join('');
+var extraRows = (pfData.extraCosts || []).map(function(x, i){
+return '<div class="pf-extra">'
++ '<input class="pf-in pf-xlabel" data-i="'+i+'" value="'+escAttr(x.label || '')+'" placeholder="項目">'
++ '<input class="pf-in pf-xamt" inputmode="numeric" data-i="'+i+'" value="'+escAttr(x.amount == null ? '' : x.amount)+'" placeholder="金額">'
++ '<select class="pf-in pf-xpayer" data-i="'+i+'">'+pfPayerOptions(x.payer, true)+'</select>'
++ '<button type="button" class="pf-x pf-xdel" data-i="'+i+'" aria-label="刪除">✕</button>'
++ (x.ship ? '<p class="pf-extra-hint">向客人收的運費 '+pfMoney(c.inc.ship)+'（已扣運費折扣），這裡填你實際付給超商的</p>' : '')
++ '</div>';
+}).join('');
+listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列表</button>'
++ '<h3 class="pf-title">'+escHtml(pfTitle(pfKey))+'</h3>'
++ (pfDetail.openCount ? '<p class="pf-warn">這個專區還有 '+pfDetail.openCount+' 筆喊單沒結單，結單付款後收入才會算進來。</p>' : '')
++ (c.inc.unpaidCount ? '<p class="pf-warn">有 '+c.inc.unpaidCount+' 筆結單還沒付款（'+pfMoney(c.inc.unpaid)+'），先不算進收入（但商品成本已經算進去，付款後利潤會再變多）。</p>' : '')
+
++ '<div class="pf-card"><p class="pf-ch">① 收入（自動帶入）</p>'
++ '<div class="pf-line"><span>商品金額</span><span>'+pfMoney(c.inc.subtotal)+'</span></div>'
++ '<div class="pf-line"><span>＋ 向客人收的運費</span><span>'+pfMoney(c.inc.ship)+'</span></div>'
++ '<div class="pf-line"><span>− 免運券・回饋券・品牌選物券</span><span>'+pfMoney(-c.inc.coupon)+'</span></div>'
++ '<div class="pf-line pf-total"><span>實收（'+c.inc.paidCount+' 筆已付款）</span><span>'+pfMoney(c.inc.paid)+'</span></div>'
++ '<label class="pf-mini" style="margin-top:8px;">客人的錢匯到誰那裡<select class="pf-in" id="pfReceiver">'+pfPayerOptions(pfData.receiver, false)+'</select></label>'
++ '</div>'
+
++ '<div class="pf-card"><p class="pf-ch">② 商品成本 <span id="pfMissing">'+pfMissingHTML(c)+'</span></p>'
++ '<label class="pf-mini">一次把全部改成誰刷的<select class="pf-in" id="pfAllPayer"><option value="">— 選擇 —</option>'+pfPayerOptions('', true)+'</select></label>'
++ (prodRows || '<p class="pf-hint">還沒有結單</p>')
++ '<div class="pf-feebox"><label class="pf-mini">刷卡手續費 %<input class="pf-in" id="pfFeeRate" inputmode="decimal" value="'+escAttr(pfData.feeRate)+'"></label>'
++ '<label class="pf-mini">帳單查到的實際手續費<input class="pf-in" id="pfFeeActual" inputmode="numeric" value="'+escAttr(pfData.feeActual == null ? '' : pfData.feeActual)+'" placeholder="查到再填"></label></div>'
++ '<div id="pfFeeHint">'+pfFeeHTML(c)+'</div>'
++ '</div>'
+
++ '<div class="pf-card"><p class="pf-ch">③ 包材・運費</p>' + extraRows
++ '<button type="button" class="adm-link" id="pfAddExtra">＋ 新增一項</button>'
++ '<div class="pf-line pf-total"><span>小計</span><span id="pfExtraTotal">'+pfMoney(c.extra)+'</span></div>'
++ '</div>'
+
++ '<div class="pf-card pf-result" id="pfResult">'+pfResultHTML(c)+'</div>'
+
++ '<div class="pf-card"><p class="pf-ch">夥伴（利潤平分）</p>' + partnersHTML
++ '<button type="button" class="adm-link" id="pfAddPartner">＋ 新增夥伴</button></div>'
+
++ '<label class="pf-donebox"><input type="checkbox" id="pfDone"'+(pfData.done ? ' checked' : '')+'> 這張已經分完錢了</label>'
++ '<div class="pf-actions"><button type="button" class="pf-btn ghost" id="pfCopy">複製明細</button>'
++ '<button type="button" class="pf-btn" id="pfSave">'+(pfDirty ? '儲存' : '已儲存')+'</button></div>';
+bindProfitSheet(c);
+}
+function pfMarkDirty(rerender){
+pfDirty = true;
+if(rerender){ var y = window.scrollY; renderProfitSheet(); window.scrollTo(0, y); }
+else pfRefresh();
+}
+function bindProfitSheet(c){
+var root = document.getElementById('adminTabContent');
+function on(sel, ev, fn){ var els = root.querySelectorAll(sel); for(var i=0;i<els.length;i++){ els[i].addEventListener(ev, fn); } }
+on('.pf-back', 'click', function(){
+if(pfDirty && !confirm('還沒儲存，確定要離開嗎？')) return;
+pfKey = null; pfDirty = false; renderProfitList(); window.scrollTo(0,0);
+});
+// 數字輸入：打字時不重畫（避免鍵盤跳走），離開欄位才重算
+on('.pf-unit', 'input', function(){ var pid = this.getAttribute('data-pid'); var cc = pfData.productCosts[pid] || (pfData.productCosts[pid] = {}); cc.unit = this.value.trim(); if(!cc.payer) cc.payer = pfData.productPayer || 'split'; pfMarkDirty(false); });
+on('.pf-ppayer', 'change', function(){ var pid = this.getAttribute('data-pid'); var cc = pfData.productCosts[pid] || (pfData.productCosts[pid] = {}); cc.payer = this.value; pfMarkDirty(true); });
+on('#pfAllPayer', 'change', function(){
+var v = this.value; if(!v) return;
+pfData.productPayer = v;
+c.products.forEach(function(p){ var cc = pfData.productCosts[p.pid] || (pfData.productCosts[p.pid] = {}); cc.payer = v; });
+pfMarkDirty(true);
+});
+on('#pfReceiver', 'change', function(){ pfData.receiver = this.value; pfMarkDirty(true); });
+on('#pfFeeRate', 'input', function(){ pfData.feeRate = this.value.trim(); pfMarkDirty(false); });
+on('#pfFeeActual', 'input', function(){ pfData.feeActual = this.value.trim(); pfMarkDirty(false); });
+on('.pf-xlabel', 'input', function(){ pfData.extraCosts[+this.getAttribute('data-i')].label = this.value; pfMarkDirty(false); });
+on('.pf-xamt', 'input', function(){ pfData.extraCosts[+this.getAttribute('data-i')].amount = this.value.trim(); pfMarkDirty(false); });
+on('.pf-xpayer', 'change', function(){ pfData.extraCosts[+this.getAttribute('data-i')].payer = this.value; pfMarkDirty(true); });
+on('.pf-xdel', 'click', function(){ pfData.extraCosts.splice(+this.getAttribute('data-i'), 1); pfMarkDirty(true); });
+on('#pfAddExtra', 'click', function(){ pfData.extraCosts.push({ label:'', amount:'', payer: pfData.receiver }); pfMarkDirty(true); });
+on('.pf-pname', 'input', function(){ pfData.partners[+this.getAttribute('data-i')].name = this.value; pfMarkDirty(false); });
+on('.pf-pname', 'blur', function(){ var sels = root.querySelectorAll('select.pf-in option[value="'+pfData.partners[+this.getAttribute('data-i')].id+'"]'); for(var k=0;k<sels.length;k++){ sels[k].textContent = this.value || '未命名'; } });
+on('.pf-pdel', 'click', function(){
+var i = +this.getAttribute('data-i');
+var p = pfData.partners[i];
+if(!confirm('移除「'+(p.name || '未命名')+'」？他墊付的項目會改成平分。')) return;
+pfData.partners.splice(i, 1);
+var first = pfData.partners[0].id;
+if(pfData.receiver === p.id) pfData.receiver = first;
+if(pfData.productPayer === p.id) pfData.productPayer = 'split';
+Object.keys(pfData.productCosts).forEach(function(k){ if(pfData.productCosts[k].payer === p.id) pfData.productCosts[k].payer = 'split'; });
+pfData.extraCosts.forEach(function(x){ if(x.payer === p.id) x.payer = 'split'; });
+pfMarkDirty(true);
+});
+on('#pfAddPartner', 'click', function(){
+var id = 'p' + Date.now().toString(36);
+pfData.partners.push({ id:id, name:'' });
+pfMarkDirty(true);
+var ins = root.querySelectorAll('.pf-pname'); if(ins.length) ins[ins.length-1].focus();
+});
+on('#pfDone', 'change', function(){ pfData.done = this.checked; pfMarkDirty(false); });
+on('#pfCopy', 'click', function(){ pfCopyText(pfCompute()); });
+on('#pfSave', 'click', function(){ saveProfitSheet(this); });
+}
+async function saveProfitSheet(btn){
+var c = pfCompute();
+pfData.summary = { paid: Math.round(c.inc.paid), cost: Math.round(c.totalCost), profit: Math.round(c.profit) };
+if(btn){ btn.disabled = true; btn.textContent = '儲存中...'; }
+try{
+await callMemberApi('admin-profit-save', { key: pfKey, data: pfData });
+// 夥伴名單與手續費 % 記成下次新結算表的預設
+await callMemberApi('admin-profit-save', { key: '_defaults', data: { partners: pfData.partners, feeRate: pfData.feeRate } });
+var rows = pfOverview.sheets || (pfOverview.sheets = []);
+var now = new Date().toISOString();
+[[pfKey, JSON.parse(JSON.stringify(pfData))], ['_defaults', { partners: pfData.partners, feeRate: pfData.feeRate }]].forEach(function(pair){
+var r = pfSheetRow(pair[0]);
+if(r){ r.data = pair[1]; r.updated_at = now; } else rows.push({ key: pair[0], data: pair[1], updated_at: now });
+});
+pfDirty = false;
+showToast('已儲存');
+}catch(e){
+showToast('儲存失敗：' + e.message);
+}
+if(btn){ btn.disabled = false; btn.textContent = pfDirty ? '儲存' : '已儲存'; }
+}
+function pfCopyText(c){
+var lines = [];
+lines.push('【' + pfTitle(pfKey) + '｜分潤】');
+lines.push('實收 ' + pfMoney(c.inc.paid) + '（' + c.inc.paidCount + ' 筆已付款，已扣優惠券）');
+lines.push('成本 ' + pfMoney(c.totalCost) + '（商品 ' + pfMoney(c.productCost) + '・手續費 ' + pfMoney(c.fee) + (c.feeIsActual ? '' : '估') + '・包材運費 ' + pfMoney(c.extra) + '）');
+lines.push('利潤 ' + pfMoney(c.profit) + '，' + c.people.length + ' 人平分每人 ' + pfMoney(c.share));
+lines.push('');
+c.people.forEach(function(p){ lines.push(p.name + '：墊付 ' + pfMoney(p.paid) + '・收到 ' + pfMoney(p.received) + '・應得 ' + pfMoney(p.gets)); });
+lines.push('');
+if(c.transfers.length) c.transfers.forEach(function(t){ lines.push('👉 ' + t.from + ' 轉給 ' + t.to + ' ' + pfMoney(t.amount)); });
+else lines.push('不用互相轉帳');
+if(c.missing) lines.push('（還有 ' + c.missing + ' 個商品沒填成本）');
+if(c.inc.unpaidCount) lines.push('（還有 ' + c.inc.unpaidCount + ' 筆結單未付款，未計入）');
+var text = lines.join('\n');
+function fallback(){
+var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+document.body.appendChild(ta); ta.select();
+try{ document.execCommand('copy'); showToast('已複製，可以貼到 LINE'); }catch(e){ showToast('複製失敗'); }
+document.body.removeChild(ta);
+}
+if(navigator.clipboard && navigator.clipboard.writeText){
+navigator.clipboard.writeText(text).then(function(){ showToast('已複製，可以貼到 LINE'); }, fallback);
+} else fallback();
 }
 async function loadAdminSettings(){
 var listEl = document.getElementById('adminTabContent');
@@ -4288,6 +4793,7 @@ try{
 var data = await callMemberApi('admin-check');
 if(data && data.isAdmin){
 adminRole = data.role || 'owner';
+adminProfitAccess = !!data.profitAccess;
 row.style.display = 'flex';
 var tb = document.getElementById('topbarAdminBtn');
 if(tb) tb.style.display = 'inline-flex';
