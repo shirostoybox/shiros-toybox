@@ -122,7 +122,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .lightbox-dot{ width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.35); border:none; padding:0; }
 .lightbox-dot.active{ background:#fff; width:22px; border-radius:5px; }
 .lightbox-hint{ background:rgba(255,255,255,.95); color:#1a1c24; font-size:13px; font-weight:700; padding:6px 16px; border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,.4); }
-.modal-photo{ width:100%; aspect-ratio:1/1; max-height:52vh; object-fit:contain; border-radius:var(--r-md); margin-bottom:14px; background:var(--paper); cursor:pointer; }
+.modal-photo{ display:block; width:100%; aspect-ratio:1/1; max-height:52vh; object-fit:contain; border-radius:var(--r-md); margin-bottom:14px; background:#fff; cursor:pointer; }
 .cat-badge{ width:54px; height:54px; border-radius:50%; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--text-dark); }
 .cat-badge svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; }
 .fav-btn{ position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; border:none; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; }
@@ -432,6 +432,9 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .verify-status{ margin:14px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
 .link-btn{ display:flex; align-items:center; justify-content:center; text-decoration:none; }
 .modal-close{ position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:50%; border:none; background:var(--paper); font-size:15px; color:var(--muted); }
+#orderModal .modal-card{ max-height:92vh; max-height:92dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+#orderModal .modal-photo{ max-height:46vh; }
+#orderModalClose{ position:sticky; top:0; float:right; z-index:5; width:40px; height:40px; margin:-6px -6px -34px 0; font-size:17px; font-weight:700; color:var(--text-dark); background:rgba(255,255,255,.92); box-shadow:0 2px 10px rgba(0,0,0,.18); }
 .modal-sub{ margin:0 0 4px; font-size:12.5px; color:var(--muted); }
 .qty-row{ display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0; }
 .qty-row button{ width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--paper); font-size:18px; font-weight:700; color:var(--text-dark); }
@@ -799,7 +802,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261010-1250';
+var APP_VERSION = '20261010-1330';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
