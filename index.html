@@ -194,6 +194,38 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .adm-p-btn.is-x{ background:transparent; color:var(--muted); border-color:var(--line); margin-left:auto; }
 .adm-p-all{ width:100%; margin-top:8px; padding:9px; border-radius:var(--r-md); border:1.5px dashed #1E7A3C; background:#F0FAF3; color:#1E7A3C; font-size:13px; font-weight:800; font-family:var(--font-body); }
 .adm-p-amt{ margin-left:auto; font-size:12px; color:var(--muted); font-weight:700; }
+.my-sec{ margin:0 20px 18px; border-radius:var(--r-md); background:var(--card); border:1px solid var(--line); overflow:hidden; box-shadow:0 8px 20px -16px rgba(0,0,0,.35); }
+.my-sec-head{ padding:12px 14px; color:#fff; }
+.my-sec-head.grp-regular{ background:linear-gradient(125deg,#07080B 0%,#1C1F2B 60%,#3A3F52 100%); }
+.my-sec-head.grp-zone.zone-gold{ background:linear-gradient(125deg,#7A5410 0%,#C8962B 50%,#F2D07A 100%); }
+.my-sec-head.grp-zone.zone-blue{ background:linear-gradient(125deg,#1E3A8A 0%,#2F6FE0 55%,#8EC5FF 100%); }
+.my-sec-head.grp-zone.zone-purple{ background:linear-gradient(125deg,#4C1D95 0%,#7C4DDB 55%,#C9B2FF 100%); }
+.my-sec-head.grp-zone.zone-green{ background:linear-gradient(125deg,#065F46 0%,#139E72 55%,#7EE2B8 100%); }
+.my-sec-title{ display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:15px; font-weight:800; }
+.my-sec-count{ font-size:12px; font-weight:700; opacity:.9; white-space:nowrap; }
+.my-sec-chips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+.my-chip{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:700; background:rgba(255,255,255,.92); }
+.my-chip.is-dep{ color:#92400E; }
+.my-chip.is-wait{ color:#C8321C; }
+.my-chip.is-ok{ color:#1E7A3C; }
+.my-sec-body{ padding:2px 14px; }
+.my-sec-foot{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-top:1px solid var(--line); background:var(--paper); font-size:13px; color:var(--muted); font-weight:700; }
+.my-sec-foot b{ font-size:15px; color:var(--text-dark); }
+.my-row{ display:flex; gap:11px; padding:12px 0; border-bottom:1px solid var(--line); }
+.my-row:last-child{ border-bottom:none; }
+.my-row.is-cancel{ opacity:.5; }
+.my-row-img{ flex:0 0 auto; width:54px; height:54px; border-radius:10px; object-fit:cover; background:var(--paper); }
+.my-row-main{ flex:1; min-width:0; }
+.my-row-top{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.my-row-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.35; }
+.my-row-price{ flex:0 0 auto; font-size:14px; font-weight:800; color:var(--text-dark); }
+.my-row-mid{ display:flex; justify-content:space-between; gap:8px; align-items:center; margin-top:4px; }
+.my-row-var{ font-size:12.5px; color:var(--muted); min-width:0; }
+.my-row-st{ flex:0 0 auto; font-size:11.5px !important; padding:2px 9px !important; }
+.my-row-dep{ margin:6px 0 0; padding:7px 9px; border-radius:8px; background:#FFF8E6; color:#92400E; font-size:12px; font-weight:700; line-height:1.6; }
+.my-row-dep.is-paid{ background:#ECFDF3; color:#166534; }
+.my-row-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:5px; font-size:11px; color:var(--muted); }
+.my-row-del{ border:none; background:none; padding:0 2px; color:var(--ignis-deep); font-size:12px; font-weight:700; text-decoration:underline; font-family:var(--font-body); }
 .order-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; }
 .order-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .order-no{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--muted); }
@@ -767,7 +799,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261010-1140';
+var APP_VERSION = '20261010-1240';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3642,6 +3674,43 @@ var mm = d.getMonth()+1, dd = d.getDate();
 var hh = String(d.getHours()).padStart(2,'0'), min = String(d.getMinutes()).padStart(2,'0');
 return mm+'/'+dd+' '+hh+':'+min;
 }
+// 我的喊單：依結單分區（現貨／預購、各限時連線專區），每區有摘要＋小計，每筆精簡成一列
+function myOrderGroupKey(o){ return o.is_live_limited ? 'zone:' + (o.live_zone_id || 'z_default') : 'regular'; }
+function myOrderRank(o){
+if(o.status === '缺貨已幫您取消') return 9;
+if(o.deposit_required && o.status === '待確認' && !(Number(o.deposit_amount || 0) > 0)) return 0;
+if(o.status === '待確認') return 1;
+return 2;
+}
+function myOrderSectionsHTML(){
+var map = {}, keys = [];
+myOrders.forEach(function(o){ var k = myOrderGroupKey(o); if(!map[k]){ map[k] = []; keys.push(k); } map[k].push(o); });
+keys.sort(function(a,b){ return (a === 'regular' ? 0 : 1) - (b === 'regular' ? 0 : 1); });
+return keys.map(function(k){
+var list = map[k].slice().sort(function(a,b){ var r = myOrderRank(a) - myOrderRank(b); return r !== 0 ? r : String(b.created_at).localeCompare(String(a.created_at)); });
+var active = list.filter(function(o){ return o.status !== '缺貨已幫您取消'; });
+var c = { dep:0, wait:0, ok:0, qty:0, sub:0 };
+active.forEach(function(o){
+var r = myOrderRank(o);
+if(r === 0) c.dep++; else if(r === 1) c.wait++; else c.ok++;
+c.qty += Number(o.quantity || 1); c.sub += Number(o.price || 0) * Number(o.quantity || 1);
+});
+var title;
+if(k === 'regular') title = '📦 現貨／預購';
+else { var z = zoneById(k.slice(5)); title = '⚡ ' + escHtml(z ? zoneDisplayName(z.name, z.note) : '限時連線'); }
+var chips = [];
+if(c.dep) chips.push('<span class="my-chip is-dep">💰需付訂 '+c.dep+'</span>');
+if(c.wait) chips.push('<span class="my-chip is-wait">待確認 '+c.wait+'</span>');
+if(c.ok) chips.push('<span class="my-chip is-ok">已確認 '+c.ok+'</span>');
+return '<div class="my-sec">'
++ '<div class="my-sec-head '+cycleGroupClass(k)+'"><div class="my-sec-title"><span>'+title+'</span><span class="my-sec-count">共 '+c.qty+' 件</span></div>'
++ (chips.length ? '<div class="my-sec-chips">'+chips.join('')+'</div>' : '')
++ '</div>'
++ '<div class="my-sec-body">' + list.map(orderCardHTML).join('') + '</div>'
++ '<div class="my-sec-foot"><span>小計</span><b>NT$'+c.sub.toLocaleString('en-US')+'</b></div>'
++ '</div>';
+}).join('');
+}
 function orderCardHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
 var statusClass = 'order-status';
@@ -3660,18 +3729,20 @@ statusText = '已付訂・已確認';
 }
 var depositHtml = '';
 if(depositAmount > 0){
-depositHtml = '<p class="order-time" style="color:var(--ignis-deep);font-weight:600;">💰已付訂金 NT$'+depositAmount+'</p>';
+depositHtml = '<p class="my-row-dep is-paid">💰已付訂金 NT$'+depositAmount+'</p>';
 } else if(o.deposit_required && o.status === '待確認' && total){
-depositHtml = '<p class="order-time" style="color:var(--ignis-deep);font-weight:600;line-height:1.6;">💰需付訂金 NT$'+Math.round(total/2)+'（商品金額一半）<br><span style="font-weight:500;">現場確認有貨後，會用 LINE 通知您付訂金，收到訂金才幫您購買，請留意 LINE 訊息 📢</span></p>';
+depositHtml = '<p class="my-row-dep">💰需付訂金 NT$'+Math.round(total/2)+'（商品金額一半）<br><span style="font-weight:500;">現場確認有貨後，會用 LINE 通知您付訂金，收到訂金才幫您購買，請留意 LINE 訊息 📢</span></p>';
 }
-return '<div class="order-card">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="'+statusClass+'">'+statusText+'</span></div>'
-+ '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
-+ '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
-+ '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
+var thumb = o.product_id ? '<img class="my-row-img" src="'+productImageUrl(o.product_id)+'" alt="" onerror="this.style.visibility=\'hidden\';">' : '<span class="my-row-img"></span>';
+var delLink = o.status === '待確認' ? '<button type="button" class="my-order-delete my-row-del" data-order-id="'+o.id+'">移除</button>' : '';
+return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel' : '')+'">'
++ thumb
++ '<div class="my-row-main">'
++ '<div class="my-row-top"><p class="my-row-name">'+escHtml(o.product_name)+'</p><span class="my-row-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
++ '<div class="my-row-mid"><span class="my-row-var">'+escHtml(o.variant || '')+' ×'+o.quantity+'</span><span class="'+statusClass+' my-row-st">'+statusText+'</span></div>'
 + depositHtml
-+ deleteBtn
-+ '</div>';
++ '<div class="my-row-meta"><span>'+formatDate(o.created_at)+'・#'+o.order_no+'</span>'+delLink+'</div>'
++ '</div></div>';
 }
 function balanceCardHTML(){
 var b = myBalance;
@@ -4045,7 +4116,7 @@ html += balanceCardHTML();
 if(myOrders.length === 0 && unpaidSettlements.length === 0){
 html += '<div class="empty-state"><div class="empty-icon">?</div><p class="empty-title">目前沒有喊單紀錄</p><p class="empty-sub">看到喜歡的商品，別忘了「加入喊單」喔！</p><button class="btn btn--dark go-shop">去逛逛</button></div>';
 } else if(myOrders.length > 0){
-html += '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div><div class="order-list">' + myOrders.map(orderCardHTML).join('') + '</div>';
+html += '<div class="view-heading"><h2>我的喊單</h2><span class="count-pill">'+myOrders.length+' 筆</span></div>' + myOrderSectionsHTML();
 }
 view.innerHTML = html;
 var goShopBtn = view.querySelector('.go-shop');
@@ -4110,7 +4181,7 @@ return;
 var html = settlements.map(myHistorySettlementHTML).join('');
 if(cancelledOrders.length > 0){
 html += '<div class="view-heading" style="margin-top:20px;"><h2>已取消</h2><span class="count-pill">'+cancelledOrders.length+' 筆</span></div>'
-+ '<div class="order-list">' + cancelledOrders.map(orderCardHTML).join('') + '</div>';
++ '<div class="my-sec" style="margin:6px 0 0;"><div class="my-sec-body">' + cancelledOrders.map(orderCardHTML).join('') + '</div></div>';
 }
 listEl.innerHTML = html;
 }
