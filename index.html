@@ -808,7 +808,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261010-1355';
+var APP_VERSION = '20261010-1410';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2499,6 +2499,20 @@ btn.disabled = false;
 // 記住目前展開了哪些分類：儲存商品、換照片之後列表會重新載入，
 // 不記住的話每次存完都會全部收起來，要重新點開很麻煩。
 var adminOpenCats = {};
+// 同分類裡的商品依名稱排序：先去掉開頭的表情符號、✨新品✨ 這類裝飾字，再照品牌／名稱排，
+// 同品牌、同商品（例如兩個 RMK 透光蜜粉）就會排在一起
+function productSortName(name){
+return String(name || '')
+.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, '')
+.replace(/新品|限定|現貨|預購|推薦|熱銷/g, '')
+.replace(/[\s「」『』【】\[\]()（）!！~～・·,，.。:：\-_/]+/g, ' ')
+.trim().toUpperCase();
+}
+function compareProductsByName(a, b){
+var r = productSortName(a.name).localeCompare(productSortName(b.name), 'zh-Hant', { numeric:true });
+if(r !== 0) return r;
+return String(a.sub || '').localeCompare(String(b.sub || ''), 'zh-Hant', { numeric:true });
+}
 function adminProductsGroupedHTML(products){
 var groups = [], byCat = {};
 for(var i=0;i<products.length;i++){
@@ -2512,7 +2526,7 @@ byCat[key].items.push(p);
 }
 return groups.map(function(g){
 var isOpen = !!adminOpenCats[adminCatMemPrefix() + g.key];
-var rows = g.items.map(function(p){ return adminProductRowHTML(p, g.color); }).join('');
+var rows = g.items.slice().sort(compareProductsByName).map(function(p){ return adminProductRowHTML(p, g.color); }).join('');
 return '<div class="admin-cat-group" style="margin-bottom:10px;">'
 + '<button type="button" class="admin-cat-toggle" data-cat-key="'+escAttr(g.key)+'" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--card);cursor:pointer;font:inherit;text-align:left;">'
 + '<span style="display:flex;align-items:center;gap:8px;min-width:0;">'
