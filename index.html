@@ -177,6 +177,22 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .adm-p-st.is-wait{ background:#FDECEA; color:#C8321C; }
 .adm-p-st.is-ok{ background:#E7F6EC; color:#1E7A3C; }
 .adm-p-st.is-dep{ background:#FEF3C7; color:#92400E; }
+.adm-p-var{ margin-top:8px; }
+.adm-p-var-head{ display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-radius:8px; background:var(--paper); font-size:13px; font-weight:700; color:var(--text-dark); }
+.adm-p-var-head b{ color:var(--ignis-deep); font-size:14px; }
+.adm-p-row{ padding:9px 2px; border-bottom:1px dashed var(--line); }
+.adm-p-row:last-of-type{ border-bottom:none; }
+.adm-p-row-top{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.adm-p-idx{ width:20px; height:20px; border-radius:50%; background:var(--ink); color:#fff; font-size:11px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+.adm-p-nick{ font-size:14px; font-weight:800; color:var(--text-dark); }
+.adm-p-rq{ font-size:13px; font-weight:700; color:var(--text-dark); }
+.adm-p-time{ margin-left:auto; font-size:11px; color:var(--muted); }
+.adm-p-acts{ display:flex; gap:6px; margin-top:7px; align-items:center; }
+.adm-p-dep{ flex:1; min-width:0; padding:7px 10px; border:1.5px solid #F5C26B; border-radius:var(--r-full); font-size:13px; background:#FFFBEB; font-family:var(--font-body); }
+.adm-p-btn{ padding:7px 14px; border-radius:var(--r-full); font-size:12.5px; font-weight:700; font-family:var(--font-body); border:1.5px solid transparent; }
+.adm-p-btn.is-ok{ background:var(--ink); color:#fff; }
+.adm-p-btn.is-x{ background:transparent; color:var(--muted); border-color:var(--line); margin-left:auto; }
+.adm-p-all{ width:100%; margin-top:8px; padding:9px; border-radius:var(--r-md); border:1.5px dashed #1E7A3C; background:#F0FAF3; color:#1E7A3C; font-size:13px; font-weight:800; font-family:var(--font-body); }
 .adm-p-amt{ margin-left:auto; font-size:12px; color:var(--muted); font-weight:700; }
 .order-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; }
 .order-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -751,7 +767,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261009-2250';
+var APP_VERSION = '20261010-1140';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1288,33 +1304,65 @@ card.classList.toggle('is-open', open);
 var hint = document.getElementById('adminOrderSearchHint');
 if(hint) hint.textContent = shown === 0 ? '沒有符合的客人' : '共 ' + shown + ' 位客人';
 }
-// 採購清單：把還沒結單的喊單依「商品＋規格」合併，告訴你每樣要買幾個、誰訂的
-function adminPurchaseItems(groups){
-var map = {}, order = [];
+// 採購清單：依「商品」排列，同商品底下再分規格；每個規格列出每一筆喊單（依喊單時間，先喊先得），可以直接確認／缺貨取消
+function adminPurchaseFilterOk(o){
+if(adminPurchaseStatus === 'pending' && o.status !== '待確認') return false;
+if(adminPurchaseStatus === 'confirmed' && o.status !== '已確認') return false;
+if(o.status !== '待確認' && o.status !== '已確認') return false;
+if(adminPurchaseZone === 'regular' && o.is_live_limited) return false;
+if(adminPurchaseZone !== 'all' && adminPurchaseZone !== 'regular' && (!o.is_live_limited || (o.live_zone_id || 'z_default') !== adminPurchaseZone)) return false;
+return true;
+}
+function adminPurchaseProducts(groups){
+var pmap = {}, porder = [];
 groups.forEach(function(g){
 (g.openOrders || []).forEach(function(o){
-if(adminPurchaseStatus === 'pending' && o.status !== '待確認') return;
-if(adminPurchaseStatus === 'confirmed' && o.status !== '已確認') return;
-if(o.status !== '待確認' && o.status !== '已確認') return;
-if(adminPurchaseZone === 'regular' && o.is_live_limited) return;
-if(adminPurchaseZone !== 'all' && adminPurchaseZone !== 'regular' && (!o.is_live_limited || (o.live_zone_id || 'z_default') !== adminPurchaseZone)) return;
-var key = (o.product_id || o.product_name) + '|' + (o.variant || '');
-if(!map[key]){
+if(!adminPurchaseFilterOk(o)) return;
+var pk = o.product_id || o.product_name;
+if(!pmap[pk]){
 var prod = null;
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === o.product_id){ prod = PRODUCTS[i]; break; } }
-map[key] = { name:o.product_name, variant:o.variant || '', cat: prod ? (prod.catLabel || catLabelFor(prod.cat)) : '其他', qty:0, amount:0, pending:0, confirmed:0, deposit:0, who:{} , whoOrder:[] };
-order.push(key);
+pmap[pk] = { name:o.product_name, cat: prod ? (prod.catLabel || catLabelFor(prod.cat)) : '其他', qty:0, vmap:{}, vorder:[] };
+porder.push(pk);
 }
-var it = map[key], q = Number(o.quantity || 1);
-it.qty += q; it.amount += Number(o.price || 0) * q;
-if(o.status === '待確認') it.pending += q; else it.confirmed += q;
-if(orderNeedsDeposit(o)) it.deposit += q;
-var nm = g.nickname || '客人';
-if(!it.who[nm]){ it.who[nm] = 0; it.whoOrder.push(nm); }
-it.who[nm] += q;
+var P = pmap[pk], vk = o.variant || '';
+if(!P.vmap[vk]){ P.vmap[vk] = { variant:vk, qty:0, amount:0, orders:[] }; P.vorder.push(vk); }
+var V = P.vmap[vk], q = Number(o.quantity || 1);
+V.qty += q; V.amount += Number(o.price || 0) * q; P.qty += q;
+V.orders.push(Object.assign({ _nick: g.nickname || '客人' }, o));
 });
 });
-return order.map(function(k){ return map[k]; });
+return porder.map(function(pk){
+var P = pmap[pk];
+P.variants = P.vorder.sort(function(a,b){ return a.localeCompare(b, 'zh-Hant'); }).map(function(vk){
+var V = P.vmap[vk];
+V.orders.sort(function(a,b){ return String(a.created_at).localeCompare(String(b.created_at)); });
+return V;
+});
+return P;
+});
+}
+function adminPurchaseRowHTML(o, idx){
+var q = Number(o.quantity || 1);
+var needDep = orderNeedsDeposit(o);
+var total = Number(o.price || 0) * q;
+var st = o.status === '已確認'
+? '<span class="adm-p-st is-ok">已確認</span>'
+: '<span class="adm-p-st is-wait">待確認</span>';
+var dep = o.deposit_required
+? (needDep ? '<span class="adm-p-st is-dep">💰未付訂</span>' : '<span class="adm-p-st is-ok">💰已付訂</span>')
+: '';
+var actions = '';
+if(o.status === '待確認'){
+actions = (needDep ? '<input type="number" min="0" class="admin-deposit-input adm-p-dep" data-order-id="'+o.id+'" placeholder="訂金 '+Math.round(total/2)+'">' : '')
++ '<button type="button" class="admin-confirm-btn adm-p-btn is-ok" data-order-id="'+o.id+'">確認</button>';
+}
+actions += '<button type="button" class="admin-cancel-btn adm-p-btn is-x" data-order-id="'+o.id+'">缺貨</button>';
+return '<div class="adm-p-row">'
++ '<div class="adm-p-row-top"><span class="adm-p-idx">'+(idx+1)+'</span><span class="adm-p-nick">'+escHtml(o._nick)+'</span><span class="adm-p-rq">×'+q+'</span>'+st+dep
++ '<span class="adm-p-time">'+formatDate(o.created_at)+'</span></div>'
++ '<div class="adm-p-acts">'+actions+'</div>'
++ '</div>';
 }
 function adminPurchaseListHTML(groups){
 var zoneIds = {};
@@ -1322,23 +1370,26 @@ groups.forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(o.is_li
 var zoneChips = adminChip('全部', adminPurchaseZone==='all', 'data-pzone="all"')
 + adminChip('📦 現貨・預購', adminPurchaseZone==='regular', 'data-pzone="regular"')
 + Object.keys(zoneIds).map(function(zid){ var z = zoneById(zid); return adminChip('⚡ '+escHtml(z ? zoneDisplayName(z.name, z.note) : '限時連線'), adminPurchaseZone===zid, 'data-pzone="'+escAttr(zid)+'"'); }).join('');
-var items = adminPurchaseItems(groups);
+var prods = adminPurchaseProducts(groups);
 var byCat = {}, cats = [];
-items.forEach(function(it){ if(!byCat[it.cat]){ byCat[it.cat] = []; cats.push(it.cat); } byCat[it.cat].push(it); });
-cats.forEach(function(c){ byCat[c].sort(function(a,b){ return (a.name+a.variant).localeCompare(b.name+b.variant, 'zh-Hant'); }); });
-var totalQty = items.reduce(function(a,it){ return a + it.qty; }, 0);
+prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
+cats.forEach(function(c){ byCat[c].sort(function(a,b){ return a.name.localeCompare(b.name, 'zh-Hant'); }); });
+var totalQty = prods.reduce(function(a,P){ return a + P.qty; }, 0);
 var list = cats.map(function(c){
 return '<p class="adm-p-cat">'+escHtml(c)+'</p>'
-+ byCat[c].map(function(it){
-var who = it.whoOrder.map(function(n){ return escHtml(n)+' ×'+it.who[n]; }).join('、');
-var st = [];
-if(it.pending) st.push('<span class="adm-p-st is-wait">待確認 '+it.pending+'</span>');
-if(it.confirmed) st.push('<span class="adm-p-st is-ok">已確認 '+it.confirmed+'</span>');
-if(it.deposit) st.push('<span class="adm-p-st is-dep">💰未付訂 '+it.deposit+'</span>');
++ byCat[c].map(function(P){
+var multi = P.variants.length > 1 || P.variants[0].variant;
 return '<div class="adm-p-item">'
-+ '<div class="adm-p-top"><p class="adm-p-name">'+escHtml(it.name)+(it.variant ? '<span>'+escHtml(it.variant)+'</span>' : '')+'</p><span class="adm-p-qty">×'+it.qty+'</span></div>'
-+ '<p class="adm-p-who">'+who+'</p>'
-+ '<div class="adm-p-sts">'+st.join('')+'<span class="adm-p-amt">NT$'+it.amount+'</span></div>'
++ '<div class="adm-p-top"><p class="adm-p-name">'+escHtml(P.name)+'</p><span class="adm-p-qty">×'+P.qty+'</span></div>'
++ P.variants.map(function(V){
+var pendingIds = V.orders.filter(function(o){ return o.status === '待確認' && !orderNeedsDeposit(o); }).map(function(o){ return o.id; });
+var skipDep = V.orders.filter(function(o){ return o.status === '待確認' && orderNeedsDeposit(o); }).length;
+return '<div class="adm-p-var">'
++ (multi ? '<div class="adm-p-var-head"><span>'+escHtml(V.variant || '（無規格）')+'</span><b>×'+V.qty+'</b></div>' : '')
++ V.orders.map(adminPurchaseRowHTML).join('')
++ (pendingIds.length > 1 ? '<button type="button" class="adm-p-all" data-ids="'+pendingIds.join(',')+'" data-skip="'+skipDep+'">✓ 全部確認（'+pendingIds.length+' 筆'+(skipDep ? '，跳過 '+skipDep+' 筆未付訂' : '')+'）</button>' : '')
++ '</div>';
+}).join('')
 + '</div>';
 }).join('');
 }).join('');
@@ -1348,11 +1399,12 @@ return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'
 + adminChip('只看已確認', adminPurchaseStatus==='confirmed', 'data-pstatus="confirmed"')
 + '</div>'
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">'+zoneChips+'</div>'
-+ '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;">'
-+ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0;">共 '+items.length+' 樣・'+totalQty+' 件</p>'
-+ (items.length ? '<button type="button" class="btn btn--dark" id="admCopyPurchase" style="padding:8px 14px;font-size:12.5px;">📋 複製清單</button>' : '')
++ '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;">'
++ '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0;">共 '+prods.length+' 樣商品・'+totalQty+' 件</p>'
++ (prods.length ? '<button type="button" class="btn btn--dark" id="admCopyPurchase" style="padding:8px 14px;font-size:12.5px;">📋 複製清單</button>' : '')
 + '</div>'
-+ (items.length ? list : '<p style="font-size:14px;color:var(--muted);">沒有需要採購的商品</p>')
++ '<p style="font-size:11.5px;color:var(--muted);margin:0 0 4px;line-height:1.6;">同一個規格依喊單時間排序（先喊先得），只買到幾個就從上往下確認。</p>'
++ (prods.length ? list : '<p style="font-size:14px;color:var(--muted);">沒有需要採購的商品</p>')
 + '<p style="font-size:11.5px;color:var(--muted);margin:14px 0 0;line-height:1.6;">只算還沒結單的喊單（已取消、已結單的不算）。</p>';
 }
 function bindAdminPurchaseList(listEl){
@@ -1360,16 +1412,35 @@ var sBtns = listEl.querySelectorAll('[data-pstatus]');
 for(var i=0;i<sBtns.length;i++){ sBtns[i].addEventListener('click', function(){ adminPurchaseStatus = this.getAttribute('data-pstatus'); renderAdminOrders(); }); }
 var zBtns = listEl.querySelectorAll('[data-pzone]');
 for(var j=0;j<zBtns.length;j++){ zBtns[j].addEventListener('click', function(){ adminPurchaseZone = this.getAttribute('data-pzone'); renderAdminOrders(); }); }
+// 單筆確認／缺貨：沿用客人訂單那邊的同一套處理（訂金規則一樣）
+bindAdminGroupActions(listEl);
+var allBtns = listEl.querySelectorAll('.adm-p-all');
+for(var a=0;a<allBtns.length;a++){
+allBtns[a].addEventListener('click', async function(){
+var ids = this.getAttribute('data-ids').split(',').filter(Boolean);
+var skip = Number(this.getAttribute('data-skip') || 0);
+if(!window.confirm('確定要一次確認這 '+ids.length+' 筆嗎？' + (skip ? '\n\n還沒付訂金的 '+skip+' 筆會先跳過，收到訂金後再個別確認。' : ''))) return;
+this.disabled = true; this.textContent = '確認中...';
+var fail = 0;
+for(var k=0;k<ids.length;k++){
+try{ await callMemberApi('admin-confirm-order', { orderId: ids[k] }); }catch(e){ fail++; }
+}
+showToast(fail ? '完成，有 '+fail+' 筆失敗' : '已確認 '+ids.length+' 筆');
+await loadAdminGroups();
+});
+}
 var copyBtn = document.getElementById('admCopyPurchase');
 if(copyBtn) copyBtn.addEventListener('click', async function(){
-var items = adminPurchaseItems(adminGroupsCache);
-var lastCat = null, lines = [];
-var byCat = {}, cats = [];
-items.forEach(function(it){ if(!byCat[it.cat]){ byCat[it.cat] = []; cats.push(it.cat); } byCat[it.cat].push(it); });
+var prods = adminPurchaseProducts(adminGroupsCache);
+var byCat = {}, cats = [], lines = [];
+prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
 cats.forEach(function(c){
 lines.push('【'+c+'】');
-byCat[c].forEach(function(it){
-lines.push('・'+it.name+(it.variant ? '（'+it.variant+'）' : '')+' ×'+it.qty+'｜'+it.whoOrder.map(function(n){ return n+'×'+it.who[n]; }).join('、'));
+byCat[c].forEach(function(P){
+lines.push('・'+P.name+' ×'+P.qty);
+P.variants.forEach(function(V){
+lines.push('　'+(V.variant ? V.variant+' ×'+V.qty+'｜' : '')+V.orders.map(function(o){ return o._nick+'×'+(o.quantity||1); }).join('、'));
+});
 });
 lines.push('');
 });
