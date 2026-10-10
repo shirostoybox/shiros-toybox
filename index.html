@@ -799,7 +799,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261010-1240';
+var APP_VERSION = '20261010-1245';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3704,7 +3704,6 @@ if(c.wait) chips.push('<span class="my-chip is-wait">待確認 '+c.wait+'</span>
 if(c.ok) chips.push('<span class="my-chip is-ok">已確認 '+c.ok+'</span>');
 return '<div class="my-sec">'
 + '<div class="my-sec-head '+cycleGroupClass(k)+'"><div class="my-sec-title"><span>'+title+'</span><span class="my-sec-count">共 '+c.qty+' 件</span></div>'
-+ (chips.length ? '<div class="my-sec-chips">'+chips.join('')+'</div>' : '')
 + '</div>'
 + '<div class="my-sec-body">' + list.map(orderCardHTML).join('') + '</div>'
 + '<div class="my-sec-foot"><span>小計</span><b>NT$'+c.sub.toLocaleString('en-US')+'</b></div>'
