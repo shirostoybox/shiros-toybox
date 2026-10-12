@@ -860,7 +860,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261012-1805';
+var APP_VERSION = '20261012-1815';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3602,7 +3602,7 @@ orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入�
 }
 // 只有限時連線商品要收訂金：單價滿1000就提示（實際以同商品喊單合計判斷，數量選擇在下一步彈窗）。
 var depositNoteHTML = (p.stock === 'live_limited' && Number(p.price) >= 1000)
-? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰喊單金額滿NT$1000需支付訂金</p>'
+? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰 喊單總金額滿 NT$1,000，需支付 50% 訂金。</p>'
 : '';
 return '<article class="card">'
 + '<div class="card-visual">' + visualHTML(p)
