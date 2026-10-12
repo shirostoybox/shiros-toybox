@@ -860,7 +860,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261012-1815';
+var APP_VERSION = '20261012-1825';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3965,8 +3965,8 @@ var needsDeposit = stock === 'live_limited' && combined >= 1000;
 if(needsDeposit){
 depositEl.style.display = 'block';
 depositEl.textContent = existingCount > 0
-? '💰這件商品加上您之前喊的'+existingCount+'筆，合計NT$'+combined+'，已滿NT$1,000，需支付訂金 NT$'+Math.round(combined/2)+'（合計金額一半）。現場確認有貨後，會用 LINE 通知您付訂金，收到訂金才幫您購買 📢'
-: '💰此筆喊單需支付訂金 NT$'+Math.round(lineSubtotal/2)+'（商品金額一半）。現場確認有貨後，會用 LINE 通知您付訂金，收到訂金才幫您購買 📢';
+? '💰這件商品加上您之前喊的'+existingCount+'筆，合計NT$'+combined+'，已滿NT$1,000，需支付訂金 NT$'+Math.round(combined/2)+'（合計金額一半）。喊單後會用 LINE 通知您付訂金，請留意 LINE 訊息 📢'
+: '💰此筆喊單需支付訂金 NT$'+Math.round(lineSubtotal/2)+'（商品金額一半）。喊單後會用 LINE 通知您付訂金，請留意 LINE 訊息 📢';
 } else {
 depositEl.style.display = 'none';
 }
@@ -4283,7 +4283,7 @@ var depositHtml = '';
 if(depositAmount > 0){
 depositHtml = '<p class="my-row-dep is-paid">💰已付訂金 NT$'+depositAmount+'</p>';
 } else if(o.deposit_required && o.status === '待確認' && total){
-depositHtml = '<p class="my-row-dep">💰需付訂金 NT$'+Math.round(total/2)+'（商品金額一半）<br><span style="font-weight:500;">現場確認有貨後，會用 LINE 通知您付訂金，收到訂金才幫您購買，請留意 LINE 訊息 📢</span></p>';
+depositHtml = '<p class="my-row-dep">💰需付訂金 NT$'+Math.round(total/2)+'（商品金額一半）<br><span style="font-weight:500;">會用 LINE 通知您付訂金，請留意 LINE 訊息 📢<br>若最後沒買到，訂金將全額退還 ♡</span></p>';
 }
 var thumb = o.product_id ? '<img class="my-row-img" src="'+productImageUrl(o.product_id)+'" alt="" onerror="this.style.visibility=\'hidden\';">' : '<span class="my-row-img"></span>';
 var delLink = o.status === '待確認' ? '<button type="button" class="my-order-delete my-row-del" data-order-id="'+o.id+'">移除</button>' : '';
