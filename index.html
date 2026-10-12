@@ -68,8 +68,15 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .admin-photo-slot .admin-slot-delete-btn{ z-index:2; }
 .opt-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 14px; }
 .opt-chip{ min-width:52px; padding:9px 14px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:13.5px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
+.opt-chip-price{ display:block; margin-top:2px; font-size:11.5px; font-weight:800; color:var(--ignis-deep); }
 .opt-chip.active{ border-color:var(--ignis); background:rgba(255,102,71,.1); color:var(--ignis-deep); }
 .opt-label{ margin:10px 0 0; font-size:12.5px; font-weight:700; color:var(--muted); }
+.admin-optp{ margin:8px 0 2px; }
+.admin-optp-toggle{ display:flex; gap:6px; align-items:center; font-size:12.5px; font-weight:700; color:var(--text-dark); }
+.admin-optp-list{ margin-top:8px; }
+.admin-optp-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.admin-optp-row span{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--text-dark); }
+.admin-optp-row .gate-input{ width:110px; flex:0 0 110px; margin:0; }
 .admin-size-chip{ padding:5px 10px; border-radius:999px; border:1.5px solid var(--line); background:#fff; font-size:12px; font-weight:700; color:var(--muted); font-family:var(--font-body); }
 .admin-size-chip.on{ border-color:var(--ink); background:var(--ink); color:#fff; }
 .shell-option{ flex:1; padding:10px 6px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:12.5px; font-weight:600; color:var(--muted); font-family:var(--font-body); }
@@ -860,7 +867,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261012-1825';
+var APP_VERSION = '20261013-0010';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -951,6 +958,33 @@ var seen = {}, out = [];
 String(raw || '').split(/[,，、\n]/).forEach(function(x){ x = x.trim(); if(x && !seen[x]){ seen[x] = true; out.push(x); } });
 return out;
 }
+// 規格一每個選項自己的價格：{"綠色":480,"紅色":350}
+function parseOptionPrices(raw, allowed){
+var obj = raw, out = {};
+if(typeof raw === 'string'){ try{ obj = raw ? JSON.parse(raw) : {}; }catch(e){ obj = {}; } }
+if(!obj || typeof obj !== 'object') return out;
+Object.keys(obj).forEach(function(k){
+var v = Math.round(Number(obj[k]));
+if(k && v > 0 && (!allowed || allowed.indexOf(k) !== -1)) out[k] = v;
+});
+return out;
+}
+function hasOptionPrices(p){ return !!(p && p.optionPrices && Object.keys(p.optionPrices).length); }
+// 這個選項的單價（沒有另外設定就用商品價格）
+function productUnitPrice(p, opt){
+if(p && opt && p.optionPrices && p.optionPrices[opt] > 0) return p.optionPrices[opt];
+return Number(p && p.price) || 0;
+}
+// 所有選項的價格範圍
+function productPriceRange(p){
+if(!hasOptionPrices(p)) return { min: Number(p.price)||0, max: Number(p.price)||0 };
+var list = (p.options || []).map(function(o){ return productUnitPrice(p, o); });
+return { min: Math.min.apply(null, list), max: Math.max.apply(null, list) };
+}
+function productPriceText(p){
+var r = productPriceRange(p);
+return r.min === r.max ? 'NT$' + r.min : 'NT$' + r.min + ' 起';
+}
 var PRODUCTS = [];
 // 商品照片網址：檔名不變（{id}.jpg），所以換照片後手機和CDN會一直拿舊的快取。
 // 每次上傳都會更新商品的 image_version，網址後面帶 ?v=版本，換照片後網址不同，就一定會抓到新的。
@@ -983,7 +1017,7 @@ var res = await supabaseClient.from('products').select('*').order('featured', { 
 if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '' };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) };
 });
 rememberImageVersions(PRODUCTS);
 await loadLiveZones();
@@ -3105,14 +3139,14 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+'</p>'
-+ '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">NT$'+p.price+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+'</p></div>'
++ '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">'+productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) })+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+'</p></div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
-+ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '')
++ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
@@ -3164,12 +3198,38 @@ return '<div class="admin-opt-group" data-g="'+g+'" style="margin-top:'+(g===1?'
 + '<textarea class="gate-input admin-opt-values" rows="2" placeholder="'+valuesPh+'" style="margin-bottom:0;resize:vertical;">'+escHtml(list.join(', '))+'</textarea>'
 + '</div>';
 }
-function adminOptionsEditorHTML(key, label, options, label2, options2){
+function adminOptionsEditorHTML(key, label, options, label2, options2, optionPrices){
+var priceMap = parseOptionPrices(optionPrices || '');
+var on = Object.keys(priceMap).length > 0;
 return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:0 0 8px;padding:10px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);">'
 + '<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:var(--text-dark);">客人可選的規格（最多兩組，例如顏色＋尺寸；沒有就留空）</p>'
 + adminOptionGroupHTML(1, label, options, '規格名稱，例如：顏色', '選項用逗號分開，例如：黑色, 灰色, 卡其')
++ '<div class="admin-optp" data-prices="'+escAttr(JSON.stringify(priceMap))+'">'
++ '<label class="admin-optp-toggle"><input type="checkbox" class="admin-optp-on"'+(on?' checked':'')+'> 規格一每個選項價格不一樣</label>'
++ '<div class="admin-optp-list" style="display:'+(on?'block':'none')+';"></div>'
++ '</div>'
 + adminOptionGroupHTML(2, label2 || '', options2 || '', '規格名稱，例如：尺寸', '選項用逗號分開，例如：S, M, L')
 + '</div>';
+}
+// 規格一的「每個選項價格」輸入框：跟著選項清單自動增減，已經填的價格會保留
+function renderAdminOptPrices(ed){
+var box = ed.querySelector('.admin-optp'); if(!box) return;
+var list = parseOptionList(ed.querySelector('.admin-opt-group[data-g="1"] .admin-opt-values').value);
+var map = {}; try{ map = JSON.parse(box.getAttribute('data-prices') || '{}'); }catch(e){}
+var listEl = box.querySelector('.admin-optp-list');
+listEl.innerHTML = list.length
+? list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span><input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="價格"></div>'; }).join('')
++ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
+: '<p style="margin:0;font-size:11.5px;color:var(--muted);">先在上面填規格一的選項</p>';
+var ins = listEl.querySelectorAll('.admin-optp-in');
+for(var i=0;i<ins.length;i++){
+ins[i].addEventListener('input', function(){
+var m = {}; try{ m = JSON.parse(box.getAttribute('data-prices') || '{}'); }catch(e){}
+var v = parseInt(this.value);
+if(v > 0) m[this.getAttribute('data-opt')] = v; else delete m[this.getAttribute('data-opt')];
+box.setAttribute('data-prices', JSON.stringify(m));
+});
+}
 }
 function readAdminOptionEditor(ed){
 if(!ed) return {};
@@ -3181,6 +3241,10 @@ options: g1.querySelector('.admin-opt-values').value,
 optionLabel2: g2.querySelector('.admin-opt-label').value.trim(),
 options2: g2.querySelector('.admin-opt-values').value
 };
+var pbox = ed.querySelector('.admin-optp');
+var pmap = {};
+if(pbox && pbox.querySelector('.admin-optp-on').checked){ try{ pmap = parseOptionPrices(pbox.getAttribute('data-prices') || '{}', parseOptionList(out.options)); }catch(e){} }
+out.optionPrices = Object.keys(pmap).length ? JSON.stringify(pmap) : '';
 // 只填了規格二、規格一空著 → 自動挪到規格一
 if(!parseOptionList(out.options).length && parseOptionList(out.options2).length){
 out.optionLabel = out.optionLabel2; out.options = out.options2; out.optionLabel2 = ''; out.options2 = '';
@@ -3188,6 +3252,18 @@ out.optionLabel = out.optionLabel2; out.options = out.options2; out.optionLabel2
 return out;
 }
 function bindAdminOptionEditors(container){
+var eds = container.querySelectorAll('.admin-opt-editor');
+for(var q=0; q<eds.length; q++){
+(function(ed){
+renderAdminOptPrices(ed);
+var vals = ed.querySelector('.admin-opt-group[data-g="1"] .admin-opt-values');
+vals.addEventListener('input', function(){ renderAdminOptPrices(ed); });
+var chk = ed.querySelector('.admin-optp-on');
+chk.addEventListener('change', function(){ ed.querySelector('.admin-optp-list').style.display = chk.checked ? 'block' : 'none'; });
+var chips1 = ed.querySelectorAll('.admin-opt-group[data-g="1"] .admin-size-chip');
+for(var c=0;c<chips1.length;c++){ chips1[c].addEventListener('click', function(){ setTimeout(function(){ renderAdminOptPrices(ed); }, 0); }); }
+})(eds[q]);
+}
 var groups = container.querySelectorAll('.admin-opt-group');
 for(var e=0; e<groups.length; e++){
 (function(ed){
@@ -3224,8 +3300,8 @@ var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+
 var optPayload = readAdminOptionEditor(optEd);
 await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price }, optPayload));
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
-var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = 'NT$' + price;
-for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); } } }
+var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; } } }
 showToast('已儲存');
 }catch(e){
 alert('儲存失敗：' + e.message);
@@ -3520,7 +3596,8 @@ name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: s
 liveZoneId: zoneSelect ? zoneSelect.value : null,
 isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked),
 optionLabel: newOpt.optionLabel || '', options: newOpt.options || '',
-optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || ''
+optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || '',
+optionPrices: newOpt.optionPrices || ''
 });
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
@@ -3601,7 +3678,7 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
 // 只有限時連線商品要收訂金：單價滿1000就提示（實際以同商品喊單合計判斷，數量選擇在下一步彈窗）。
-var depositNoteHTML = (p.stock === 'live_limited' && Number(p.price) >= 1000)
+var depositNoteHTML = (p.stock === 'live_limited' && productPriceRange(p).max >= 1000)
 ? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰 喊單總金額滿 NT$1,000，需支付 50% 訂金。</p>'
 : '';
 return '<article class="card">'
@@ -3613,7 +3690,7 @@ return '<article class="card">'
 + (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 品牌選物</span>' : '')
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + ((p.options || []).length ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
-+ '<div class="card-meta"><span class="price">NT$' + p.price + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
++ '<div class="card-meta"><span class="price">' + productPriceText(p) + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
 + orderBtnHTML
 + '</div></article>';
@@ -3949,8 +4026,13 @@ var orderModalOption = null;
 var orderModalOption2 = null;
 function updateOrderModalSub(){
 var extra = orderModalShell === 'yes' ? 10 : 0;
-var unitPrice = orderModalProduct.price + extra;
-document.getElementById('orderModalSub').textContent = orderModalProduct.sub + ' · NT$' + unitPrice;
+// 有「每個選項不同價格」時：還沒選就顯示價格範圍，選了就顯示那個選項的價格
+var priceVaries = hasOptionPrices(orderModalProduct) && productPriceRange(orderModalProduct).min !== productPriceRange(orderModalProduct).max;
+var unitPrice = productUnitPrice(orderModalProduct, orderModalOption) + extra;
+var priceLabel = (priceVaries && !orderModalOption)
+? 'NT$' + (productPriceRange(orderModalProduct).min + extra) + '～' + (productPriceRange(orderModalProduct).max + extra) + '（依' + (orderModalProduct.optionLabel || '規格') + '）'
+: 'NT$' + unitPrice;
+document.getElementById('orderModalSub').textContent = (orderModalProduct.sub ? orderModalProduct.sub + ' · ' : '') + priceLabel;
 // 訂金判斷用「這筆訂單的小計」（單價×數量），跟後端 submit-order 的邏輯一致，數量變動即時更新提示。
 var depositEl = document.getElementById('orderModalDepositHint');
 var stock = orderModalProduct.stock;
@@ -4009,7 +4091,9 @@ if(optGroups.length){
 optBox.style.display = 'block';
 optBox.innerHTML = optGroups.map(function(g){
 return '<p class="opt-label">請選擇'+escHtml(g[2] || '規格')+'</p>'
-+ '<div class="opt-chips" data-g="'+g[0]+'">' + g[1].map(function(o){ return '<button type="button" class="opt-chip" data-opt="'+escAttr(o)+'">'+escHtml(o)+'</button>'; }).join('') + '</div>';
++ '<div class="opt-chips" data-g="'+g[0]+'">' + g[1].map(function(o){
+var pr = (g[0] === 1 && hasOptionPrices(product)) ? '<span class="opt-chip-price">NT$'+productUnitPrice(product, o)+'</span>' : '';
+return '<button type="button" class="opt-chip" data-opt="'+escAttr(o)+'">'+escHtml(o)+pr+'</button>'; }).join('') + '</div>';
 }).join('');
 var chipRows = optBox.querySelectorAll('.opt-chips');
 for(var cr=0; cr<chipRows.length; cr++){
@@ -4020,6 +4104,7 @@ for(var oc=0; oc<chips.length; oc++){
 chips[oc].addEventListener('click', function(){
 if(g === '2') orderModalOption2 = this.getAttribute('data-opt'); else orderModalOption = this.getAttribute('data-opt');
 for(var k=0;k<chips.length;k++){ chips[k].classList.toggle('active', chips[k] === this); }
+updateOrderModalSub();
 });
 }
 })(chipRows[cr]);
@@ -4144,7 +4229,7 @@ var btn = document.getElementById('orderModalConfirm');
 btn.disabled = true; btn.textContent = '送出中...';
 var isGacha = orderModalProduct.cat === 'gacha';
 var extra = (isGacha && orderModalShell === 'yes') ? 10 : 0;
-var finalPrice = orderModalProduct.price + extra;
+var finalPrice = productUnitPrice(orderModalProduct, orderModalOption) + extra;
 var hasOpts = (orderModalProduct.options || []).length > 0;
 var hasOpts2 = (orderModalProduct.options2 || []).length > 0;
 if(hasOpts && !orderModalOption){
