@@ -661,9 +661,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 </div>
 </section>
-<div class="live-entries" id="liveEntries"></div>
+<!-- 首頁不再顯示專區卡片（商品頁上方已經有），保留元素讓程式不出錯 -->
+<div class="live-entries" id="liveEntries" style="display:none;"></div>
 <div class="paused-notice-slot" id="homePausedNotice"></div>
-<div class="live-entries" id="regularEntry" style="margin-top:14px;"></div>
+<div class="live-entries" id="regularEntry" style="display:none;"></div>
 <div id="homePicks">
 <div class="picks-header">
 <h2>本週嚴選</h2>
@@ -878,7 +879,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1640';
+var APP_VERSION = '20261013-1645';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3814,7 +3815,7 @@ var goLive = el.querySelector('.paused-go-live');
 if(goLive) goLive.addEventListener('click', function(){
 var zs = openZones();
 if(zs.length === 1){ openLiveZone(zs[0].id); }
-else { showView('home'); var w = document.getElementById('liveEntries'); if(w) w.scrollIntoView({behavior:'smooth', block:'center'}); }
+else { showView('shop'); var w = document.getElementById('shopLiveEntries'); if(w) w.scrollIntoView({behavior:'smooth', block:'center'}); }
 });
 var goWish = el.querySelector('.paused-go-wish');
 if(goWish) goWish.addEventListener('click', function(){ showView('wish'); });
@@ -3908,7 +3909,7 @@ var goLive = document.getElementById('regularHeroGoLive');
 if(goLive) goLive.addEventListener('click', function(){
 var zs = openZones();
 if(zs.length === 1){ openLiveZone(zs[0].id); }
-else { showView('home'); var w = document.getElementById('liveEntries'); if(w) w.scrollIntoView({behavior:'smooth', block:'center'}); }
+else { showView('shop'); var w = document.getElementById('shopLiveEntries'); if(w) w.scrollIntoView({behavior:'smooth', block:'center'}); }
 });
 var goWish = document.getElementById('regularHeroGoWish');
 if(goWish) goWish.addEventListener('click', function(){ showView('wish'); });
