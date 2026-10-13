@@ -867,7 +867,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1035';
+var APP_VERSION = '20261013-1255';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3976,7 +3976,7 @@ if(heroEl){
 heroEl.innerHTML = zone
 ? '<div class="live-zone-hero is-compact '+zoneColorClass(zone)+'"><button type="button" class="zone-share-btn" id="zoneShareBtn">🔗 分享專區</button><h2 style="padding-right:96px;">'+escHtml(zone.name || '限時連線專區')+'</h2>'
 + (zone.note ? '<span class="live-entry-note" style="margin:6px 0 0;">'+escHtml(zone.note)+'</span>' : '')
-+ '<p>'+(isOpen ? '限時連線進行中，商品數量有限，喊單後依結單規則完成付款即可 ♥' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
++ '<p>'+(isOpen ? '限時連線商品數量有限，依喊單順序採購 ♥' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
 : '';
 var shareBtn = document.getElementById('zoneShareBtn');
 if(shareBtn && zone){ shareBtn.addEventListener('click', function(){ shareZoneLink(zone); }); }
