@@ -79,6 +79,26 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .hln-more{ flex:0 0 96px; align-items:center; justify-content:center; padding:0; color:var(--volt); font-size:13px; font-weight:800; text-align:center; line-height:1.6; }
 /* 付款方式頁的重點字：螢光筆效果（不用底線，避免看起來像可以點的連結） */
 .view[data-view="payment"] .qa-a b{ color:var(--text-dark); font-weight:800; background:linear-gradient(transparent 52%, rgba(255,170,90,.55) 52%, rgba(255,170,90,.55) 92%, transparent 92%); padding:0 2px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+/* 逛商品的頁面（首頁、商品頁、限時連線專區）用封面同色的深色底 */
+.page:has(.view-dark.is-active){ background:var(--ink-2); }
+.view-dark .back-btn, .view-dark .count-pill, .view-dark .see-more{ color:var(--muted-light); }
+.view-dark .sub-page-header h2, .view-dark .picks-header h2{ color:var(--text-light); }
+.view-dark .search-bar{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.14); }
+.view-dark .search-bar svg{ stroke:var(--muted-light); }
+.view-dark .search-bar input{ color:var(--text-light); }
+.view-dark .search-bar input::placeholder{ color:var(--muted-light); }
+.view-dark .cat-tab{ background:transparent; border-color:rgba(255,255,255,.2); color:var(--muted-light); }
+.view-dark .cat-tab.active{ background:#fff; border-color:#fff; color:var(--ink); }
+.view-dark .card{ box-shadow:0 10px 24px -14px rgba(0,0,0,.6); }
+.view-dark .live-empty{ color:var(--muted-light); }
+.view-dark .reg-paused-strip{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); }
+.view-dark .reg-paused-title{ color:var(--text-light); }
+.view-dark .reg-paused-note{ background:rgba(255,255,255,.14); color:var(--text-light); }
+.view-dark .reg-paused-sub{ color:var(--muted-light); }
+.view-dark .reg-paused-wish{ background:transparent; border-color:rgba(255,255,255,.3); color:var(--text-light); }
+.view-dark .live-status-note.is-off{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:var(--muted-light); }
+.view-dark .live-zone-hero.zone-black, .view-dark .live-entry.zone-black{ border:1px solid rgba(255,255,255,.12); }
+.view-dark .live-entry.is-idle{ background:rgba(255,255,255,.06); box-shadow:none; }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
 .hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
@@ -666,7 +686,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 </header>
 <!-- HOME -->
-<section class="view is-active" data-view="home">
+<section class="view view-dark is-active" data-view="home">
 <section class="hero">
 <div class="hero-disc-wrap"><div class="disc" style="--size:200px;--c1:var(--ignis);--c2:var(--volt);filter:drop-shadow(0 0 34px rgba(255,102,71,.35)) drop-shadow(0 0 46px rgba(47,216,201,.28))"></div></div>
 <div class="hero-content">
@@ -701,7 +721,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 </section>
 <!-- SHOP -->
-<section class="view" data-view="shop">
+<section class="view view-dark" data-view="shop">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><span class="count-pill" id="shopCount" style="margin-left:auto;"></span></div>
 <div class="live-entries" id="shopLiveEntries" style="margin:0 0 14px;"></div>
 <div id="regularZoneHero"></div>
@@ -725,7 +745,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 </section>
 <!-- LIVE CONNECTION -->
-<section class="view" data-view="live">
+<section class="view view-dark" data-view="live">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><span class="count-pill" id="liveCount" style="margin-left:auto;"></span></div>
 <div id="liveZoneHero"></div>
 <div id="liveStatusNote"></div>
@@ -906,7 +926,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1710';
+var APP_VERSION = '20261013-1730';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
