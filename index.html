@@ -867,7 +867,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-0010';
+var APP_VERSION = '20261013-1035';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3052,6 +3052,32 @@ var r = productSortName(a.name).localeCompare(productSortName(b.name), 'zh-Hant'
 if(r !== 0) return r;
 return String(a.sub || '').localeCompare(String(b.sub || ''), 'zh-Hant', { numeric:true });
 }
+// 前台排序：低價到高價；同名商品（例如複製出來的不同規格）排在一起，整組照組內最低價排
+// 連線已結束、缺貨的放最後面
+function sortProductsByPrice(list){
+var groups = {}, order = [];
+list.forEach(function(p){
+var k = (p.stock === 'live_ended' || p.stock === 'sold_out' ? '1' : '0') + '|' + productSortName(p.name);
+if(!groups[k]){ groups[k] = { key:k, items:[], min:Infinity }; order.push(k); }
+groups[k].items.push(p);
+groups[k].min = Math.min(groups[k].min, productPriceRange(p).min);
+});
+var gs = order.map(function(k){ return groups[k]; });
+gs.sort(function(a, b){
+if(a.key.charAt(0) !== b.key.charAt(0)) return a.key.charAt(0) < b.key.charAt(0) ? -1 : 1;
+if(a.min !== b.min) return a.min - b.min;
+return a.key.localeCompare(b.key, 'zh-Hant', { numeric:true });
+});
+var out = [];
+gs.forEach(function(g){
+g.items.sort(function(a, b){
+var d = productPriceRange(a).min - productPriceRange(b).min;
+return d !== 0 ? d : String(a.sub || '').localeCompare(String(b.sub || ''), 'zh-Hant', { numeric:true });
+});
+out = out.concat(g.items);
+});
+return out;
+}
 function adminProductsGroupedHTML(products){
 var groups = [], byCat = {};
 for(var i=0;i<products.length;i++){
@@ -3885,7 +3911,7 @@ renderPausedNotices();
 renderRegularHero();
 renderLiveEntries();
 var grid = document.getElementById('shopGrid');
-var list = getFilteredShop();
+var list = sortProductsByPrice(getFilteredShop());
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件';
@@ -3978,9 +4004,8 @@ tabsWrap.innerHTML = '';
 tabsWrap.style.display = 'none';
 }
 }
-// 還能喊單的排前面，連線已結束的放後面
-var list = all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; });
-list.sort(function(a,b){ return (a.stock === 'live_ended' ? 1 : 0) - (b.stock === 'live_ended' ? 1 : 0); });
+// 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
+var list = sortProductsByPrice(all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; }));
 var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
