@@ -77,6 +77,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .hln-name{ padding:0 10px; font-size:12.5px; font-weight:700; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:34px; }
 .hln-price{ padding:0 10px; font-size:13px; font-weight:800; color:#FF9E7A; }
 .hln-more{ flex:0 0 96px; align-items:center; justify-content:center; padding:0; color:var(--volt); font-size:13px; font-weight:800; text-align:center; line-height:1.6; }
+/* 付款方式頁的重點字：螢光筆效果（不用底線，避免看起來像可以點的連結） */
+.view[data-view="payment"] .qa-a b{ color:var(--text-dark); font-weight:800; background:linear-gradient(transparent 52%, rgba(255,170,90,.55) 52%, rgba(255,170,90,.55) 92%, transparent 92%); padding:0 2px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
 .hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
@@ -904,7 +906,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1705';
+var APP_VERSION = '20261013-1710';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
