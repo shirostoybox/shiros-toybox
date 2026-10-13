@@ -335,6 +335,17 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .regular-badge .dot{ width:7px; height:7px; border-radius:50%; background:#22C55E; }
 .regular-badge.is-paused{ background:#F5C26B; color:#3B2600; }
 .regular-badge.is-paused .dot{ background:#B45309; }
+.live-entry-cta{ display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:8px 16px; border-radius:999px; background:#fff; color:#3B1A86; font-size:14px; font-weight:800; letter-spacing:.02em; box-shadow:0 4px 12px -4px rgba(0,0,0,.35); }
+.live-entry-cta b{ font-size:17px; line-height:1; }
+.live-entry.zone-gold .live-entry-cta{ color:#7A5410; } .live-entry.zone-blue .live-entry-cta{ color:#1E3A8A; } .live-entry.zone-green .live-entry-cta{ color:#065F46; }
+.reg-paused-strip{ display:flex; gap:12px; align-items:center; margin:0 18px 16px; padding:10px; border-radius:var(--r-md); background:#ECEDF1; border:1px solid #DDDFE6; }
+.reg-paused-img{ flex:0 0 auto; width:96px; height:96px; object-fit:cover; border-radius:12px; display:block; }
+.reg-paused-text{ flex:1; min-width:0; }
+.reg-paused-top{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.reg-paused-title{ font-size:14.5px; font-weight:800; color:#4A4F5C; }
+.reg-paused-note{ display:inline-block; margin-top:4px; padding:1px 8px; border-radius:999px; background:#fff; color:#4A4F5C; font-size:11.5px; font-weight:700; }
+.reg-paused-sub{ margin:4px 0 0; font-size:12px; color:#7A7F8C; line-height:1.45; }
+.reg-paused-wish{ margin-top:6px; padding:5px 12px; border-radius:999px; border:1px solid #C9CCD6; background:#fff; color:#4A4F5C; font-size:12px; font-weight:700; font-family:var(--font-body); }
 .regular-closed-img{ display:block; width:calc(100% - 40px); margin:4px 20px 20px; border-radius:var(--r-md); box-shadow:0 10px 24px -14px rgba(0,0,0,.35); }
 .admin-status-imgs{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:0 0 10px; }
 .admin-status-img{ position:relative; border:2.5px solid transparent; border-radius:12px; padding:0; background:var(--paper); overflow:hidden; font-family:var(--font-body); }
@@ -867,7 +878,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1255';
+var APP_VERSION = '20261013-1640';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3817,10 +3828,28 @@ return isRegularPaused()
 ? '<span class="regular-badge is-paused"><span class="dot"></span>暫停中</span>'
 : '<span class="regular-badge"><span class="dot"></span>開放中</span>';
 }
+// 暫停中：灰色橫條（狀態圖片放在橫條裡），不搶限時連線的注意力
+function regularPausedStripHTML(){
+var note = siteSettings.regular_note || '';
+var img = regularStatusImageFile();
+return '<div class="reg-paused-strip">'
++ (img ? '<img class="reg-paused-img" src="'+img+'" alt="" onerror="this.remove();">' : '')
++ '<div class="reg-paused-text">'
++ '<div class="reg-paused-top"><span class="reg-paused-title">現貨・預購連線專區</span>'+regularZoneBadgeHTML()+'</div>'
++ (note ? '<span class="reg-paused-note">'+escHtml(note)+'</span>' : '')
++ '<p class="reg-paused-sub">目前暫停喊單'+(openZones().length ? '，可以先逛上面的限時連線&nbsp;♡' : '，有想找的可以先許願&nbsp;♡')+'</p>'
++ '<button type="button" class="reg-paused-wish">我要許願 ›</button>'
++ '</div></div>';
+}
+function bindRegularPausedStrip(root){
+var b = root && root.querySelector('.reg-paused-wish');
+if(b) b.addEventListener('click', function(){ showView('wish'); });
+}
 function renderRegularEntry(){
 applyRegularClosedState();
 var wrap = document.getElementById('regularEntry');
 if(!wrap) return;
+if(isRegularPaused()){ wrap.innerHTML = regularPausedStripHTML(); bindRegularPausedStrip(wrap); return; }
 var list = regularProducts().filter(function(p){ return p.stock === 'in' || p.stock === 'preorder'; });
 var note = siteSettings.regular_note || '';
 var sub = isRegularPaused()
@@ -3857,16 +3886,15 @@ var body = document.getElementById('regularShopBody');
 if(body) body.style.display = paused ? 'none' : '';
 var picks = document.getElementById('homePicks');
 if(picks) picks.style.display = paused ? 'none' : '';
+// 狀態圖片現在放在灰色橫條裡，這裡不再另外顯示大圖
 var imgWrap = document.getElementById('regularClosedImage');
-if(imgWrap){
-var file = paused ? regularStatusImageFile() : '';
-imgWrap.innerHTML = file ? '<img class="regular-closed-img" src="'+file+'" alt="" onerror="this.remove();">' : '';
-}
+if(imgWrap) imgWrap.innerHTML = '';
 }
 function renderRegularHero(){
 applyRegularClosedState();
 var el = document.getElementById('regularZoneHero');
 if(!el) return;
+if(isRegularPaused()){ el.innerHTML = regularPausedStripHTML(); bindRegularPausedStrip(el); return; }
 var note = siteSettings.regular_note || '';
 el.innerHTML = '<div class="live-zone-hero zone-black"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">現貨・預購連線專區</h2>'+regularZoneBadgeHTML()+'</div>'
 + (note ? '<span class="live-entry-note" style="margin:8px 0 0;">'+escHtml(note)+'</span>' : '')
@@ -3959,7 +3987,8 @@ return '<button type="button" class="live-entry '+zoneColorClass(z)+'" data-zone
 + '<span class="live-entry-top"><span class="live-entry-title">'+escHtml(z.name || '限時連線專區')+'</span><span class="live-badge"><span class="live-dot"></span>LIVE</span></span>'
 + (z.note ? '<span class="live-entry-note">'+escHtml(z.note)+'</span> ' : '')
 + '<span class="live-entry-sub">'+sub+'</span>'
-+ '</span><span class="live-entry-arrow">›</span></button>';
++ '<span class="live-entry-cta">'+(available > 0 ? '立即進入喊單' : '進入專區看看')+' <b>›</b></span>'
++ '</span></button>';
 }).join('');
 }
 function openLiveZone(zoneId){
