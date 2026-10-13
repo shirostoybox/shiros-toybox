@@ -52,7 +52,11 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .wordmark{ margin:0 0 14px; font-family:var(--font-display); font-weight:700; font-size:clamp(28px,8vw,36px); line-height:1.08; letter-spacing:-.01em; color:var(--text-light); }
 .hero-desc{ margin:0 0 14px; font-size:13.5px; line-height:1.75; color:var(--muted-light); }
 @keyframes trip-pulse{ 0%,100%{ background:rgba(47,216,201,.15); border-color:rgba(47,216,201,.35); } 50%{ background:rgba(47,216,201,.28); border-color:rgba(47,216,201,.7); } }
-.hero-next-trip{ display:block; margin:0 0 14px; padding:10px 14px; border-radius:var(--r-md); background:rgba(47,216,201,.15); border:1px solid rgba(47,216,201,.35); color:var(--volt); font-size:12px; font-weight:700; line-height:1.6; overflow:hidden; transition:opacity .25s ease; animation:trip-pulse 2.8s ease-in-out infinite; }
+/* 下一站是公告，不做成按鈕的樣子：沒有外框、不閃爍，左邊一條細線 */
+.hero-next-trip{ display:block; margin:2px 0 16px; padding:2px 0 2px 12px; border-left:3px solid var(--volt); border-radius:0; background:none; color:var(--volt); font-size:13px; font-weight:700; line-height:1.6; overflow:hidden; transition:opacity .25s ease; cursor:default; pointer-events:none; }
+/* 首頁下面沒有其他內容時（現貨・預購暫停），整頁用深色，不會露出下面的白色 */
+body.home-solid .page:has(.view[data-view="home"].is-active){ background:var(--ink-2); }
+.view[data-view="home"]{ background:transparent; }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
 .hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
@@ -879,7 +883,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1645';
+var APP_VERSION = '20261013-1650';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3887,6 +3891,7 @@ var body = document.getElementById('regularShopBody');
 if(body) body.style.display = paused ? 'none' : '';
 var picks = document.getElementById('homePicks');
 if(picks) picks.style.display = paused ? 'none' : '';
+document.body.classList.toggle('home-solid', paused);
 // 狀態圖片現在放在灰色橫條裡，這裡不再另外顯示大圖
 var imgWrap = document.getElementById('regularClosedImage');
 if(imgWrap) imgWrap.innerHTML = '';
