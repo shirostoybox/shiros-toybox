@@ -57,6 +57,26 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 /* 首頁下面沒有其他內容時（現貨・預購暫停），整頁用深色，不會露出下面的白色 */
 body.home-solid .page:has(.view[data-view="home"].is-active){ background:var(--ink-2); }
 .view[data-view="home"]{ background:transparent; }
+/* 首頁按鈕撐滿整排（文字仍避開右上角圓盤） */
+.hero-content .hero-actions, .hero-content .hero-links{ width:calc(100% / 0.72); }
+/* 現貨暫停又沒有限時連線時，首頁內容置中，不會下面一大片空白 */
+body.home-empty .view[data-view="home"] .hero{ min-height:calc(100dvh - 150px - env(safe-area-inset-bottom)); display:flex; align-items:center; }
+body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
+/* 首頁：限時連線新上架 */
+.hln{ background:var(--ink-2); padding:4px 0 22px; }
+.hln-head{ display:flex; align-items:center; gap:8px; padding:0 24px 12px; }
+.hln-title{ display:inline-flex; align-items:center; gap:7px; font-size:15.5px; font-weight:800; color:var(--text-light); white-space:nowrap; }
+.hln-dot{ width:8px; height:8px; border-radius:50%; background:#FF4D4D; box-shadow:0 0 0 4px rgba(255,77,77,.22); }
+.hln-zone{ padding:2px 9px; border-radius:999px; background:rgba(167,139,250,.22); color:#C9B2FF; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.hln-all{ margin-left:auto; border:none; background:none; color:var(--volt); font-size:13px; font-weight:700; font-family:var(--font-body); white-space:nowrap; padding:4px 0; }
+.hln-row{ display:flex; gap:10px; overflow-x:auto; padding:0 24px 4px; scroll-snap-type:x mandatory; scroll-padding:0 24px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.hln-row::-webkit-scrollbar{ display:none; }
+.hln-card{ flex:0 0 128px; scroll-snap-align:start; display:flex; flex-direction:column; gap:5px; padding:0 0 10px; border:1px solid rgba(255,255,255,.1); border-radius:16px; background:rgba(255,255,255,.06); color:var(--text-light); text-align:left; font-family:var(--font-body); overflow:hidden; cursor:pointer; }
+.hln-img{ display:block; width:100%; aspect-ratio:1/1; background:#fff; }
+.hln-img img{ display:block; width:100%; height:100%; object-fit:cover; }
+.hln-name{ padding:0 10px; font-size:12.5px; font-weight:700; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:34px; }
+.hln-price{ padding:0 10px; font-size:13px; font-weight:800; color:#FF9E7A; }
+.hln-more{ flex:0 0 96px; align-items:center; justify-content:center; padding:0; color:var(--volt); font-size:13px; font-weight:800; text-align:center; line-height:1.6; }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
 .hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
@@ -665,6 +685,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 </div>
 </section>
+<div id="homeLiveNew"></div>
 <!-- 首頁不再顯示專區卡片（商品頁上方已經有），保留元素讓程式不出錯 -->
 <div class="live-entries" id="liveEntries" style="display:none;"></div>
 <div class="paused-notice-slot" id="homePausedNotice"></div>
@@ -883,7 +904,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1650';
+var APP_VERSION = '20261013-1700';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1033,7 +1054,7 @@ var res = await supabaseClient.from('products').select('*').order('featured', { 
 if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), createdAt:p.created_at || '' };
 });
 rememberImageVersions(PRODUCTS);
 await loadLiveZones();
@@ -3919,9 +3940,53 @@ else { showView('shop'); var w = document.getElementById('shopLiveEntries'); if(
 var goWish = document.getElementById('regularHeroGoWish');
 if(goWish) goWish.addEventListener('click', function(){ showView('wish'); });
 }
+// 首頁：限時連線新上架（橫向滑動），沒有進行中的連線就不顯示
+function renderHomeLiveNew(){
+var el = document.getElementById('homeLiveNew');
+if(!el) return;
+var zones = openZones();
+var zoneIds = zones.map(function(z){ return z.id; });
+var list = liveProducts().filter(function(p){ return p.stock === 'live_limited' && zoneIds.indexOf(p.liveZoneId) !== -1; });
+var hasItems = list.length > 0;
+document.body.classList.toggle('home-empty', isRegularPaused() && !hasItems);
+if(!hasItems){ el.innerHTML = ''; return; }
+// 新上架在前：有建立時間就照時間，沒有就照商品清單的後面（後加的）在前
+var idx = {}; PRODUCTS.forEach(function(p, i){ idx[p.id] = i; });
+list.sort(function(a, b){
+if(a.createdAt && b.createdAt && a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
+return (idx[b.id] || 0) - (idx[a.id] || 0);
+});
+var shown = list.slice(0, 8);
+var zoneLabel = zones.length === 1 ? (zones[0].note || zones[0].name || '') : '';
+el.innerHTML = '<div class="hln">'
++ '<div class="hln-head"><span class="hln-title"><span class="hln-dot"></span>限時連線新上架</span>'
++ (zoneLabel ? '<span class="hln-zone">'+escHtml(zoneLabel)+'</span>' : '')
++ '<button type="button" class="hln-all">看全部 ›</button></div>'
++ '<div class="hln-row">'
++ shown.map(function(p){
+return '<button type="button" class="hln-card" data-pid="'+escAttr(p.id)+'">'
++ '<span class="hln-img"><img src="'+productImageUrl(p.id)+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\';"></span>'
++ '<span class="hln-name">'+escHtml(p.name)+'</span>'
++ '<span class="hln-price">'+productPriceText(p)+'</span></button>';
+}).join('')
++ '<button type="button" class="hln-card hln-more"><span>看全部<br>'+list.length+' 件 ›</span></button>'
++ '</div></div>';
+function goAll(){ if(zones.length === 1) openLiveZone(zones[0].id); else { showView('shop'); } }
+el.querySelector('.hln-all').addEventListener('click', goAll);
+el.querySelector('.hln-more').addEventListener('click', goAll);
+var cards = el.querySelectorAll('.hln-card[data-pid]');
+for(var i=0;i<cards.length;i++){
+cards[i].addEventListener('click', function(){
+var pid = this.getAttribute('data-pid');
+var p = null; for(var k=0;k<PRODUCTS.length;k++){ if(PRODUCTS[k].id === pid) p = PRODUCTS[k]; }
+if(p) openOrderModal(p);
+});
+}
+}
 function renderHome(){
 renderPausedNotices();
 renderRegularEntry();
+renderHomeLiveNew();
 var grid = document.getElementById('homeGrid');
 var list = [];
 var regList = regularProducts();
