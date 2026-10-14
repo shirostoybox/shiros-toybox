@@ -932,7 +932,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-0040';
+var APP_VERSION = '20261015-0100';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5020,6 +5020,14 @@ return window.location.origin + '/p/' + encodeURIComponent(p.id);
 async function shareProductLink(p){
 if(!p) return;
 var url = productShareUrl(p);
+// 在 LINE 裡打開時：用 LINE 自己的分享視窗（直接選好友／群組，訊息馬上出現）
+try{
+if(window.liff && liff.isInClient && liff.isInClient() && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')){
+var r = await liff.shareTargetPicker([{ type:'text', text: p.name + '｜四郎玩具箱\n' + url }]);
+if(r) showToast('已分享 ♡');
+return;
+}
+}catch(e){ /* LINE 分享視窗打不開時，改用下面的方式 */ }
 try{
 if(navigator.share){ await navigator.share({ title: p.name + '｜四郎玩具箱', url: url }); return; }
 }catch(e){ if(e && e.name === 'AbortError') return; }
