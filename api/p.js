@@ -1,4 +1,4 @@
-// 商品分享連結：/p/商品編號
+// 商品分享連結：/p/商品編號　專區分享連結：/z/專區編號
 // LINE、Threads 來讀這個網址時，回傳商品名稱和照片（不放價格）當作預覽；
 // 客人點開後，自動轉到 LINE 裡的四郎玩具箱，並打開這個商品。
 const SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
@@ -11,7 +11,66 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+async function zonePage(req, res) {
+  const zoneId = String(req.query.zone || '').trim();
+  const note = String(req.query.n || '').trim().slice(0, 40);
+  let image = '';
+  let count = 0;
+  if (/^[A-Za-z0-9_\-]+$/.test(zoneId)) {
+    try {
+      const r = await fetch(
+        SUPABASE_URL + '/rest/v1/products?live_zone_id=eq.' + encodeURIComponent(zoneId) + '&stock_status=eq.live_limited&select=id,image_version',
+        { headers: { apikey: SUPABASE_KEY } }
+      );
+      if (r.ok) {
+        const rows = await r.json();
+        if (Array.isArray(rows) && rows.length) {
+          count = rows.length;
+          const last = rows[rows.length - 1];
+          image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + last.id + '.jpg' + (last.image_version ? '?v=' + last.image_version : '');
+        }
+      }
+    } catch (e) { /* 讀不到就用一般的預覽 */ }
+  }
+  const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
+  const pageUrl = 'https://' + host + '/z/' + encodeURIComponent(zoneId);
+  const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURIComponent(zoneId);
+  const title = '限時連線專區' + (note ? '｜' + note : '') + '｜四郎玩具箱';
+  const desc = (count ? count + ' 件限時商品開放喊單中・' : '') + '日本連線代購，點進來看看 ♡';
+  sendPage(res, { title, desc, image, pageUrl, goUrl, heading: '限時連線專區' + (note ? '｜' + note : '') });
+}
+
+function sendPage(res, o) {
+  const html = '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>' + esc(o.title) + '</title>'
+    + '<meta name="description" content="' + esc(o.desc) + '">'
+    + '<meta property="og:type" content="website">'
+    + '<meta property="og:site_name" content="四郎玩具箱">'
+    + '<meta property="og:title" content="' + esc(o.title) + '">'
+    + '<meta property="og:description" content="' + esc(o.desc) + '">'
+    + '<meta property="og:url" content="' + esc(o.pageUrl) + '">'
+    + (o.image ? '<meta property="og:image" content="' + esc(o.image) + '">' : '')
+    + '<meta name="twitter:card" content="summary_large_image">'
+    + '<meta name="twitter:title" content="' + esc(o.title) + '">'
+    + '<meta name="twitter:description" content="' + esc(o.desc) + '">'
+    + (o.image ? '<meta name="twitter:image" content="' + esc(o.image) + '">' : '')
+    + '<style>body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#171A24;color:#F3F4F8;font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;text-align:center;padding:24px;box-sizing:border-box}'
+    + 'img{width:160px;height:160px;object-fit:cover;border-radius:18px;background:#fff}a{color:#2FD8C9;font-weight:700}</style>'
+    + '</head><body>'
+    + (o.image ? '<img src="' + esc(o.image) + '" alt="">' : '')
+    + '<p style="margin:0;font-weight:700;">' + esc(o.heading) + '</p>'
+    + '<p style="margin:0;font-size:13px;color:#9AA0B4;">正在前往四郎玩具箱⋯</p>'
+    + '<a href="' + esc(o.goUrl) + '">沒有自動跳轉，請點這裡</a>'
+    + '<script>setTimeout(function(){location.replace(' + JSON.stringify(o.goUrl) + ');},300);</script>'
+    + '</body></html>';
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+  res.status(200).send(html);
+}
+
 module.exports = async (req, res) => {
+  if (req.query && req.query.zone) return zonePage(req, res);
   const id = String((req.query && req.query.id) || '').trim();
   let product = null;
   if (id && /^[A-Za-z0-9_\-]+$/.test(id)) {
