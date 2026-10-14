@@ -507,6 +507,14 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 #orderModal .modal-card{ max-height:92vh; max-height:92dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 #orderModal .modal-photo{ max-height:46vh; }
 #orderModalClose{ position:sticky; top:0; float:right; z-index:5; width:40px; height:40px; margin:-6px -6px -34px 0; font-size:17px; font-weight:700; color:var(--text-dark); background:rgba(255,255,255,.92); box-shadow:0 2px 10px rgba(0,0,0,.18); }
+.share-menu-overlay{ position:fixed; inset:0; z-index:400; background:rgba(10,12,18,.55); display:flex; align-items:flex-end; justify-content:center; }
+.share-menu-card{ width:100%; max-width:460px; background:var(--card); border-radius:22px 22px 0 0; padding:18px 16px calc(16px + env(safe-area-inset-bottom)); }
+.share-menu-title{ margin:0 4px 12px; font-size:14px; font-weight:800; color:var(--text-dark); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.share-menu-btn{ display:flex; align-items:center; gap:12px; width:100%; padding:12px; margin-bottom:8px; border:1px solid var(--line); border-radius:14px; background:#fff; text-align:left; font-family:var(--font-body); }
+.share-menu-ic{ font-size:22px; width:34px; text-align:center; }
+.share-menu-txt{ display:flex; flex-direction:column; gap:2px; color:var(--text-dark); font-size:14.5px; }
+.share-menu-txt small{ font-size:12px; color:var(--muted); font-weight:500; }
+.share-menu-cancel{ width:100%; margin-top:4px; padding:12px; border:none; border-radius:14px; background:var(--paper); color:var(--muted); font-size:14px; font-weight:700; font-family:var(--font-body); }
 .modal-share{ display:inline-flex; align-items:center; gap:4px; margin:6px 0 4px; padding:5px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--text-dark); font-size:12px; font-weight:700; font-family:var(--font-body); }
 .modal-sub{ margin:0 0 4px; font-size:12.5px; color:var(--muted); }
 .qty-row{ display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0; }
@@ -932,7 +940,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-0100';
+var APP_VERSION = '20261015-0130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5017,26 +5025,46 @@ return 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURICompone
 function productShareUrl(p){
 return window.location.origin + '/p/' + encodeURIComponent(p.id);
 }
+// 分享商品：跳出小選單，讓客人選「LINE 好友」、「其他 App（Threads、IG…）」或「複製連結」
+function closeShareMenu(){ var m = document.getElementById('shareMenu'); if(m) m.remove(); }
+function shareMenuButton(icon, label, sub){
+return '<button type="button" class="share-menu-btn"><span class="share-menu-ic">'+icon+'</span><span class="share-menu-txt"><b>'+label+'</b>'+(sub ? '<small>'+sub+'</small>' : '')+'</span></button>';
+}
+async function copyShareLink(url){
+try{ await navigator.clipboard.writeText(url); showToast('已複製商品連結 ♡'); }
+catch(e){ window.prompt('長按複製這個連結：', url); }
+}
 async function shareProductLink(p){
 if(!p) return;
+closeShareMenu();
 var url = productShareUrl(p);
-// 在 LINE 裡打開時：用 LINE 自己的分享視窗（直接選好友／群組，訊息馬上出現）
-try{
-if(window.liff && liff.isInClient && liff.isInClient() && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')){
-var r = await liff.shareTargetPicker([{ type:'text', text: p.name + '｜四郎玩具箱\n' + url }]);
-if(r) showToast('已分享 ♡');
-return;
-}
-}catch(e){ /* LINE 分享視窗打不開時，改用下面的方式 */ }
-try{
-if(navigator.share){ await navigator.share({ title: p.name + '｜四郎玩具箱', url: url }); return; }
-}catch(e){ if(e && e.name === 'AbortError') return; }
-try{
-await navigator.clipboard.writeText(url);
-showToast('已複製商品連結');
-}catch(e){
-window.prompt('長按複製這個連結：', url);
-}
+var text = p.name + '｜四郎玩具箱';
+var inLine = !!(window.liff && liff.isInClient && liff.isInClient());
+var canPicker = false;
+try{ canPicker = inLine && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }catch(e){}
+var canNative = !!navigator.share;
+var items = [];
+if(canPicker) items.push({ html: shareMenuButton('💬', '傳給 LINE 好友・群組', '直接選要傳給誰'), fn: async function(){
+try{ var r = await liff.shareTargetPicker([{ type:'text', text: text + '\n' + url }]); if(r) showToast('已分享 ♡'); }
+catch(e){ copyShareLink(url); }
+} });
+if(canNative) items.push({ html: shareMenuButton('📤', '分享到其他 App', 'Threads、IG、Messenger…'), fn: async function(){
+try{ await navigator.share({ title: text, url: url }); }catch(e){ if(!(e && e.name === 'AbortError')) copyShareLink(url); }
+} });
+items.push({ html: shareMenuButton('🔗', '複製連結', '貼到任何地方都可以'), fn: function(){ copyShareLink(url); } });
+// 只有一種方式時直接執行，不用多跳一層
+if(items.length === 1){ items[0].fn(); return; }
+var wrap = document.createElement('div');
+wrap.id = 'shareMenu';
+wrap.className = 'share-menu-overlay';
+wrap.innerHTML = '<div class="share-menu-card"><p class="share-menu-title">分享「'+escHtml(p.name)+'」</p>'
++ items.map(function(it){ return it.html; }).join('')
++ '<button type="button" class="share-menu-cancel">取消</button></div>';
+document.body.appendChild(wrap);
+var btns = wrap.querySelectorAll('.share-menu-btn');
+items.forEach(function(it, k){ btns[k].addEventListener('click', function(){ closeShareMenu(); it.fn(); }); });
+wrap.querySelector('.share-menu-cancel').addEventListener('click', closeShareMenu);
+wrap.addEventListener('click', function(e){ if(e.target === wrap) closeShareMenu(); });
 }
 async function shareZoneLink(zone){
 var url = zoneShareUrl(zone);
