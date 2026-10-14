@@ -32,6 +32,17 @@ async function zonePage(req, res) {
       }
     } catch (e) { /* 讀不到就用一般的預覽 */ }
   }
+  // 後台有上傳「分享封面圖」就優先用封面圖，沒有才用最新上架的商品照片
+  if (/^[A-Za-z0-9_\-]+$/.test(zoneId)) {
+    try {
+      const coverBase = SUPABASE_URL + '/storage/v1/object/public/product-images/zonecover-' + encodeURIComponent(zoneId) + '.jpg';
+      const h = await fetch(coverBase + '?check=' + Date.now(), { method: 'HEAD' });
+      if (h.ok) {
+        const tag = String(h.headers.get('etag') || h.headers.get('last-modified') || Date.now()).replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
+        image = coverBase + '?v=' + tag;
+      }
+    } catch (e) { /* 沒有封面圖就用商品照片 */ }
+  }
   const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
   const pageUrl = 'https://' + host + '/z/' + encodeURIComponent(zoneId);
   const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURIComponent(zoneId);
