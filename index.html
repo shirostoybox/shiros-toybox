@@ -940,7 +940,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-0130';
+var APP_VERSION = '20261015-0210';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5019,7 +5019,9 @@ if(url !== window.location.pathname + window.location.search){ history.replaceSt
 }
 // 分享專區連結：用 LINE 的 LIFF 網址，客人在 LINE 裡點開會直接登入並進到這個專區
 function zoneShareUrl(zone){
-return 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURIComponent(zone.id);
+// 自己網域的 /z/專區編號：LINE、Threads 會顯示專區預覽，點開後一樣進到 LINE 裡的專區
+var q = zone.note ? '?n=' + encodeURIComponent(zone.note) : '';
+return window.location.origin + '/z/' + encodeURIComponent(zone.id) + q;
 }
 // 分享商品：用自己網域的 /p/商品編號，LINE、Threads 讀得到商品名稱和照片（預覽不放價格）
 function productShareUrl(p){
@@ -5036,9 +5038,10 @@ catch(e){ window.prompt('長按複製這個連結：', url); }
 }
 async function shareProductLink(p){
 if(!p) return;
+openShareMenu(p.name, productShareUrl(p), p.name + '｜四郎玩具箱');
+}
+async function openShareMenu(label, url, text){
 closeShareMenu();
-var url = productShareUrl(p);
-var text = p.name + '｜四郎玩具箱';
 var inLine = !!(window.liff && liff.isInClient && liff.isInClient());
 var canPicker = false;
 try{ canPicker = inLine && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }catch(e){}
@@ -5057,7 +5060,7 @@ if(items.length === 1){ items[0].fn(); return; }
 var wrap = document.createElement('div');
 wrap.id = 'shareMenu';
 wrap.className = 'share-menu-overlay';
-wrap.innerHTML = '<div class="share-menu-card"><p class="share-menu-title">分享「'+escHtml(p.name)+'」</p>'
+wrap.innerHTML = '<div class="share-menu-card"><p class="share-menu-title">分享「'+escHtml(label)+'」</p>'
 + items.map(function(it){ return it.html; }).join('')
 + '<button type="button" class="share-menu-cancel">取消</button></div>';
 document.body.appendChild(wrap);
@@ -5067,17 +5070,8 @@ wrap.querySelector('.share-menu-cancel').addEventListener('click', closeShareMen
 wrap.addEventListener('click', function(e){ if(e.target === wrap) closeShareMenu(); });
 }
 async function shareZoneLink(zone){
-var url = zoneShareUrl(zone);
 var title = (zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '');
-try{
-if(navigator.share){ await navigator.share({ title: '四郎玩具箱・' + title, text: '四郎玩具箱・' + title, url: url }); return; }
-}catch(e){ if(e && e.name === 'AbortError') return; }
-try{
-await navigator.clipboard.writeText(url);
-showToast('已複製專區連結');
-}catch(e){
-window.prompt('長按複製這個連結：', url);
-}
+openShareMenu(title, zoneShareUrl(zone), '四郎玩具箱・' + title);
 }
 function showView(name){
 updatePageUrl(name);
