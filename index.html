@@ -99,6 +99,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .view-dark .live-status-note.is-off{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:var(--muted-light); }
 .view-dark .live-zone-hero.zone-black, .view-dark .live-entry.zone-black{ border:1px solid rgba(255,255,255,.12); }
 .view-dark .live-entry.is-idle{ background:rgba(255,255,255,.06); box-shadow:none; }
+.list-end-note{ margin:4px 20px 28px; padding:14px 16px; border-radius:var(--r-md); text-align:center; font-size:13px; font-weight:700; line-height:1.6; color:var(--muted); border:1px dashed var(--line); }
+.view-dark .list-end-note{ color:var(--muted-light); border-color:rgba(255,255,255,.2); }
 .hero-actions{ display:flex; flex-wrap:wrap; gap:10px; }
 .hero-links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .hero-link-chip{ font-family:var(--font-body); font-weight:600; font-size:12px; line-height:1.4; padding:11px 8px; border-radius:14px; border:1.5px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); color:var(--text-light); text-align:center; cursor:pointer; }
@@ -742,6 +744,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <p class="gacha-info-note">🥚 想留蛋殼 +NT$10</p>
 </div>
 <div class="grid" id="shopGrid"></div>
+<div id="shopEndNote"></div>
 </div>
 </section>
 <!-- LIVE CONNECTION -->
@@ -751,6 +754,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div id="liveStatusNote"></div>
 <div class="category-tabs" id="liveCategoryTabs"></div>
 <div class="grid" id="liveGrid"></div>
+<div id="liveEndNote"></div>
 <div id="liveEmpty"></div>
 </section>
 <!-- CART / REAL ORDERS -->
@@ -926,7 +930,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261013-1730';
+var APP_VERSION = '20261014-2215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4005,6 +4009,11 @@ if(p) openOrderModal(p);
 });
 }
 }
+// 商品列表最下面：提醒客人之後再回來看新品
+function setEndNote(id, show){
+var el = document.getElementById(id);
+if(el) el.innerHTML = show ? '<p class="list-end-note">🎉 已經看到最後囉～<br>商品持續更新中，記得再回來看看&nbsp;♡</p>' : '';
+}
 function renderHome(){
 renderPausedNotices();
 renderRegularEntry();
@@ -4035,7 +4044,8 @@ var grid = document.getElementById('shopGrid');
 var list = sortProductsByPrice(getFilteredShop());
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
-document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件';
+document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件・持續上架中 🔄';
+setEndNote('shopEndNote', !isRegularPaused() && list.length > 0);
 }
 var liveCategory = 'all';
 var currentLiveZoneId = null;
@@ -4132,7 +4142,8 @@ var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 var countEl = document.getElementById('liveCount');
-if(countEl) countEl.textContent = list.length ? list.length + ' 件' : '';
+if(countEl) countEl.textContent = list.length ? list.length + ' 件' + (isOpen ? '・持續上架中 🔄' : '') : '';
+setEndNote('liveEndNote', isOpen && list.length > 0);
 var noteEl = document.getElementById('liveStatusNote');
 if(noteEl){
 noteEl.innerHTML = isOpen
