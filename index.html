@@ -507,6 +507,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 #orderModal .modal-card{ max-height:92vh; max-height:92dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 #orderModal .modal-photo{ max-height:46vh; }
 #orderModalClose{ position:sticky; top:0; float:right; z-index:5; width:40px; height:40px; margin:-6px -6px -34px 0; font-size:17px; font-weight:700; color:var(--text-dark); background:rgba(255,255,255,.92); box-shadow:0 2px 10px rgba(0,0,0,.18); }
+.modal-share{ display:inline-flex; align-items:center; gap:4px; margin:6px 0 4px; padding:5px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--text-dark); font-size:12px; font-weight:700; font-family:var(--font-body); }
 .modal-sub{ margin:0 0 4px; font-size:12.5px; color:var(--muted); }
 .qty-row{ display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0; }
 .qty-row button{ width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--paper); font-size:18px; font-weight:700; color:var(--text-dark); }
@@ -615,6 +616,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div id="orderModalExtraPhotos" style="display:none;gap:8px;margin:-6px 0 14px;overflow-x:auto;"></div>
 <h3 id="orderModalTitle"></h3>
 <p class="modal-sub" id="orderModalSub"></p>
+<button type="button" class="modal-share" id="orderModalShare">🔗 分享這個商品</button>
 <div id="orderModalOptions" style="display:none;"></div>
 <div class="gacha-shell-choice" id="gachaShellChoice">
 <button class="shell-option active" type="button" data-shell="no">不留蛋殼</button>
@@ -930,7 +932,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261014-2215';
+var APP_VERSION = '20261015-0040';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1286,6 +1288,17 @@ var params = new URLSearchParams(search);
 var target = params.get('view');
 if(target === 'admin'){
 checkAdminAndMaybeShow();
+return;
+}
+// 分享的商品連結：?view=product&pid=商品編號 → 先進到商品所在的專區，再打開喊單視窗
+if(target === 'product'){
+var pid = params.get('pid');
+var prod = null;
+for(var pi=0; pi<PRODUCTS.length; pi++){ if(PRODUCTS[pi].id === pid) prod = PRODUCTS[pi]; }
+if(!prod){ showView('shop'); showToast('這個商品已經下架囉，看看其他商品吧 ♡'); return; }
+if(isLiveStock(prod.stock) && prod.liveZoneId){ openLiveZone(prod.liveZoneId); }
+else { showView('shop'); }
+setTimeout(function(){ openOrderModal(prod); }, 250);
 return;
 }
 var validTargets = ['home','shop','live','cart','wish','guide','payment','shipping','activity'];
@@ -4278,6 +4291,8 @@ var shellBtns = shellBox.querySelectorAll('.shell-option');
 for(var i=0;i<shellBtns.length;i++){ shellBtns[i].classList.toggle('active', shellBtns[i].getAttribute('data-shell')==='no'); }
 updateOrderModalSub();
 document.getElementById('qtyValue').textContent = '1';
+var shareBtn = document.getElementById('orderModalShare');
+if(shareBtn) shareBtn.onclick = function(){ shareProductLink(product); };
 document.getElementById('orderModal').classList.add('is-open');
 }
 function closeOrderModal(){
@@ -4997,6 +5012,23 @@ if(url !== window.location.pathname + window.location.search){ history.replaceSt
 // 分享專區連結：用 LINE 的 LIFF 網址，客人在 LINE 裡點開會直接登入並進到這個專區
 function zoneShareUrl(zone){
 return 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURIComponent(zone.id);
+}
+// 分享商品：用自己網域的 /p/商品編號，LINE、Threads 讀得到商品名稱和照片（預覽不放價格）
+function productShareUrl(p){
+return window.location.origin + '/p/' + encodeURIComponent(p.id);
+}
+async function shareProductLink(p){
+if(!p) return;
+var url = productShareUrl(p);
+try{
+if(navigator.share){ await navigator.share({ title: p.name + '｜四郎玩具箱', url: url }); return; }
+}catch(e){ if(e && e.name === 'AbortError') return; }
+try{
+await navigator.clipboard.writeText(url);
+showToast('已複製商品連結');
+}catch(e){
+window.prompt('長按複製這個連結：', url);
+}
 }
 async function shareZoneLink(zone){
 var url = zoneShareUrl(zone);
