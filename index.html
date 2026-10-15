@@ -962,7 +962,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-0135';
+var APP_VERSION = '20261016-0145';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3431,6 +3431,16 @@ return same[0].id === p.id
 ? '<span class="adm-dup is-orig">原本的・別改</span>'
 : '<span class="adm-dup is-copy">📋 複製的・改這件</span>';
 }
+// 改到「原本的」那件（同名的複製品還在）時，先跳確認擋一下
+function adminIsDupOriginal(productId){
+var p = null;
+for(var i=0;i<adminProductsCache.length;i++){ if(adminProductsCache[i].id === productId){ p = adminProductsCache[i]; break; } }
+return !!p && adminDupTagHTML(p).indexOf('is-orig') >= 0;
+}
+function adminConfirmEditOriginal(productId){
+if(!adminIsDupOriginal(productId)) return true;
+return window.confirm('⚠️ 這件是「原本的」，複製出來的那件還在。\n\n確定要改這件嗎？\n（建議改紫色「📋 複製的」那件）');
+}
 function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
@@ -3599,6 +3609,7 @@ var priceInput = document.querySelector('.admin-price-input[data-product-id="'+p
 var name = nameInput.value.trim();
 var price = parseInt(priceInput.value);
 if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+if(!adminConfirmEditOriginal(productId)) return;
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
 try{
 var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]');
@@ -3754,6 +3765,7 @@ async function handleAdminSlotUpload(input){
 var productId = input.getAttribute('data-product-id');
 var slot = input.getAttribute('data-slot');
 if(!input.files || !input.files[0]) return;
+if(!adminConfirmEditOriginal(productId)){ input.value = ''; return; }
 try{
 var compressed = await compressImage(input.files[0]);
 var upRes = await callMemberApi('admin-upload-product-image', { productId: productId, slot: slot, imageData: compressed });
@@ -3854,6 +3866,7 @@ async function handleAdminUploadImage(btn){
 var productId = btn.getAttribute('data-product-id');
 var input = document.querySelector('.admin-image-input[data-product-id="'+productId+'"]');
 if(!input.files || !input.files[0]){ alert('請先選擇圖片'); return; }
+if(!adminConfirmEditOriginal(productId)) return;
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '上傳中...';
 try{
 var compressed = await compressImage(input.files[0]);
