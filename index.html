@@ -955,7 +955,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-1710';
+var APP_VERSION = '20261015-1715';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3026,6 +3026,7 @@ navigator.clipboard.writeText(text).then(function(){ showToast('已複製，可�
 }
 // 商品熱度：最多人看／停留最久／很多人看但很少人喊
 var adminStatsSort = 'viewers';
+var adminStatsCat = 'all';
 var adminStatsData = null;
 async function loadAdminStats(){
 var listEl = document.getElementById('adminTabContent');
@@ -3047,6 +3048,17 @@ var views = Number(st.views || 0), viewers = Number(st.viewers || 0), secs = Num
 var orders = Number(oc[p.id] || 0);
 return { p:p, views:views, viewers:viewers, avg: views ? Math.round(secs / views) : 0, photos:Number(st.photo_views || 0), orders:orders, gap: viewers - orders * 3 };
 }).filter(function(r){ return r.views > 0; });
+// 分類篩選（用商品原本的分類名稱）
+var catSeen = {}, catList = [];
+rows.forEach(function(r){ var k = r.p.cat || '__none__'; if(!catSeen[k]){ catSeen[k] = { label: r.p.cat_label || catLabelFor(r.p.cat) || '其他', color: colorForCategory(r.p.cat), n:0 }; catList.push(k); } catSeen[k].n++; });
+if(adminStatsCat !== 'all' && !catSeen[adminStatsCat]) adminStatsCat = 'all';
+if(adminStatsCat !== 'all') rows = rows.filter(function(r){ return (r.p.cat || '__none__') === adminStatsCat; });
+var catChips = catList.length > 1
+? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">'
++ '<button type="button" class="cat-tab adm-stat-cat'+(adminStatsCat==='all'?' active':'')+'" data-cat="all" style="padding:7px 13px;font-size:13px;">全部分類</button>'
++ catList.map(function(k){ var c = catSeen[k], on = adminStatsCat === k;
+return '<button type="button" class="cat-tab adm-stat-cat'+(on?' active':'')+'" data-cat="'+escAttr(k)+'" style="padding:7px 13px;font-size:13px;'+(on?'':'background:'+c.color.tag+';color:'+c.color.tagText+';border-color:'+c.color.tag+';')+'">'+escHtml(c.label)+' '+c.n+'</button>'; }).join('')
++ '</div>' : '';
 var sorters = {
 viewers: function(a,b){ return b.viewers - a.viewers || b.views - a.views; },
 avg: function(a,b){ return b.avg - a.avg; },
@@ -3057,7 +3069,8 @@ if(adminStatsSort === 'gap') list = list.filter(function(r){ return r.viewers >=
 list.sort(sorters[adminStatsSort]);
 var chip = function(k, label){ return '<button type="button" class="cat-tab adm-stat-sort'+(adminStatsSort===k?' active':'')+'" data-sort="'+k+'" style="padding:7px 13px;font-size:13px;">'+label+'</button>'; };
 listEl.innerHTML = '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">客人打開商品的次數和停留時間（只記總數，不記是誰；客人看不到這頁）。你和小幫手自己點開不會算進去。</p>'
-+ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">' + chip('viewers','👀 最多人看') + chip('avg','⏱ 停留最久') + chip('gap','🤔 很多人看・很少人喊') + '</div>'
++ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">' + chip('viewers','👀 最多人看') + chip('avg','⏱ 停留最久') + chip('gap','🤔 很多人看・很少人喊') + '</div>'
++ catChips
 + (adminStatsSort === 'gap' ? '<p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6;">看過的人多、喊單少的商品。可以檢查價格、照片或規格說明是不是需要調整。</p>' : '')
 + (list.length ? list.slice(0, 60).map(function(r, i){
 return '<div class="adm-stat-row"><span class="adm-stat-rank">'+(i+1)+'</span>'
@@ -3067,6 +3080,8 @@ return '<div class="adm-stat-row"><span class="adm-stat-rank">'+(i+1)+'</span>'
 }).join('') : '<p style="font-size:14px;color:var(--muted);">'+(rows.length ? '目前沒有符合的商品' : '還沒有瀏覽資料，客人開始逛之後就會出現')+'</p>');
 var btns = listEl.querySelectorAll('.adm-stat-sort');
 for(var i=0;i<btns.length;i++){ btns[i].addEventListener('click', function(){ adminStatsSort = this.getAttribute('data-sort'); renderAdminStats(); }); }
+var cbtns = listEl.querySelectorAll('.adm-stat-cat');
+for(var j=0;j<cbtns.length;j++){ cbtns[j].addEventListener('click', function(){ adminStatsCat = this.getAttribute('data-cat'); renderAdminStats(); }); }
 }
 async function loadAdminSettings(){
 var listEl = document.getElementById('adminTabContent');
