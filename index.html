@@ -226,7 +226,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-sum.is-pay{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-over{ background:#1B1E27; color:#fff; }
 .adm-sum.is-ban{ background:#1B1E27; color:#fff; }
-.adm-p-cat{ margin:16px 0 6px; font-size:12.5px; font-weight:800; color:var(--muted); letter-spacing:.04em; }
+.adm-p-cat{ margin:18px 0 8px; display:flex; align-items:center; gap:8px; }
+.adm-o-cat{ margin:14px 0 2px; display:flex; align-items:center; gap:8px; }
+.adm-cat-pill{ display:inline-block; padding:4px 12px; border-radius:999px; font-size:12.5px; font-weight:800; }
+.adm-cat-n{ font-size:12px; color:var(--muted); font-weight:600; }
 .adm-p-item{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:11px 13px; margin-bottom:8px; }
 .adm-p-top{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
 .adm-p-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.4; }
@@ -943,7 +946,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-0220';
+var APP_VERSION = '20261015-1300';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1385,6 +1388,17 @@ var adminExpanded = {};                // 手動展開的客人
 var adminGroupsCache = [];
 var adminPurchaseStatus = 'all';       // all / pending / confirmed
 var adminPurchaseZone = 'all';         // all / regular / 專區id
+var adminPurchaseCat = 'all';          // all / 分類代號（例如 gacha）
+// 訂單的商品分類（用商品資料查，查不到就歸「其他」）
+function orderCatInfo(o){
+var prod = null;
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === o.product_id){ prod = PRODUCTS[i]; break; } }
+if(!prod) return { key:'__other__', label:'其他', color: colorForCategory('') };
+return { key: prod.cat || '__other__', label: prod.catLabel || catLabelFor(prod.cat) || '其他', color: colorForCategory(prod.cat) };
+}
+function catPillHTML(info, extra){
+return '<span class="adm-cat-pill" style="background:'+info.color.tag+';color:'+info.color.tagText+';">'+escHtml(info.label)+'</span>'+(extra || '');
+}
 function orderNeedsDeposit(o){ return !!o.deposit_required && !(Number(o.deposit_amount || 0) > 0); }
 function adminGroupKey(g){ return String(g.lineUid || g.nickname || ''); }
 function adminGroupCounts(g){
@@ -1539,7 +1553,8 @@ var pk = o.product_id || o.product_name;
 if(!pmap[pk]){
 var prod = null;
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === o.product_id){ prod = PRODUCTS[i]; break; } }
-pmap[pk] = { name:o.product_name, cat: prod ? (prod.catLabel || catLabelFor(prod.cat)) : '其他', qty:0, vmap:{}, vorder:[] };
+var ci = orderCatInfo(o);
+pmap[pk] = { name:o.product_name, cat: ci.label, catKey: ci.key, catInfo: ci, qty:0, vmap:{}, vorder:[] };
 porder.push(pk);
 }
 var P = pmap[pk], vk = o.variant || '';
@@ -1587,13 +1602,22 @@ groups.forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(o.is_li
 var zoneChips = adminChip('全部', adminPurchaseZone==='all', 'data-pzone="all"')
 + adminChip('📦 現貨・預購', adminPurchaseZone==='regular', 'data-pzone="regular"')
 + Object.keys(zoneIds).map(function(zid){ var z = zoneById(zid); return adminChip('⚡ '+escHtml(z ? zoneDisplayName(z.name, z.note) : '限時連線'), adminPurchaseZone===zid, 'data-pzone="'+escAttr(zid)+'"'); }).join('');
-var prods = adminPurchaseProducts(groups);
+var allProds = adminPurchaseProducts(groups);
+// 分類篩選：到了某一間店（例如扭蛋區），只看這個分類要買什麼
+var catSeen = {}, catList = [];
+allProds.forEach(function(P){ if(!catSeen[P.catKey]){ catSeen[P.catKey] = { info:P.catInfo, n:0 }; catList.push(P.catKey); } catSeen[P.catKey].n += P.qty; });
+if(adminPurchaseCat !== 'all' && !catSeen[adminPurchaseCat]) adminPurchaseCat = 'all';
+var catChips = '<button type="button" class="cat-tab'+(adminPurchaseCat==='all'?' active':'')+'" data-pcat="all" style="padding:7px 13px;font-size:13px;">全部分類</button>'
++ catList.map(function(k){ var c = catSeen[k]; var on = adminPurchaseCat === k;
+return '<button type="button" class="cat-tab adm-pcat'+(on?' active':'')+'" data-pcat="'+escAttr(k)+'" style="padding:7px 13px;font-size:13px;'+(on?'':'background:'+c.info.color.tag+';color:'+c.info.color.tagText+';border-color:'+c.info.color.tag+';')+'">'+escHtml(c.info.label)+' '+c.n+'</button>'; }).join('');
+var prods = adminPurchaseCat === 'all' ? allProds : allProds.filter(function(P){ return P.catKey === adminPurchaseCat; });
 var byCat = {}, cats = [];
 prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
 cats.forEach(function(c){ byCat[c].sort(function(a,b){ return a.name.localeCompare(b.name, 'zh-Hant'); }); });
 var totalQty = prods.reduce(function(a,P){ return a + P.qty; }, 0);
 var list = cats.map(function(c){
-return '<p class="adm-p-cat">'+escHtml(c)+'</p>'
+var catQty = byCat[c].reduce(function(a,P){ return a + P.qty; }, 0);
+return '<p class="adm-p-cat">'+catPillHTML(byCat[c][0].catInfo, '<span class="adm-cat-n">'+byCat[c].length+' 樣・'+catQty+' 件</span>')+'</p>'
 + byCat[c].map(function(P){
 var multi = P.variants.length > 1 || P.variants[0].variant;
 return '<div class="adm-p-item">'
@@ -1615,7 +1639,8 @@ return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'
 + adminChip('只看待確認', adminPurchaseStatus==='pending', 'data-pstatus="pending"')
 + adminChip('只看已確認', adminPurchaseStatus==='confirmed', 'data-pstatus="confirmed"')
 + '</div>'
-+ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">'+zoneChips+'</div>'
++ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'+zoneChips+'</div>'
++ (catList.length > 1 ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">'+catChips+'</div>' : '<div style="height:4px;"></div>')
 + '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;">'
 + '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0;">共 '+prods.length+' 樣商品・'+totalQty+' 件</p>'
 + (prods.length ? '<button type="button" class="btn btn--dark" id="admCopyPurchase" style="padding:8px 14px;font-size:12.5px;">📋 複製清單</button>' : '')
@@ -1629,6 +1654,8 @@ var sBtns = listEl.querySelectorAll('[data-pstatus]');
 for(var i=0;i<sBtns.length;i++){ sBtns[i].addEventListener('click', function(){ adminPurchaseStatus = this.getAttribute('data-pstatus'); renderAdminOrders(); }); }
 var zBtns = listEl.querySelectorAll('[data-pzone]');
 for(var j=0;j<zBtns.length;j++){ zBtns[j].addEventListener('click', function(){ adminPurchaseZone = this.getAttribute('data-pzone'); renderAdminOrders(); }); }
+var cBtns = listEl.querySelectorAll('[data-pcat]');
+for(var cb=0; cb<cBtns.length; cb++){ cBtns[cb].addEventListener('click', function(){ adminPurchaseCat = this.getAttribute('data-pcat'); renderAdminOrders(); }); }
 // 單筆確認／缺貨：沿用客人訂單那邊的同一套處理（訂金規則一樣）
 bindAdminGroupActions(listEl);
 var allBtns = listEl.querySelectorAll('.adm-p-all');
@@ -1840,7 +1867,12 @@ var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return admin
 var restrictBtnHtml = (!g.orderRestricted && cnt.overdue)
 ? '<button class="admin-restrict-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
 : '';
-var openHtml = g.openOrders.map(adminOpenOrderRowHTML).join('');
+// 客人的喊單依商品分類分組（例如：扭蛋、美妝），到店裡比較好找
+var openCatMap = {}, openCats = [];
+g.openOrders.forEach(function(o){ var ci = orderCatInfo(o); if(!openCatMap[ci.key]){ openCatMap[ci.key] = { info:ci, list:[] }; openCats.push(ci.key); } openCatMap[ci.key].list.push(o); });
+var openHtml = openCats.length > 1
+? openCats.map(function(k){ var c = openCatMap[k]; return '<p class="adm-o-cat">'+catPillHTML(c.info, '<span class="adm-cat-n">'+c.list.length+' 筆</span>')+'</p>' + c.list.map(adminOpenOrderRowHTML).join(''); }).join('')
+: g.openOrders.map(adminOpenOrderRowHTML).join('');
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
 ? '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
 : '';
