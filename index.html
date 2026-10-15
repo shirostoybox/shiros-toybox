@@ -207,6 +207,9 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-prod-info{ flex:1; min-width:0; }
 .adm-prod-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .adm-prod-meta{ margin:3px 0 0; font-size:12px; color:var(--muted); font-weight:600; }
+.adm-dup{ display:inline-block; margin-left:6px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:800; vertical-align:2px; }
+.adm-dup.is-orig{ background:#E5E7EB; color:#4B5563; }
+.adm-dup.is-copy{ background:#EDE9FE; color:#5B21B6; }
 .adm-prod-arrow{ flex:0 0 auto; font-size:14px; color:var(--muted); transition:transform .15s; }
 .adm-prod.is-open .adm-prod-arrow{ transform:rotate(90deg); }
 .adm-seg{ display:flex; gap:6px; padding:4px; margin:0 0 12px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-full); }
@@ -959,7 +962,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-2150';
+var APP_VERSION = '20261016-0135';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3418,6 +3421,16 @@ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 }
 // 後台商品卡片預設收起來，只顯示縮圖＋名稱＋價格，點一下才展開編輯（記住展開過的）
 var adminProductExpanded = {};
+// 同名的商品（剛複製、還沒改名）標出哪一件是「原本的」、哪一件是「複製的」：最早建立的是原本的
+function adminDupTagHTML(p){
+var nm = String(p.name || '').trim();
+var same = adminProductsCache.filter(function(x){ return String(x.name || '').trim() === nm; });
+if(same.length < 2) return '';
+same.sort(function(a, b){ return String(a.created_at || '').localeCompare(String(b.created_at || '')); });
+return same[0].id === p.id
+? '<span class="adm-dup is-orig">原本的・別改</span>'
+: '<span class="adm-dup is-copy">📋 複製的・改這件</span>';
+}
 function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
@@ -3430,7 +3443,7 @@ var isOpen = !!adminProductExpanded[p.id];
 return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-id="'+p.id+'" style="'+borderStyle+'">'
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
-+ '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+'</p>'
++ '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
 + '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">'+productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) })+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+'</p></div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
@@ -3594,6 +3607,7 @@ await callMemberApi('admin-update-product-info', Object.assign({ productId: prod
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
 var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
 for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; } } }
+adminProductsCache.forEach(function(cp){ var el = document.querySelector('.adm-prod-name[data-product-id="'+cp.id+'"]'); if(el) el.innerHTML = escHtml(cp.name) + adminDupTagHTML(cp); });
 showToast('已儲存');
 }catch(e){
 alert('儲存失敗：' + e.message);
@@ -5229,8 +5243,14 @@ var q = zone.note ? '?n=' + encodeURIComponent(zone.note) : '';
 return window.location.origin + '/z/' + encodeURIComponent(zone.id) + q;
 }
 // 分享商品：用自己網域的 /p/商品編號，LINE、Threads 讀得到商品名稱和照片（預覽不放價格）
+// 連結後面加「版本號」：商品名稱或照片一改，版本號就跟著變，LINE 會當成新網址重新抓預覽（不會顯示舊的名稱／圖片）
+function productShareVer(p){
+var str = String(p.name || '') + '|' + String(p.imageVersion || 0), h = 0;
+for(var i=0;i<str.length;i++){ h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+return (h >>> 0).toString(36).slice(0, 6);
+}
 function productShareUrl(p){
-return window.location.origin + '/p/' + encodeURIComponent(p.id);
+return window.location.origin + '/p/' + encodeURIComponent(p.id) + '?v=' + productShareVer(p);
 }
 // 分享商品：跳出小選單，讓客人選「LINE 好友」、「其他 App（Threads、IG…）」或「複製連結」
 function closeShareMenu(){ var m = document.getElementById('shareMenu'); if(m) m.remove(); }
