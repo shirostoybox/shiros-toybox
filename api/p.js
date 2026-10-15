@@ -98,7 +98,9 @@ module.exports = async (req, res) => {
   }
 
   const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
-  const pageUrl = 'https://' + host + '/p/' + encodeURIComponent(id);
+  // 分享連結帶的 ?v= 版本號也放進 og:url，LINE 等 App 才會把它當成新網址重新抓預覽
+  const ver = String((req.query && req.query.v) || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
+  const pageUrl = 'https://' + host + '/p/' + encodeURIComponent(id) + (ver ? '?v=' + ver : '');
   const goUrl = product
     ? 'https://liff.line.me/' + LIFF_ID + '?view=product&pid=' + encodeURIComponent(product.id)
     : 'https://liff.line.me/' + LIFF_ID;
