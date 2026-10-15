@@ -513,6 +513,8 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .admin-zone-cover-box{ position:relative; width:100%; aspect-ratio:1200/630; border-radius:12px; overflow:hidden; background:var(--paper); border:1px dashed var(--line); }
 .admin-zone-cover-img{ display:block; width:100%; height:100%; object-fit:cover; }
 .admin-zone-cover-empty{ display:none; position:absolute; inset:0; align-items:center; justify-content:center; text-align:center; font-size:12px; color:var(--muted); line-height:1.6; }
+.zone-trip-date{ display:inline-block; vertical-align:middle; margin-left:8px; padding:3px 10px; border-radius:999px; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.35); font-size:12.5px; font-weight:800; letter-spacing:.02em; white-space:nowrap; }
+.live-entry-date{ display:inline-block; margin:2px 6px 3px 0; padding:1px 8px; border-radius:999px; background:rgba(255,255,255,.18); font-size:11.5px; font-weight:800; vertical-align:middle; }
 .share-menu-overlay{ position:fixed; inset:0; z-index:400; background:rgba(10,12,18,.55); display:flex; align-items:flex-end; justify-content:center; }
 .share-menu-card{ width:100%; max-width:460px; background:var(--card); border-radius:22px 22px 0 0; padding:18px 16px calc(16px + env(safe-area-inset-bottom)); }
 .share-menu-title{ margin:0 4px 12px; font-size:14px; font-weight:800; color:var(--text-dark); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -946,7 +948,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261015-1300';
+var APP_VERSION = '20261015-1310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2300,7 +2302,8 @@ return '<div class="admin-zone-card" data-zone-id="'+escAttr(z.id)+'" style="bor
 + '</div>'
 + '<div class="admin-zone-edit" style="display:none;margin-top:10px;">'
 + '<input type="text" class="gate-input admin-zone-name" value="'+escAttr(z.name||'')+'" placeholder="專區名稱" style="margin-bottom:8px;">'
-+ '<input type="text" class="gate-input admin-zone-note" value="'+escAttr(z.note||'')+'" placeholder="備註（地點或小幫手名字，例如：岡山・小美）" style="margin-bottom:6px;">'
++ '<input type="text" class="gate-input admin-zone-note" value="'+escAttr(z.note||'')+'" placeholder="備註（地點或小幫手名字，例如：岡山・小美）" style="margin-bottom:8px;">'
++ '<input type="text" class="gate-input admin-zone-date" value="'+escAttr(z.trip_date||'')+'" placeholder="出國日期（例如：10/26～10/31，可以不填）" style="margin-bottom:6px;">'
 + '<p style="font-size:12px;color:var(--muted);margin:0;">顏色</p>'
 + zoneSwatchesHTML('zone-'+z.id, colorVal)
 + '<div class="admin-zone-cover">'
@@ -2319,6 +2322,7 @@ html += '<button type="button" class="btn btn--dark btn--full" id="adminZoneNewT
 + '<div id="adminZoneNewForm" style="display:'+(LIVE_ZONES.length ? 'none' : 'block')+';margin-top:10px;">'
 + '<input type="text" class="gate-input" id="nzName" value="限時連線專區" placeholder="專區名稱">'
 + '<input type="text" class="gate-input" id="nzNote" placeholder="備註（地點或小幫手名字，例如：岡山・小美）">'
++ '<input type="text" class="gate-input" id="nzDate" placeholder="出國日期（例如：10/26～10/31，可以不填）">'
 + '<p style="font-size:12px;color:var(--muted);margin:0;">顏色</p>'
 + zoneSwatchesHTML('new', 'gold')
 + '<button type="button" class="btn btn--primary btn--full" id="nzSubmit">建立並開啟</button>'
@@ -2407,10 +2411,11 @@ async function handleAdminCreateZone(){
 var btn = document.getElementById('nzSubmit');
 var name = document.getElementById('nzName').value.trim() || '限時連線專區';
 var note = document.getElementById('nzNote').value.trim();
+var tripDate = (document.getElementById('nzDate') || { value:'' }).value.trim();
 var color = selectedSwatch(document.getElementById('adminZoneNewForm'));
 btn.disabled = true; btn.textContent = '建立中...';
 try{
-var res = await callMemberApi('admin-create-live-zone', { name: name, note: note, color: color });
+var res = await callMemberApi('admin-create-live-zone', { name: name, note: note, tripDate: tripDate, color: color });
 adminLiveZoneFilter = res.zoneId;
 showToast('專區已建立並開啟');
 await loadAdminProducts();
@@ -2422,10 +2427,11 @@ btn.disabled = false; btn.textContent = '建立並開啟';
 async function handleAdminSaveZone(card, zoneId, btn){
 var name = card.querySelector('.admin-zone-name').value.trim() || '限時連線專區';
 var note = card.querySelector('.admin-zone-note').value.trim();
+var tripDate = card.querySelector('.admin-zone-date') ? card.querySelector('.admin-zone-date').value.trim() : '';
 var color = selectedSwatch(card);
 btn.disabled = true;
 try{
-await callMemberApi('admin-update-live-zone', { zoneId: zoneId, name: name, note: note, color: color });
+await callMemberApi('admin-update-live-zone', { zoneId: zoneId, name: name, note: note, tripDate: tripDate, color: color });
 showToast('已儲存');
 await loadAdminProducts();
 }catch(e){
@@ -4168,6 +4174,7 @@ return '<button type="button" class="live-entry '+zoneColorClass(z)+'" data-zone
 + '<span class="live-entry-icon">'+LIVE_ICON_SVG+'</span>'
 + '<span class="live-entry-text">'
 + '<span class="live-entry-top"><span class="live-entry-title">'+escHtml(z.name || '限時連線專區')+'</span><span class="live-badge"><span class="live-dot"></span>LIVE</span></span>'
++ (z.trip_date ? '<span class="live-entry-date">✈︎ '+escHtml(z.trip_date)+'</span>' : '')
 + (z.note ? '<span class="live-entry-note">'+escHtml(z.note)+'</span> ' : '')
 + '<span class="live-entry-sub">'+sub+'</span>'
 + '<span class="live-entry-cta">'+(available > 0 ? '立即進入喊單' : '進入專區看看')+' <b>›</b></span>'
@@ -4186,7 +4193,7 @@ var isOpen = !!(zone && zone.is_open);
 var heroEl = document.getElementById('liveZoneHero');
 if(heroEl){
 heroEl.innerHTML = zone
-? '<div class="live-zone-hero is-compact '+zoneColorClass(zone)+'"><button type="button" class="zone-share-btn" id="zoneShareBtn">🔗 分享專區</button><h2 style="padding-right:96px;">'+escHtml(zone.name || '限時連線專區')+'</h2>'
+? '<div class="live-zone-hero is-compact '+zoneColorClass(zone)+'"><button type="button" class="zone-share-btn" id="zoneShareBtn">🔗 分享專區</button><h2 style="padding-right:96px;">'+escHtml(zone.name || '限時連線專區')+(zone.trip_date ? '<span class="zone-trip-date">✈︎ '+escHtml(zone.trip_date)+'</span>' : '')+'</h2>'
 + (zone.note ? '<span class="live-entry-note" style="margin:6px 0 0;">'+escHtml(zone.note)+'</span>' : '')
 + '<p>'+(isOpen ? '限時連線商品數量有限，依喊單順序採購 ♥' : '這個專區的連線已結束，謝謝大家的支持 ♡')+'</p></div>'
 : '';
