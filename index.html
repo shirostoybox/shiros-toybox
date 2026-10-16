@@ -941,7 +941,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <p>符合以上條件後：<br>♡ 新成員可獲得免運券1張<br>♡ 邀請人也可獲得免運券1張</p>
 <p>▸ 同一位新成員僅能計算1次，不得重複計入邀請名額<br>▸ 邀請完成後，請私訊官方LINE／留言告知「新成員LINE群暱稱」，方便登記</p>
 <h3>免運券使用規則</h3>
-<p>▸ 商品消費金額滿NT$1,500可使用1張<br>▸ 每筆訂單限使用1張<br>▸ 每張最高折抵運費$60<br>▸ 超過$60的運費需補差額<br>▸ 不得與其他免運優惠重複使用<br>▸ 使用免運券時，持券人需仍為社群成員<br>▸ 免運券沒有使用期限<br>▸ 免運券可於四郎玩具箱訂單使用 🇯🇵</p>
+<p>▸ 商品消費金額滿NT$1,000（含）可使用1張<br>▸ 每筆訂單限使用1張<br>▸ 每張最高折抵運費$60<br>▸ 超過$60的運費需補差額<br>▸ 不得與其他免運優惠重複使用<br>▸ 使用免運券時，持券人需仍為社群成員<br>▸ 免運券沒有使用期限<br>▸ 免運券可於四郎玩具箱訂單使用 🇯🇵</p>
 <h3>活動期限</h3>
 <p>活動至社群人數滿150人截止。</p>
 <h3>注意事項</h3>
@@ -994,7 +994,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-2215';
+var APP_VERSION = '20261016-2230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5143,11 +5143,11 @@ if(myBalance.referralCouponBalance > 0 || myBalance.couponBalance > 0 || (myBala
 html += '<p class="settle-section-title">使用優惠券</p>';
 }
 if(myBalance.referralCouponBalance > 0){
-var canReferral = subtotal > 1500;
+var canReferral = subtotal >= 1000;
 html += '<label class="settle-radio'+(canReferral?'':' settle-radio--disabled')+'">'
 + '<input type="checkbox" id="settleUseReferral"'+(canReferral?'':' disabled')+'>'
 + '使用1張免運券（-NT$60，持有'+myBalance.referralCouponBalance+'張）'
-+ (canReferral?'':'<br><span style="font-size:11.5px;">需商品小計超過NT$1,500才能使用</span>')
++ (canReferral?'':'<br><span style="font-size:11.5px;">需商品小計滿NT$1,000才能使用</span>')
 + '</label>';
 }
 if(myBalance.couponBalance > 0){
