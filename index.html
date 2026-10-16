@@ -994,7 +994,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-2130';
+var APP_VERSION = '20261016-2215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5447,10 +5447,27 @@ if(url !== window.location.pathname + window.location.search){ history.replaceSt
 function zoneCoverUrl(zoneId, v){
 return SUPABASE_URL + '/storage/v1/object/public/product-images/zonecover-' + encodeURIComponent(zoneId) + '.jpg' + (v ? '?v=' + v : '');
 }
-function zoneShareUrl(zone){
+function zoneShareUrl(zone, ver){
 // 自己網域的 /z/專區編號：LINE、Threads 會顯示專區預覽，點開後一樣進到 LINE 裡的專區
-var q = zone.note ? '?n=' + encodeURIComponent(zone.note) : '';
-return window.location.origin + '/z/' + encodeURIComponent(zone.id) + q;
+// 後面加「版本號」：封面圖或商品數量一變，網址就不同，LINE 會重新抓預覽（不會一直顯示舊的圖）
+var qs = [];
+if(zone.note) qs.push('n=' + encodeURIComponent(zone.note));
+if(ver) qs.push('v=' + ver);
+return window.location.origin + '/z/' + encodeURIComponent(zone.id) + (qs.length ? '?' + qs.join('&') : '');
+}
+// 專區分享版本號：封面圖最後更新時間＋這個專區的商品數量
+async function zoneShareVer(zone){
+var str = '';
+try{
+var r = await fetch(zoneCoverUrl(zone.id, Date.now()), { method:'HEAD' });
+if(r.ok) str += (r.headers.get('last-modified') || r.headers.get('etag') || '');
+}catch(e){}
+var n = 0;
+PRODUCTS.forEach(function(p){ if(p.stock === 'live_limited' && (p.liveZoneId || 'z_default') === zone.id) n++; });
+str += '|' + n + '|' + (zone.note || '');
+var h = 0;
+for(var i=0;i<str.length;i++){ h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+return (h >>> 0).toString(36).slice(0, 6);
 }
 // 分享商品：用自己網域的 /p/商品編號，LINE、Threads 讀得到商品名稱和照片（預覽不放價格）
 // 連結後面加「版本號」：商品名稱或照片一改，版本號就跟著變，LINE 會當成新網址重新抓預覽（不會顯示舊的名稱／圖片）
@@ -5510,7 +5527,8 @@ wrap.addEventListener('click', function(e){ if(e.target === wrap) closeShareMenu
 }
 async function shareZoneLink(zone){
 var title = (zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '');
-openShareMenu(title, zoneShareUrl(zone), '四郎玩具箱・' + title);
+var ver = await zoneShareVer(zone);
+openShareMenu(title, zoneShareUrl(zone, ver), '四郎玩具箱・' + title);
 }
 function showView(name){
 updatePageUrl(name);
