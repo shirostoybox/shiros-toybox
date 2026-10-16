@@ -973,7 +973,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-0900';
+var APP_VERSION = '20261016-1040';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4044,7 +4044,6 @@ return '<img src="'+imgUrl+'" alt="'+p.name+'" class="product-photo zoomable" da
 + spinBadge;
 }
 function cardHTML(p){
-var favClass = favorites[p.id] ? 'is-fav' : '';
 var isUnavailable = (p.stock === 'sold_out' || p.stock === 'live_ended');
 var stockLabel;
 if(isUnavailable){ stockLabel = '已售完（尋寶中）'; }
@@ -4068,7 +4067,6 @@ var depositNoteHTML = (p.stock === 'live_limited' && productPriceRange(p).max >=
 : '';
 return '<article class="card">'
 + '<div class="card-visual">' + visualHTML(p)
-+ '<button class="fav-btn ' + favClass + '" data-fav="' + p.id + '" aria-label="收藏">' + ICONS.heart + '</button>'
 + '</div>'
 + '<div class="card-body">'
 + (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
@@ -4081,12 +4079,6 @@ return '<article class="card">'
 + '</div></article>';
 }
 function bindCardButtons(container){
-var favs = container.querySelectorAll('.fav-btn');
-for(var i=0;i<favs.length;i++){
-favs[i].addEventListener('click', (function(btn){
-return function(){ btn.classList.toggle('is-fav'); favorites[btn.getAttribute('data-fav')] = btn.classList.contains('is-fav'); };
-})(favs[i]));
-}
 var orderBtns = container.querySelectorAll('.card-order-btn');
 for(var j=0;j<orderBtns.length;j++){
 orderBtns[j].addEventListener('click', (function(btn){
