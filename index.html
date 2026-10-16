@@ -994,7 +994,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-1215';
+var APP_VERSION = '20261016-1220';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1213,14 +1213,24 @@ t.classList.add('is-visible');
 setTimeout(function(){ t.classList.remove('is-visible'); }, 1800);
 }
 /* ---------- LIFF init + login ---------- */
+// 從社群公告的連結（go.html?from=group）進來 → 記住，新客人跳過「步驟 1 加入社群」
+function rememberFromGroup(){
+try{
+var q = window.location.search || '';
+var st = new URLSearchParams(q).get('liff.state') || '';
+if(/[?&]from=group\b/.test(q) || /[?&]from=group\b/.test(st)) localStorage.setItem('communityStepDone', '1');
+}catch(e){}
+}
 async function initApp(){
 showLoading('連接LINE中...');
+rememberFromGroup();
 try{
 await liff.init({ liffId: LIFF_ID });
 }catch(e){
 showError('LIFF初始化失敗，請確認網址設定是否正確（' + (e && e.message ? e.message : '未知錯誤') + '）');
 return;
 }
+rememberFromGroup();
 if(!liff.isLoggedIn()){
 hideLoading();
 document.getElementById('loginGate').classList.add('is-open');
