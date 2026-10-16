@@ -44,7 +44,11 @@ async function zonePage(req, res) {
     } catch (e) { /* 沒有封面圖就用商品照片 */ }
   }
   const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
-  const pageUrl = 'https://' + host + '/z/' + encodeURIComponent(zoneId);
+  const zver = String(req.query.v || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
+  const zqs = [];
+  if (note) zqs.push('n=' + encodeURIComponent(note));
+  if (zver) zqs.push('v=' + zver);
+  const pageUrl = 'https://' + host + '/z/' + encodeURIComponent(zoneId) + (zqs.length ? '?' + zqs.join('&') : '');
   const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=live&zone=' + encodeURIComponent(zoneId);
   const title = '限時連線專區' + (note ? '｜' + note : '') + '｜四郎玩具箱';
   const desc = (count ? count + ' 件限時商品開放喊單中・' : '') + '日本連線代購，點進來看看 ♡';
