@@ -994,7 +994,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-1220';
+var APP_VERSION = '20261016-1705';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1233,7 +1233,12 @@ return;
 rememberFromGroup();
 if(!liff.isLoggedIn()){
 hideLoading();
-document.getElementById('loginGate').classList.add('is-open');
+// 還沒登入（例如從 Threads／IG 點進來）：第一次來的先看「步驟 1 加入社群」，按下一步才去 LINE 登入；
+// 已經按過「我已經加入了」的直接自動去 LINE 登入，不用再按「使用LINE登入」
+var stepDone = false;
+try{ stepDone = localStorage.getItem('communityStepDone') === '1'; }catch(e){}
+if(!stepDone){ document.getElementById('communityGate').classList.add('is-open'); return; }
+goLineLogin(true);
 return;
 }
 showLoading('讀取會員資料中...');
@@ -1278,6 +1283,16 @@ try{ done = localStorage.getItem('communityStepDone') === '1'; }catch(e){}
 if(done){ openVerifyGate(code); return; }
 hideLoading();
 document.getElementById('communityGate').classList.add('is-open');
+}
+// 去 LINE 登入；自動登入每次開網站只試一次，取消或失敗就顯示「使用LINE登入」按鈕，避免一直跳轉
+function goLineLogin(auto){
+var tried = false;
+try{ tried = sessionStorage.getItem('autoLoginTried') === '1'; }catch(e){}
+document.getElementById('loginGate').classList.add('is-open');
+if(auto && tried) return;
+try{ sessionStorage.setItem('autoLoginTried', '1'); }catch(e){}
+rememberDeepLink();
+liff.login({ redirectUri: window.location.href });
 }
 function genVerifyCode(){
 return String(Math.floor(100000 + Math.random()*900000));
@@ -5583,6 +5598,7 @@ document.getElementById('communityJoinBtn').addEventListener('click', openCommun
 document.getElementById('communityNextBtn').addEventListener('click', function(){
 try{ localStorage.setItem('communityStepDone', '1'); }catch(e){}
 document.getElementById('communityGate').classList.remove('is-open');
+if(!liff.isLoggedIn()){ goLineLogin(false); return; }
 openVerifyGate(communityPendingCode);
 });
 document.getElementById('joinCommunityBtn').addEventListener('click', function(){
