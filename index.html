@@ -994,7 +994,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-1705';
+var APP_VERSION = '20261016-2130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1060,8 +1060,8 @@ var LUXURY_COUPON_VALUE = 50;
 var REWARD_COUPON_VALUE = 60;
 // 商品選項（尺寸／顏色…）：後台用逗號分開填寫，例如「XS, S, M, L」或「01 粉色, 02 膚色」
 var SIZE_PRESET = ['XS','S','M','L','XL','2XL'];
-// 更多照片欄位 2～11 號（加封面總共 11 張）
-var EXTRA_PHOTO_SLOTS = [2,3,4,5,6,7,8,9,10,11];
+// 更多照片欄位 2～13 號（加封面總共 13 張）
+var EXTRA_PHOTO_SLOTS = [2,3,4,5,6,7,8,9,10,11,12,13];
 // 每件商品記錄「哪幾格有更多照片」（photo_slots，例如 "2,3,5"），只讀有照片的格子。
 // 還沒記錄過的舊商品（null）才退回去 10 格都檢查一遍，舊照片不會不見
 var PHOTO_SLOTS = {};
@@ -1096,12 +1096,12 @@ if(k && v > 0 && (!allowed || allowed.indexOf(k) !== -1)) out[k] = v;
 });
 return out;
 }
-// 規格一每個選項對應的照片：{"毛毛":3}，1＝封面，2～11＝更多照片
+// 規格一每個選項對應的照片：{"毛毛":3}，1＝封面，2～13＝更多照片
 function parseOptionPhotos(raw){
 var obj = raw, out = {};
 if(typeof raw === 'string'){ try{ obj = raw ? JSON.parse(raw) : {}; }catch(e){ obj = {}; } }
 if(!obj || typeof obj !== 'object') return out;
-Object.keys(obj).forEach(function(k){ var v = parseInt(obj[k], 10); if(k && v >= 1 && v <= 11) out[k] = v; });
+Object.keys(obj).forEach(function(k){ var v = parseInt(obj[k], 10); if(k && v >= 1 && v <= 13) out[k] = v; });
 return out;
 }
 function hasOptionPrices(p){ return !!(p && p.optionPrices && Object.keys(p.optionPrices).length); }
@@ -1221,6 +1221,19 @@ var st = new URLSearchParams(q).get('liff.state') || '';
 if(/[?&]from=group\b/.test(q) || /[?&]from=group\b/.test(st)) localStorage.setItem('communityStepDone', '1');
 }catch(e){}
 }
+// 測試用：連結帶 reset=1 → 清掉「已按過下一步」的記錄並登出，模擬第一次來的客人（網址裡的 reset 會拿掉，避免登入後又被清）
+function resetForTest(){
+try{
+var params = new URLSearchParams(window.location.search);
+if(params.get('reset') !== '1') return;
+localStorage.removeItem('communityStepDone');
+sessionStorage.removeItem('autoLoginTried');
+params.delete('reset');
+var qs = params.toString();
+history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+if(liff.isLoggedIn()) liff.logout();
+}catch(e){}
+}
 async function initApp(){
 showLoading('連接LINE中...');
 rememberFromGroup();
@@ -1231,6 +1244,7 @@ showError('LIFF初始化失敗，請確認網址設定是否正確（' + (e && e
 return;
 }
 rememberFromGroup();
+resetForTest();
 if(!liff.isLoggedIn()){
 hideLoading();
 // 還沒登入（例如從 Threads／IG 點進來）：第一次來的先看「步驟 1 加入社群」，按下一步才去 LINE 登入；
@@ -4608,7 +4622,7 @@ depositEl.textContent = existingCount > 0
 depositEl.style.display = 'none';
 }
 }
-// 喊單視窗的大圖換成某一張（1＝封面，2～11＝更多照片），下面對應的小縮圖框起來
+// 喊單視窗的大圖換成某一張（1＝封面，2～13＝更多照片），下面對應的小縮圖框起來
 function setOrderModalPhoto(product, slot){
 var url = productImageUrl(product.id, slot > 1 ? slot : null);
 var photoEl = document.getElementById('orderModalPhoto');
