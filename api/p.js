@@ -87,7 +87,7 @@ module.exports = async (req, res) => {
   if (id && /^[A-Za-z0-9_\-]+$/.test(id)) {
     try {
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?id=eq.' + encodeURIComponent(id) + '&select=id,name,sub,image_version',
+        SUPABASE_URL + '/rest/v1/products?id=eq.' + encodeURIComponent(id) + '&select=id,name,sub,image_version,options,option_photos',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
@@ -100,17 +100,27 @@ module.exports = async (req, res) => {
   const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
   // 分享連結帶的 ?v= 版本號也放進 og:url，LINE 等 App 才會把它當成新網址重新抓預覽
   const ver = String((req.query && req.query.v) || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
-  const pageUrl = 'https://' + host + '/p/' + encodeURIComponent(id) + (ver ? '?v=' + ver : '');
+  // ?o=選項（例如角色）：只接受這件商品規格一裡有的選項
+  let opt = String((req.query && req.query.o) || '').trim().slice(0, 40);
+  const optList = product ? String(product.options || '').split(/[,，、\n]/).map((x) => x.trim()).filter(Boolean) : [];
+  if (!optList.includes(opt)) opt = '';
+  let optPhotos = {};
+  try { optPhotos = product && product.option_photos ? JSON.parse(product.option_photos) : {}; } catch (e) { optPhotos = {}; }
+  const optSlot = opt ? parseInt(optPhotos[opt], 10) : 0;
+  const qs = [];
+  if (ver) qs.push('v=' + ver);
+  if (opt) qs.push('o=' + encodeURIComponent(opt));
+  const pageUrl = 'https://' + host + '/p/' + encodeURIComponent(id) + (qs.length ? '?' + qs.join('&') : '');
   const goUrl = product
-    ? 'https://liff.line.me/' + LIFF_ID + '?view=product&pid=' + encodeURIComponent(product.id)
+    ? 'https://liff.line.me/' + LIFF_ID + '?view=product&pid=' + encodeURIComponent(product.id) + (opt ? '&opt=' + encodeURIComponent(opt) : '')
     : 'https://liff.line.me/' + LIFF_ID;
 
-  const title = product ? product.name + '｜四郎玩具箱' : '四郎玩具箱';
+  const title = product ? product.name + (opt ? '・' + opt : '') + '｜四郎玩具箱' : '四郎玩具箱';
   const desc = product && product.sub
     ? product.sub + '・日本連線代購，點進來看看 ♡'
     : '日本連線代購・點進來看看 ♡';
   const image = product
-    ? SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + '.jpg' + (product.image_version ? '?v=' + product.image_version : '')
+    ? SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + (optSlot > 1 && optSlot <= 11 ? '-' + optSlot : '') + '.jpg' + (product.image_version ? '?v=' + product.image_version : '')
     : '';
 
   const html = '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
