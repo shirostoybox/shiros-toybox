@@ -635,9 +635,19 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <button class="btn btn--dark btn--full" id="loginGateBtn">使用LINE登入</button>
 </div>
 </div>
+<div class="gate-overlay" id="communityGate">
+<div class="gate-card">
+<p class="gate-eyebrow">步驟 1/3・加入社群</p>
+<h2>👋 第一次來嗎？</h2>
+<p class="gate-desc">四郎玩具箱是 LINE 社群會員制，活動和連線通知都在社群裡 📢<br>請先加入社群，再完成會員綁定就能開始喊單 ♡</p>
+<button type="button" class="btn btn--primary btn--full" id="communityJoinBtn" style="background:#06C755;border-color:#06C755;">加入四郎玩具箱社群 ›</button>
+<button type="button" class="btn btn--ghost btn--full" id="communityNextBtn" style="margin-top:10px;color:var(--text-dark);border-color:var(--line);">我已經加入了，下一步</button>
+<p class="verify-status">加入社群後，回到這個畫面按「下一步」</p>
+</div>
+</div>
 <div class="gate-overlay" id="nicknameGate">
 <div class="gate-card">
-<p class="gate-eyebrow">需完成個人資料</p>
+<p class="gate-eyebrow" id="nicknameEyebrow">需完成個人資料</p>
 <h2>還差一步</h2>
 <p class="gate-desc">請填寫妳的LINE社群暱稱，方便之後對照訂單與聯繫</p>
 <p style="margin:-6px 0 14px;font-size:12px;line-height:1.6;color:var(--ignis-deep);">⚠️ 請先加入LINE社群並取得社群暱稱，務必填寫正確的LINE社群暱稱</p>
@@ -652,9 +662,9 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 <div class="gate-overlay" id="verifyGate">
 <div class="gate-card">
-<p class="gate-eyebrow">加好友已完成</p>
-<h2>還差最後一步</h2>
-<p class="gate-desc">請把下面這組驗證碼傳送給「四郎玩具箱」官方帳號，完成後就能正式成為會員</p>
+<p class="gate-eyebrow">步驟 2/3・會員綁定</p>
+<h2>綁定 LINE 官方帳號</h2>
+<p class="gate-desc">請把下面這組會員綁定碼傳送給「四郎玩具箱」官方帳號，完成後就能正式成為會員</p>
 <div class="verify-code-box"><span id="verifyCodeText">------</span><button class="copy-btn" id="verifyCodeCopy">複製</button></div>
 <a class="btn btn--primary btn--full link-btn" id="verifyGoLine" href="#">前往官方帳號傳送</a>
 <button class="btn btn--ghost btn--full" id="verifyRecheck" style="margin-top:10px;color:var(--text-dark);border-color:var(--line);">已經傳送了，重新檢查</button>
@@ -984,7 +994,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-1200';
+var APP_VERSION = '20261016-1215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1239,7 +1249,8 @@ showError('資料庫連線失敗：' + e.message);
 return;
 }
 if(!data.isVerified){
-openVerifyGate(data.verifyCode);
+// 新客人：先請他加入社群（步驟 1/3），再傳會員綁定碼（2/3）、填社群暱稱（3/3）
+openCommunityGate(data.verifyCode);
 return;
 }
 if(!data.nickname){
@@ -1248,6 +1259,15 @@ openNicknameGate();
 currentUser.nickname = data.nickname;
 startApp();
 }
+}
+var communityPendingCode = '';
+function openCommunityGate(code){
+communityPendingCode = code;
+var done = false;
+try{ done = localStorage.getItem('communityStepDone') === '1'; }catch(e){}
+if(done){ openVerifyGate(code); return; }
+hideLoading();
+document.getElementById('communityGate').classList.add('is-open');
 }
 function genVerifyCode(){
 return String(Math.floor(100000 + Math.random()*900000));
@@ -1277,6 +1297,10 @@ startApp();
 }
 function openNicknameGate(){
 hideLoading();
+// 從新客人流程過來的，標示步驟 3/3
+var fromNew = false;
+try{ fromNew = localStorage.getItem('communityStepDone') === '1'; }catch(e){}
+if(fromNew) document.getElementById('nicknameEyebrow').textContent = '步驟 3/3・填寫社群暱稱';
 document.getElementById('nicknameGate').classList.add('is-open');
 }
 async function submitNickname(){
@@ -1336,7 +1360,7 @@ var raw = localStorage.getItem('pendingDeepLink');
 localStorage.removeItem('pendingDeepLink');
 if(!raw) return '';
 var d = JSON.parse(raw);
-if(d && d.q && Date.now() - d.t < 10 * 60 * 1000) return d.q;
+if(d && d.q && Date.now() - d.t < 30 * 60 * 1000) return d.q;
 }catch(e){}
 return '';
 }
@@ -5538,6 +5562,19 @@ backBtns[bk].addEventListener('click', (function(b){ return function(){ showView
 var searchInput = document.getElementById('shopSearch');
 if(searchInput){ searchInput.addEventListener('input', function(e){ currentQuery = e.target.value; renderShop(); }); }
 document.getElementById('nicknameSubmit').addEventListener('click', submitNickname);
+function openCommunityLink(){
+var url = 'https://line.me/ti/g2/6eKephXLnV_w7uW_rM89DwXmkefupLX2B0WZZA?utm_source=invitation&utm_medium=link_copy&utm_campaign=default';
+try{
+if(window.liff && liff.isInClient && liff.isInClient()){ liff.openWindow({ url: url, external: false }); return; }
+}catch(e){}
+window.location.href = url;
+}
+document.getElementById('communityJoinBtn').addEventListener('click', openCommunityLink);
+document.getElementById('communityNextBtn').addEventListener('click', function(){
+try{ localStorage.setItem('communityStepDone', '1'); }catch(e){}
+document.getElementById('communityGate').classList.remove('is-open');
+openVerifyGate(communityPendingCode);
+});
 document.getElementById('joinCommunityBtn').addEventListener('click', function(){
 var url = 'https://line.me/ti/g2/6eKephXLnV_w7uW_rM89DwXmkefupLX2B0WZZA?utm_source=invitation&utm_medium=link_copy&utm_campaign=default';
 // 在LINE裡打開時用LIFF開，會直接跳到社群加入頁；不在LINE裡就直接開連結
@@ -5548,12 +5585,12 @@ window.location.href = url;
 });
 document.getElementById('verifyRecheck').addEventListener('click', async function(){
 await checkVerifyOnce();
-if(document.getElementById('verifyGate').classList.contains('is-open')){ showToast('還沒偵測到，請確認驗證碼已送出'); }
+if(document.getElementById('verifyGate').classList.contains('is-open')){ showToast('還沒偵測到，請確認會員綁定碼已送出'); }
 });
 document.getElementById('verifyCodeCopy').addEventListener('click', function(){
 var code = document.getElementById('verifyCodeText').textContent;
 if(navigator.clipboard && navigator.clipboard.writeText){
-navigator.clipboard.writeText(code).then(function(){ showToast('已複製驗證碼'); }).catch(function(){ showToast('複製失敗，請手動選取'); });
+navigator.clipboard.writeText(code).then(function(){ showToast('已複製會員綁定碼'); }).catch(function(){ showToast('複製失敗，請手動選取'); });
 } else {
 showToast('請手動選取複製');
 }
