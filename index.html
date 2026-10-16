@@ -210,6 +210,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-dup{ display:inline-block; margin-left:6px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:800; vertical-align:2px; }
 .adm-dup.is-orig{ background:#E5E7EB; color:#4B5563; }
 .adm-dup.is-copy{ background:#EDE9FE; color:#5B21B6; }
+.adm-orig-warn{ margin:12px 0 0; padding:9px 11px; border-radius:10px; background:#FEF3C7; color:#92400E; font-size:12.5px; font-weight:800; line-height:1.6; }
 .adm-prod-arrow{ flex:0 0 auto; font-size:14px; color:var(--muted); transition:transform .15s; }
 .adm-prod.is-open .adm-prod-arrow{ transform:rotate(90deg); }
 .adm-seg{ display:flex; gap:6px; padding:4px; margin:0 0 12px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-full); }
@@ -962,7 +963,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-0145';
+var APP_VERSION = '20261016-0830';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3437,10 +3438,32 @@ var p = null;
 for(var i=0;i<adminProductsCache.length;i++){ if(adminProductsCache[i].id === productId){ p = adminProductsCache[i]; break; } }
 return !!p && adminDupTagHTML(p).indexOf('is-orig') >= 0;
 }
+var adminOrigEditOk = {};
 function adminConfirmEditOriginal(productId){
-if(!adminIsDupOriginal(productId)) return true;
-return window.confirm('⚠️ 這件是「原本的」，複製出來的那件還在。\n\n確定要改這件嗎？\n（建議改紫色「📋 複製的」那件）');
+if(adminOrigEditOk[productId] || !adminIsDupOriginal(productId)) return true;
+var ok = window.confirm('⚠️ 這件是「原本的」，複製出來的那件還在。\n\n確定要改這件嗎？\n（建議改紫色「📋 複製的」那件）');
+if(ok) adminOrigEditOk[productId] = true;
+return ok;
 }
+function adminOrigWarnHTML(p){
+return adminDupTagHTML(p).indexOf('is-orig') >= 0
+? '<p class="adm-orig-warn" data-product-id="'+p.id+'">⚠️ 這件是「原本的」，要上架新商品請改紫色「📋 複製的」那件</p>' : '';
+}
+// 一點到「原本的」那件的任何欄位就先提醒（不用等改完按儲存）；按取消就收起來
+document.addEventListener('focusin', function(e){
+var t = e.target;
+if(!t || !t.closest) return;
+var body = t.closest('.adm-prod-body');
+if(!body) return;
+var card = body.closest('.adm-prod');
+var pid = card && card.getAttribute('data-product-id');
+if(!pid || adminOrigEditOk[pid] || !adminIsDupOriginal(pid)) return;
+if(adminConfirmEditOriginal(pid)) return;
+t.blur();
+body.style.display = 'none';
+card.classList.remove('is-open');
+adminProductExpanded[pid] = false;
+});
 function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
@@ -3458,6 +3481,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
++ adminOrigWarnHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
@@ -3618,7 +3642,7 @@ await callMemberApi('admin-update-product-info', Object.assign({ productId: prod
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
 var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
 for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; } } }
-adminProductsCache.forEach(function(cp){ var el = document.querySelector('.adm-prod-name[data-product-id="'+cp.id+'"]'); if(el) el.innerHTML = escHtml(cp.name) + adminDupTagHTML(cp); });
+adminProductsCache.forEach(function(cp){ var el = document.querySelector('.adm-prod-name[data-product-id="'+cp.id+'"]'); if(el) el.innerHTML = escHtml(cp.name) + adminDupTagHTML(cp); var w = document.querySelector('.adm-orig-warn[data-product-id="'+cp.id+'"]'); if(w && !adminOrigWarnHTML(cp)) w.remove(); });
 showToast('已儲存');
 }catch(e){
 alert('儲存失敗：' + e.message);
