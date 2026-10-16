@@ -123,6 +123,17 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .admin-optp-toggle{ display:flex; gap:6px; align-items:center; font-size:12.5px; font-weight:700; color:var(--text-dark); }
 .admin-optp-list{ margin-top:8px; }
 .admin-optp-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.admin-oph{ margin:8px 0 10px; padding-top:8px; border-top:1px dashed var(--line); }
+.admin-oph-title{ margin:0 0 6px; font-size:12.5px; font-weight:800; color:var(--text-dark); }
+.admin-oph-row{ margin:0 0 8px; }
+.admin-oph-row > span{ display:block; font-size:12.5px; font-weight:800; color:var(--text-dark); margin:0 0 4px; }
+.admin-oph-thumbs{ display:flex; gap:6px; overflow-x:auto; padding:2px; }
+.admin-oph-thumb{ position:relative; flex:0 0 46px; width:46px; height:46px; padding:0; border:2px solid transparent; border-radius:9px; background:var(--paper); overflow:hidden; cursor:pointer; }
+.admin-oph-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.admin-oph-thumb.is-on{ border-color:#7C4DDB; box-shadow:0 0 0 2px #EDE9FE; }
+.admin-oph-thumb.is-on::after{ content:'✓'; position:absolute; right:2px; bottom:1px; width:16px; height:16px; border-radius:50%; background:#7C4DDB; color:#fff; font-size:11px; font-weight:900; line-height:16px; text-align:center; }
+.admin-oph-thumb small{ position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); color:#fff; font-size:9px; font-weight:700; text-align:center; }
+.modal-extra-thumb.is-opt{ outline:3px solid var(--ignis); outline-offset:-3px; }
 .admin-optp-row span{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--text-dark); }
 .admin-optp-row .gate-input{ width:110px; flex:0 0 110px; margin:0; }
 .admin-size-chip{ padding:5px 10px; border-radius:999px; border:1.5px solid var(--line); background:#fff; font-size:12px; font-weight:700; color:var(--muted); font-family:var(--font-body); }
@@ -973,7 +984,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-1040';
+var APP_VERSION = '20261016-1200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1075,6 +1086,14 @@ if(k && v > 0 && (!allowed || allowed.indexOf(k) !== -1)) out[k] = v;
 });
 return out;
 }
+// 規格一每個選項對應的照片：{"毛毛":3}，1＝封面，2～11＝更多照片
+function parseOptionPhotos(raw){
+var obj = raw, out = {};
+if(typeof raw === 'string'){ try{ obj = raw ? JSON.parse(raw) : {}; }catch(e){ obj = {}; } }
+if(!obj || typeof obj !== 'object') return out;
+Object.keys(obj).forEach(function(k){ var v = parseInt(obj[k], 10); if(k && v >= 1 && v <= 11) out[k] = v; });
+return out;
+}
 function hasOptionPrices(p){ return !!(p && p.optionPrices && Object.keys(p.optionPrices).length); }
 // 這個選項的單價（沒有另外設定就用商品價格）
 function productUnitPrice(p, opt){
@@ -1123,7 +1142,7 @@ var res = await supabaseClient.from('products').select('*').order('featured', { 
 if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), createdAt:p.created_at || '' };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '' };
 });
 rememberImageVersions(PRODUCTS);
 await loadLiveZones();
@@ -1339,7 +1358,8 @@ for(var pi=0; pi<PRODUCTS.length; pi++){ if(PRODUCTS[pi].id === pid) prod = PROD
 if(!prod){ showView('shop'); showToast('這個商品已經下架囉，看看其他商品吧 ♡'); return; }
 if(isLiveStock(prod.stock) && prod.liveZoneId){ openLiveZone(prod.liveZoneId); }
 else { showView('shop'); }
-setTimeout(function(){ openOrderModal(prod); }, 250);
+var presetOpt = params.get('opt') || '';
+setTimeout(function(){ openOrderModal(prod, presetOpt); }, 250);
 return;
 }
 var validTargets = ['home','shop','live','cart','wish','guide','payment','shipping','activity'];
@@ -3498,7 +3518,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
-+ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '')
++ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
@@ -3550,8 +3570,9 @@ return '<div class="admin-opt-group" data-g="'+g+'" style="margin-top:'+(g===1?'
 + '<textarea class="gate-input admin-opt-values" rows="2" placeholder="'+valuesPh+'" style="margin-bottom:0;resize:vertical;">'+escHtml(list.join(', '))+'</textarea>'
 + '</div>';
 }
-function adminOptionsEditorHTML(key, label, options, label2, options2, optionPrices){
+function adminOptionsEditorHTML(key, label, options, label2, options2, optionPrices, optionPhotos){
 var priceMap = parseOptionPrices(optionPrices || '');
+var isRow = String(key).indexOf('row-') === 0;
 var on = Object.keys(priceMap).length > 0;
 return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:0 0 8px;padding:10px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);">'
 + '<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:var(--text-dark);">客人可選的規格（最多兩組，例如顏色＋尺寸；沒有就留空）</p>'
@@ -3560,6 +3581,7 @@ return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:
 + '<label class="admin-optp-toggle"><input type="checkbox" class="admin-optp-on"'+(on?' checked':'')+'> 規格一每個選項價格不一樣</label>'
 + '<div class="admin-optp-list" style="display:'+(on?'block':'none')+';"></div>'
 + '</div>'
++ (isRow ? '<div class="admin-oph" data-pid="'+escAttr(String(key).slice(4))+'" data-photos="'+escAttr(JSON.stringify(parseOptionPhotos(optionPhotos || '')))+'"></div>' : '')
 + adminOptionGroupHTML(2, label2 || '', options2 || '', '規格名稱，例如：尺寸', '選項用逗號分開，例如：S, M, L')
 + '</div>';
 }
@@ -3583,6 +3605,34 @@ box.setAttribute('data-prices', JSON.stringify(m));
 });
 }
 }
+// 規格一「每個選項對應照片」：每個選項一排小縮圖（封面＋更多照片），點一下選、再點一次取消
+function renderAdminOptPhotos(ed){
+var box = ed.querySelector('.admin-oph'); if(!box) return;
+var pid = box.getAttribute('data-pid');
+var list = parseOptionList(ed.querySelector('.admin-opt-group[data-g="1"] .admin-opt-values').value);
+var map = {}; try{ map = JSON.parse(box.getAttribute('data-photos') || '{}'); }catch(e){}
+var slots = [1].concat(knownPhotoSlots(pid) || []);
+if(!list.length){ box.innerHTML = '<p class="admin-oph-title">📷 每個選項對應照片</p><p style="margin:0;font-size:11.5px;color:var(--muted);">先在上面填規格一的選項</p>'; return; }
+if(slots.length < 2){ box.innerHTML = '<p class="admin-oph-title">📷 每個選項對應照片</p><p style="margin:0;font-size:11.5px;color:var(--muted);">先在下面「更多照片」上傳每個選項的照片，再回來這裡選</p>'; return; }
+box.innerHTML = '<p class="admin-oph-title">📷 每個選項對應照片（客人點選項時大圖會換成這張；可不選）</p>'
++ list.map(function(o){
+return '<div class="admin-oph-row"><span>'+escHtml(o)+'</span><div class="admin-oph-thumbs">'
++ slots.map(function(n){
+return '<button type="button" class="admin-oph-thumb'+(map[o] === n ? ' is-on' : '')+'" data-opt="'+escAttr(o)+'" data-slot="'+n+'"><img src="'+productImageUrl(pid, n > 1 ? n : null)+'" alt="" onerror="this.style.visibility=\'hidden\';">'+(n === 1 ? '<small>封面</small>' : '')+'</button>';
+}).join('') + '</div></div>';
+}).join('')
++ '<p style="margin:2px 0 0;font-size:11.5px;color:var(--muted);">選好後記得按「儲存商品資訊」</p>';
+var btns = box.querySelectorAll('.admin-oph-thumb');
+for(var i=0;i<btns.length;i++){
+btns[i].addEventListener('click', function(){
+var m = {}; try{ m = JSON.parse(box.getAttribute('data-photos') || '{}'); }catch(e){}
+var o = this.getAttribute('data-opt'), n = parseInt(this.getAttribute('data-slot'), 10);
+if(m[o] === n) delete m[o]; else m[o] = n;
+box.setAttribute('data-photos', JSON.stringify(m));
+renderAdminOptPhotos(ed);
+});
+}
+}
 function readAdminOptionEditor(ed){
 if(!ed) return {};
 var g1 = ed.querySelector('.admin-opt-group[data-g="1"]');
@@ -3597,6 +3647,12 @@ var pbox = ed.querySelector('.admin-optp');
 var pmap = {};
 if(pbox && pbox.querySelector('.admin-optp-on').checked){ try{ pmap = parseOptionPrices(pbox.getAttribute('data-prices') || '{}', parseOptionList(out.options)); }catch(e){} }
 out.optionPrices = Object.keys(pmap).length ? JSON.stringify(pmap) : '';
+var phbox = ed.querySelector('.admin-oph');
+if(phbox){
+var phm = {}, phAll = {}; try{ phAll = JSON.parse(phbox.getAttribute('data-photos') || '{}'); }catch(e){}
+parseOptionList(out.options).forEach(function(o){ if(phAll[o]) phm[o] = phAll[o]; });
+out.optionPhotos = Object.keys(phm).length ? JSON.stringify(phm) : '';
+}
 // 只填了規格二、規格一空著 → 自動挪到規格一
 if(!parseOptionList(out.options).length && parseOptionList(out.options2).length){
 out.optionLabel = out.optionLabel2; out.options = out.options2; out.optionLabel2 = ''; out.options2 = '';
@@ -3608,12 +3664,13 @@ var eds = container.querySelectorAll('.admin-opt-editor');
 for(var q=0; q<eds.length; q++){
 (function(ed){
 renderAdminOptPrices(ed);
+renderAdminOptPhotos(ed);
 var vals = ed.querySelector('.admin-opt-group[data-g="1"] .admin-opt-values');
-vals.addEventListener('input', function(){ renderAdminOptPrices(ed); });
+vals.addEventListener('input', function(){ renderAdminOptPrices(ed); renderAdminOptPhotos(ed); });
 var chk = ed.querySelector('.admin-optp-on');
 chk.addEventListener('change', function(){ ed.querySelector('.admin-optp-list').style.display = chk.checked ? 'block' : 'none'; });
 var chips1 = ed.querySelectorAll('.admin-opt-group[data-g="1"] .admin-size-chip');
-for(var c=0;c<chips1.length;c++){ chips1[c].addEventListener('click', function(){ setTimeout(function(){ renderAdminOptPrices(ed); }, 0); }); }
+for(var c=0;c<chips1.length;c++){ chips1[c].addEventListener('click', function(){ setTimeout(function(){ renderAdminOptPrices(ed); renderAdminOptPhotos(ed); }, 0); }); }
 })(eds[q]);
 }
 var groups = container.querySelectorAll('.admin-opt-group');
@@ -3683,7 +3740,7 @@ var optPayload = readAdminOptionEditor(optEd);
 await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price, renameOrders: renameOrders }, optPayload));
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
 var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
-for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; } } }
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; if(optPayload.optionPhotos !== undefined) adminProductsCache[ci].option_photos = optPayload.optionPhotos; } } }
 adminProductsCache.forEach(function(cp){ var el = document.querySelector('.adm-prod-name[data-product-id="'+cp.id+'"]'); if(el) el.innerHTML = escHtml(cp.name) + adminDupTagHTML(cp); var w = document.querySelector('.adm-orig-warn[data-product-id="'+cp.id+'"]'); if(w && !adminOrigWarnHTML(cp)) w.remove(); });
 showToast('已儲存');
 }catch(e){
@@ -3826,6 +3883,8 @@ slotDeleteBtns[sd].addEventListener('click', function(e){ e.stopPropagation(); h
 function setCachedPhotoSlots(productId, slotsText){
 PHOTO_SLOTS[productId] = parsePhotoSlots(slotsText);
 for(var i=0;i<adminProductsCache.length;i++){ if(adminProductsCache[i].id === productId) adminProductsCache[i].photo_slots = slotsText; }
+// 更多照片有變動 → 「每個選項對應照片」的縮圖一起更新
+var phEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]'); if(phEd) renderAdminOptPhotos(phEd);
 }
 async function handleAdminSlotUpload(input){
 var productId = input.getAttribute('data-product-id');
@@ -4500,7 +4559,16 @@ depositEl.textContent = existingCount > 0
 depositEl.style.display = 'none';
 }
 }
-function openOrderModal(product){
+// 喊單視窗的大圖換成某一張（1＝封面，2～11＝更多照片），下面對應的小縮圖框起來
+function setOrderModalPhoto(product, slot){
+var url = productImageUrl(product.id, slot > 1 ? slot : null);
+var photoEl = document.getElementById('orderModalPhoto');
+photoEl.src = url;
+photoEl.setAttribute('data-zoom', url);
+var thumbs = document.querySelectorAll('#orderModalExtraPhotos .modal-extra-thumb');
+for(var i=0;i<thumbs.length;i++){ thumbs[i].classList.toggle('is-opt', slot > 1 && thumbs[i].getAttribute('data-zoom') === url); }
+}
+function openOrderModal(product, presetOpt){
 if(isRegularPaused() && !isLiveStock(product.stock)){
 alert('限時連線忙碌中，暫停現貨與預購連線喊單。\n欲購買商品可以先以限時連線為主，也可以許願 ♡');
 return;
@@ -4550,11 +4618,19 @@ var chips = row.querySelectorAll('.opt-chip');
 for(var oc=0; oc<chips.length; oc++){
 chips[oc].addEventListener('click', function(){
 if(g === '2') orderModalOption2 = this.getAttribute('data-opt'); else orderModalOption = this.getAttribute('data-opt');
+// 這個選項有設定對應照片 → 大圖自動換成那張
+// 沒設定照片的選項 → 換回封面（避免停在上一個選項的照片）
+if(g !== '2' && product.optionPhotos && Object.keys(product.optionPhotos).length) setOrderModalPhoto(product, product.optionPhotos[orderModalOption] || 1);
 for(var k=0;k<chips.length;k++){ chips[k].classList.toggle('active', chips[k] === this); }
 updateOrderModalSub();
 });
 }
 })(chipRows[cr]);
+}
+// 從分享連結進來、指定了選項 → 直接幫客人選好
+if(presetOpt){
+var pre = optBox.querySelectorAll('.opt-chips[data-g="1"] .opt-chip');
+for(var pc=0; pc<pre.length; pc++){ if(pre[pc].getAttribute('data-opt') === presetOpt){ pre[pc].click(); break; } }
 }
 } else {
 optBox.style.display = 'none';
@@ -5315,13 +5391,14 @@ return window.location.origin + '/z/' + encodeURIComponent(zone.id) + q;
 }
 // 分享商品：用自己網域的 /p/商品編號，LINE、Threads 讀得到商品名稱和照片（預覽不放價格）
 // 連結後面加「版本號」：商品名稱或照片一改，版本號就跟著變，LINE 會當成新網址重新抓預覽（不會顯示舊的名稱／圖片）
-function productShareVer(p){
-var str = String(p.name || '') + '|' + String(p.imageVersion || 0), h = 0;
+function productShareVer(p, opt){
+var slot = (opt && p.optionPhotos && p.optionPhotos[opt]) || '';
+var str = String(p.name || '') + '|' + String(p.imageVersion || 0) + '|' + (opt || '') + ':' + slot, h = 0;
 for(var i=0;i<str.length;i++){ h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
 return (h >>> 0).toString(36).slice(0, 6);
 }
-function productShareUrl(p){
-return window.location.origin + '/p/' + encodeURIComponent(p.id) + '?v=' + productShareVer(p);
+function productShareUrl(p, opt){
+return window.location.origin + '/p/' + encodeURIComponent(p.id) + '?v=' + productShareVer(p, opt) + (opt ? '&o=' + encodeURIComponent(opt) : '');
 }
 // 分享商品：跳出小選單，讓客人選「LINE 好友」、「其他 App（Threads、IG…）」或「複製連結」
 function closeShareMenu(){ var m = document.getElementById('shareMenu'); if(m) m.remove(); }
@@ -5334,7 +5411,10 @@ catch(e){ window.prompt('長按複製這個連結：', url); }
 }
 async function shareProductLink(p){
 if(!p) return;
-openShareMenu(p.name, productShareUrl(p), p.name + '｜四郎玩具箱');
+// 喊單視窗裡已經選了規格一（例如角色）→ 連結帶上這個選項：預覽用它的照片，客人點開直接幫他選好
+var opt = (orderModalProduct && orderModalProduct.id === p.id && orderModalOption) ? orderModalOption : '';
+var label = p.name + (opt ? '・' + opt : '');
+openShareMenu(label, productShareUrl(p, opt), label + '｜四郎玩具箱');
 }
 async function openShareMenu(label, url, text){
 closeShareMenu();
