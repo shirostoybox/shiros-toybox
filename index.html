@@ -210,6 +210,16 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-dup{ display:inline-block; margin-left:6px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:800; vertical-align:2px; }
 .adm-dup.is-orig{ background:#E5E7EB; color:#4B5563; }
 .adm-dup.is-copy{ background:#EDE9FE; color:#5B21B6; }
+.rn-mask{ position:fixed; inset:0; z-index:9999; background:rgba(15,17,26,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
+.rn-box{ width:100%; max-width:360px; background:#fff; border-radius:18px; padding:20px 18px 16px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+.rn-box h4{ margin:0 0 6px; font-size:16px; font-weight:900; color:var(--ink); }
+.rn-box p{ margin:0 0 14px; font-size:13px; color:var(--muted); line-height:1.6; }
+.rn-box p b{ color:var(--ink); }
+.rn-btn{ display:block; width:100%; text-align:left; margin:0 0 8px; padding:11px 13px; border-radius:12px; border:1.5px solid var(--line); background:#fff; font-size:14px; font-weight:800; color:var(--ink); cursor:pointer; }
+.rn-btn small{ display:block; margin-top:2px; font-size:12px; font-weight:600; color:var(--muted); }
+.rn-btn.is-fix{ border-color:#16A34A; background:#F0FDF4; }
+.rn-btn.is-other{ border-color:#F59E0B; background:#FFFBEB; }
+.rn-btn.is-cancel{ text-align:center; border:none; background:transparent; color:var(--muted); margin:2px 0 0; }
 .adm-orig-warn{ margin:12px 0 0; padding:9px 11px; border-radius:10px; background:#FEF3C7; color:#92400E; font-size:12.5px; font-weight:800; line-height:1.6; }
 .adm-prod-arrow{ flex:0 0 auto; font-size:14px; color:var(--muted); transition:transform .15s; }
 .adm-prod.is-open .adm-prod-arrow{ transform:rotate(90deg); }
@@ -963,7 +973,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261016-0830';
+var APP_VERSION = '20261016-0900';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1567,7 +1577,8 @@ var pmap = {}, porder = [];
 groups.forEach(function(g){
 (g.openOrders || []).forEach(function(o){
 if(!adminPurchaseFilterOk(o)) return;
-var pk = o.product_id || o.product_name;
+// 保險：同編號但喊單時名稱不同（舊商品被改成別的），分成不同標題
+var pk = (o.product_id || '') + '|' + (o.product_name || '');
 if(!pmap[pk]){
 var prod = null;
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === o.product_id){ prod = PRODUCTS[i]; break; } }
@@ -2545,6 +2556,7 @@ select.disabled = false;
 // 不用每點一次都再跑一趟後端（每次呼叫後端都要先向LINE驗證身分，手機上會明顯卡一下）。
 // 只有新增／修改／刪除之後才重新抓最新資料。
 var adminProductsCache = [];
+var adminProductOrderCounts = {};
 async function loadAdminProducts(mode){
 if(mode) adminProductsMode = mode;
 var listEl = document.getElementById('adminTabContent');
@@ -2554,6 +2566,7 @@ callMemberApi('admin-list-products'),
 adminProductsMode === 'live' ? loadLiveZones() : Promise.resolve()
 ]);
 adminProductsCache = results[0].products || [];
+adminProductOrderCounts = results[0].orderCounts || {};
 rememberImageVersions(adminProductsCache);
 registerCategories(adminProductsCache);
 }catch(e){
@@ -3625,6 +3638,25 @@ if(!labelInput.value.trim() && sizes.length) labelInput.value = '尺寸';
 })(groups[e]);
 }
 }
+// 改名稱時，這件商品如果曾經有人喊過單，先問清楚是「修正名稱」還是「改成別的商品」
+function adminAskRename(oldName, newName, count){
+return new Promise(function(resolve){
+var m = document.createElement('div');
+m.className = 'rn-mask';
+m.innerHTML = '<div class="rn-box"><h4>⚠️ 這件商品已經有 '+count+' 筆喊單</h4>'
++ '<p>名稱從「<b>'+escHtml(oldName)+'</b>」改成「<b>'+escHtml(newName)+'</b>」，你是要：</p>'
++ '<button type="button" class="rn-btn is-fix" data-v="fix">✏️ 只是修正名稱<small>還沒結單的喊單也一起改成新名稱，照常合在一起算</small></button>'
++ '<button type="button" class="rn-btn is-other" data-v="other">🔄 改成別的商品<small>請不要改舊商品，改用「複製」或「新增商品」</small></button>'
++ '<button type="button" class="rn-btn is-cancel" data-v="cancel">取消</button></div>';
+document.body.appendChild(m);
+m.addEventListener('click', function(e){
+var b = e.target.closest('.rn-btn');
+if(!b && e.target !== m) return;
+var v = b ? b.getAttribute('data-v') : 'cancel';
+m.remove(); resolve(v);
+});
+});
+}
 async function handleAdminSaveProductInfo(btn){
 var productId = btn.getAttribute('data-product-id');
 var nameInput = document.querySelector('.admin-name-input[data-product-id="'+productId+'"]');
@@ -3634,11 +3666,21 @@ var name = nameInput.value.trim();
 var price = parseInt(priceInput.value);
 if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
 if(!adminConfirmEditOriginal(productId)) return;
+var oldName = '';
+for(var on=0; on<adminProductsCache.length; on++){ if(adminProductsCache[on].id === productId){ oldName = String(adminProductsCache[on].name || '').trim(); break; } }
+var renameOrders = false;
+var orderCnt = Number(adminProductOrderCounts[productId] || 0);
+if(oldName && name !== oldName && orderCnt > 0){
+var choice = await adminAskRename(oldName, name, orderCnt);
+if(choice === 'other'){ nameInput.value = oldName; alert('名稱已還原。\n\n要上架新商品，請按這件商品下面的「📋 複製這件商品」，再改複製出來的那件；或用最上面的「＋ 新增商品」。'); return; }
+if(choice !== 'fix') return;
+renameOrders = true;
+}
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
 try{
 var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]');
 var optPayload = readAdminOptionEditor(optEd);
-await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price }, optPayload));
+await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price, renameOrders: renameOrders }, optPayload));
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
 var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
 for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; } } }
@@ -4453,7 +4495,7 @@ var lineSubtotal = unitPrice * orderModalQty;
 // 同一件商品之前還沒結單的喊單也一起算，加起來滿1000就要付訂金（跟後端 submit-order 一致）
 var existingSubtotal = 0, existingCount = 0;
 (myOrders || []).forEach(function(o){
-if(o.product_id === orderModalProduct.id && o.is_live_limited && o.status !== '缺貨已幫您取消'){ existingSubtotal += Number(o.price) * Number(o.quantity || 1); existingCount++; }
+if(o.product_id === orderModalProduct.id && o.product_name === orderModalProduct.name && o.is_live_limited && o.status !== '缺貨已幫您取消'){ existingSubtotal += Number(o.price) * Number(o.quantity || 1); existingCount++; }
 });
 var combined = existingSubtotal + lineSubtotal;
 var needsDeposit = stock === 'live_limited' && combined >= 1000;
