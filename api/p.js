@@ -92,9 +92,19 @@ function shortHash(str) {
 }
 async function catPage(req, res) {
   const cat = String(req.query.cat || '').trim().slice(0, 60);
-  const zoneKey = String(req.query.z || 'regular').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40) || 'regular';
-  const label = String(req.query.n || '').trim().slice(0, 40) || '商品分類';
-  const zoneNote = String(req.query.zn || '').trim().slice(0, 40);
+  // 短網址 /c/分類/版本 沒帶專區：自動判斷（這個分類有限時連線商品就用它的專區，沒有就是現貨・預購）
+  let zoneKey = String(req.query.z || '').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40);
+  if (!zoneKey && cat) {
+    try {
+      const zr = await fetch(
+        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + '&stock_status=eq.live_limited&select=live_zone_id&limit=1',
+        { headers: { apikey: SUPABASE_KEY } }
+      );
+      if (zr.ok) { const zrows = await zr.json(); if (Array.isArray(zrows) && zrows.length && zrows[0].live_zone_id) zoneKey = String(zrows[0].live_zone_id); }
+    } catch (e) { /* 判斷不到就當現貨・預購 */ }
+  }
+  if (!zoneKey) zoneKey = 'regular';
+  let label = String(req.query.n || '').trim().slice(0, 40);
   const ver = String(req.query.v || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
   const isLive = zoneKey !== 'regular';
   let image = '';
@@ -105,13 +115,14 @@ async function catPage(req, res) {
         ? '&live_zone_id=eq.' + encodeURIComponent(zoneKey) + '&stock_status=eq.live_limited'
         : '&stock_status=in.(in,preorder)';
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + filter + '&select=id,image_version',
+        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + filter + '&select=id,image_version,cat_label',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
         const rows = await r.json();
         if (Array.isArray(rows) && rows.length) {
           count = rows.length;
+          if (!label) label = String(rows[0].cat_label || '').trim();
           const last = rows[rows.length - 1];
           image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + last.id + '.jpg' + (last.image_version ? '?v=' + last.image_version : '');
         }
@@ -128,14 +139,15 @@ async function catPage(req, res) {
     } catch (e) { /* 沒有預覽圖就用商品照片 */ }
   }
   const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
-  const qs = ['z=' + encodeURIComponent(zoneKey), 'n=' + encodeURIComponent(label)];
-  if (zoneNote) qs.push('zn=' + encodeURIComponent(zoneNote));
-  if (ver) qs.push('v=' + ver);
-  const pageUrl = 'https://' + host + '/c/' + encodeURIComponent(cat) + '?' + qs.join('&');
+  if (!label) label = '商品分類';
+  // og:url 照原本分享的網址格式：有帶 z= 就保留，才不會被判斷到別的專區
+  const pageUrl = 'https://' + host + '/c/' + encodeURIComponent(cat) + (req.query.z
+    ? '?z=' + encodeURIComponent(zoneKey) + (ver ? '&v=' + ver : '')
+    : (ver ? '/' + ver : ''));
   const goUrl = 'https://liff.line.me/' + LIFF_ID + (isLive
     ? '?view=live&zone=' + encodeURIComponent(zoneKey) + '&cat=' + encodeURIComponent(cat)
     : '?view=shop&cat=' + encodeURIComponent(cat));
-  const where = isLive ? '限時連線' + (zoneNote ? '｜' + zoneNote : '') : '現貨・預購';
+  const where = isLive ? '限時連線專區' : '現貨・預購';
   const title = label + '｜' + where + '｜四郎玩具箱';
   const desc = (count ? count + ' 件商品開放喊單中・' : '') + '日本連線代購，點進來看看 ♡';
   sendPage(res, { title, desc, image, pageUrl, goUrl, heading: label + '｜' + where });
