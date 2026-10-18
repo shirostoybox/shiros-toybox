@@ -1000,7 +1000,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261018-1930b';
+var APP_VERSION = '20261018-1945';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5636,9 +5636,9 @@ try{
 var r = await fetch(SUPABASE_URL + '/storage/v1/object/public/product-images/' + coverId + '.jpg?check=' + Date.now(), { method:'HEAD' });
 if(r.ok) str += '|' + (r.headers.get('last-modified') || r.headers.get('etag') || '');
 }catch(e){}
-var qs = 'z=' + encodeURIComponent(zoneKey) + '&n=' + encodeURIComponent(label) + (isLive && zone && zone.note ? '&zn=' + encodeURIComponent(zone.note) : '') + '&v=' + shortHash(str).slice(0, 6);
-var url = window.location.origin + '/c/' + encodeURIComponent(cat) + '?' + qs;
-openShareMenu(label, url, label + '｜' + zoneTitle + '｜四郎玩具箱');
+// 網址只留必要的：分類＋專區＋版本號（分類名稱由預覽頁自己查）
+var url = window.location.origin + '/c/' + encodeURIComponent(cat) + '?z=' + encodeURIComponent(zoneKey) + '&v=' + shortHash(str).slice(0, 5);
+openShareMenu(label, url, label + '｜' + (isLive ? '限時連線專區' : '現貨・預購'));
 }
 async function shareZoneLink(zone){
 var title = (zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '');
