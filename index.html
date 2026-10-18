@@ -449,6 +449,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .live-entry.zone-purple .live-badge{ color:#5B2BB5; } .live-entry.zone-purple .live-dot{ background:#7C4DDB; }
 .live-entry.zone-green .live-badge{ color:#067A57; } .live-entry.zone-green .live-dot{ background:#139E72; }
 .live-zone-hero{ margin:4px 20px 12px; padding:16px; border-radius:var(--r-md); color:#fff; position:relative; }
+.cat-share-bar{ display:flex; justify-content:flex-start; margin:-4px 0 12px; padding:0 20px; min-width:0; }
+.cat-share-btn{ background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:var(--r-full); font-size:12.5px; font-weight:700; padding:6px 13px; font-family:var(--font-body); max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .zone-share-btn{ position:absolute; top:12px; right:12px; background:rgba(255,255,255,.22); color:#fff; border:1px solid rgba(255,255,255,.45); border-radius:var(--r-full); font-size:12px; font-weight:700; padding:5px 11px; font-family:var(--font-body); }
 .live-zone-hero.zone-gold{ background:linear-gradient(125deg,#7A5410,#C8962B 55%,#F2D07A); }
 .live-zone-hero.zone-blue{ background:linear-gradient(125deg,#1E3A8A,#2F6FE0 55%,#8EC5FF); }
@@ -801,6 +803,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 <div class="paused-notice-slot" id="shopPausedNotice"></div>
 <div class="category-tabs"></div>
+<div id="shopCatShare"></div>
 <div class="gacha-info" id="gachaInfo" style="display:none;">
 <p class="gacha-info-title">🪙 日本扭蛋順路價</p>
 <div class="gacha-price-row"><span>¥200</span><span>→</span><span>NT$80</span></div>
@@ -819,6 +822,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div id="liveZoneHero"></div>
 <div id="liveStatusNote"></div>
 <div class="category-tabs" id="liveCategoryTabs"></div>
+<div id="liveCatShare"></div>
 <div class="grid" id="liveGrid"></div>
 <div id="liveEndNote"></div>
 <div id="liveEmpty"></div>
@@ -996,7 +1000,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261018-1830';
+var APP_VERSION = '20261018-1930';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1432,6 +1436,9 @@ if(target === 'live'){
 var zoneParam = params.get('zone');
 var openList = openZones();
 openLiveZone(zoneParam || (openList.length === 1 ? openList[0].id : null));
+// 分類分享連結：?view=live&zone=…&cat=… → 直接切到那個分類
+var liveCatParam = params.get('cat');
+if(liveCatParam){ liveCategory = liveCatParam; renderLive(); }
 return;
 }
 if(target && validTargets.indexOf(target) !== -1){
@@ -1439,10 +1446,7 @@ showView(target);
 }
 if(target === 'shop'){
 var cat = params.get('cat');
-var validCats = ['all','beyblade','doll','anpanman','gacha'];
-if(cat && validCats.indexOf(cat) !== -1){
-setCategory(cat);
-}
+if(cat){ setCategory(cat); }
 }
 }
 /* ---------- admin (owner-only) ---------- */
@@ -4467,6 +4471,7 @@ var list = sortProductsByPrice(getFilteredShop());
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件・持續上架中 🔄';
+renderCatShareBar('shopCatShare', 'regular', currentCategory, regularProducts().filter(function(p){ return p.cat === currentCategory && (p.stock === 'in' || p.stock === 'preorder'); }));
 setEndNote('shopEndNote', !isRegularPaused() && list.length > 0);
 }
 var liveCategory = 'all';
@@ -4561,6 +4566,7 @@ tabsWrap.style.display = 'none';
 }
 // 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
 var list = sortProductsByPrice(all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; }));
+renderCatShareBar('liveCatShare', zone ? zone.id : '', isOpen ? liveCategory : 'all', all.filter(function(p){ return p.cat === liveCategory && p.stock === 'live_limited'; }), zone);
 var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
@@ -5536,6 +5542,103 @@ var btns = wrap.querySelectorAll('.share-menu-btn');
 items.forEach(function(it, k){ btns[k].addEventListener('click', function(){ closeShareMenu(); it.fn(); }); });
 wrap.querySelector('.share-menu-cancel').addEventListener('click', closeShareMenu);
 wrap.addEventListener('click', function(e){ if(e.target === wrap) closeShareMenu(); });
+}
+// ---------- 分類分享 ----------
+// 每個分類都有「分享這個分類」：連結是 /c/分類?z=專區（或 regular＝現貨・預購），
+// 預覽圖是這個分類每件商品的第一張照片拼成的一張圖（老闆／小幫手按分享時自動產生並上傳）
+function shortHash(str){
+var h = 0; str = String(str || '');
+for(var i=0;i<str.length;i++){ h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+return (h >>> 0).toString(36);
+}
+function catCoverId(zoneKey, cat){ return 'catcover-' + String(zoneKey).replace(/[^A-Za-z0-9_\-]/g, '') + '-' + shortHash(cat); }
+function renderCatShareBar(elId, zoneKey, cat, products, zone){
+var el = document.getElementById(elId);
+if(!el) return;
+if(!cat || cat === 'all' || !zoneKey || !products.length){ el.innerHTML = ''; return; }
+var label = (products[0] && products[0].catLabel) || catLabelFor(cat);
+el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-share-btn">🔗 分享「'+escHtml(label)+'」這個分類</button></div>';
+el.querySelector('.cat-share-btn').addEventListener('click', function(){ shareCategoryLink(zoneKey, cat, label, products, zone); });
+}
+function loadCorsImage(url){
+return new Promise(function(resolve){
+var im = new Image();
+im.crossOrigin = 'anonymous';
+im.onload = function(){ resolve(im); };
+im.onerror = function(){ resolve(null); };
+im.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'cors=1';
+});
+}
+function roundRectPath(ctx, x, y, w, h, r){
+ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+// 1200×630 拼圖：上方分類名稱，下面每件商品第一張照片（最多 18 張，超過顯示 +N）
+async function buildCatCollage(products, label, subtitle){
+var W = 1200, H = 630, head = 112, pad = 24, gap = 10;
+var list = sortProductsByPrice(products.slice());
+var n = list.length, cols, rows;
+if(n <= 1){ cols = 1; rows = 1; } else if(n <= 3){ cols = n; rows = 1; } else if(n <= 4){ cols = 4; rows = 1; }
+else if(n <= 8){ cols = Math.ceil(n/2); rows = 2; } else if(n <= 12){ cols = 6; rows = 2; } else { cols = 6; rows = 3; }
+var max = cols * rows, extra = n > max ? n - max + 1 : 0;
+var shown = list.slice(0, extra ? max - 1 : max);
+var imgs = await Promise.all(shown.map(function(p){ return loadCorsImage(productImageUrl(p.id)); }));
+var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+var ctx = cv.getContext('2d');
+ctx.fillStyle = '#171A24'; ctx.fillRect(0, 0, W, H);
+var font = '-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
+ctx.textBaseline = 'middle';
+ctx.font = '900 46px ' + font; ctx.fillStyle = '#ffffff';
+ctx.fillText(label, pad, 52);
+ctx.font = '600 24px ' + font; ctx.fillStyle = '#BEC3D2';
+ctx.fillText(subtitle + '・' + n + ' 件商品', pad, 92);
+ctx.font = '900 30px ' + font; ctx.fillStyle = '#2FD8C9'; ctx.textAlign = 'right';
+ctx.fillText('四郎玩具箱', W - pad, 52);
+ctx.font = '600 20px ' + font; ctx.fillStyle = '#BEC3D2';
+ctx.fillText('點進來看看 ♡', W - pad, 92);
+ctx.textAlign = 'left';
+var areaW = W - pad*2, areaH = H - head - pad;
+var ts = Math.floor(Math.min((areaW - gap*(cols-1)) / cols, (areaH - gap*(rows-1)) / rows));
+var gridW = ts*cols + gap*(cols-1), x0 = Math.round((W - gridW)/2), y0 = head + Math.round((areaH - (ts*rows + gap*(rows-1)))/2);
+var used = extra ? max : shown.length;
+for(var i=0;i<max;i++){
+var row = Math.floor(i / cols), lastRowCount = used - (rows - 1)*cols;
+var rowOffset = (row === rows - 1 && lastRowCount > 0 && lastRowCount < cols) ? Math.round((cols - lastRowCount)*(ts+gap)/2) : 0;
+var x = x0 + rowOffset + (i % cols)*(ts+gap), y = y0 + row*(ts+gap);
+if(i < shown.length){
+ctx.save(); roundRectPath(ctx, x, y, ts, ts, 14); ctx.clip();
+ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, ts, ts);
+var im = imgs[i];
+if(im){ var sc = Math.max(ts / im.width, ts / im.height); var dw = im.width*sc, dh = im.height*sc; ctx.drawImage(im, x + (ts-dw)/2, y + (ts-dh)/2, dw, dh); }
+ctx.restore();
+} else if(extra && i === max - 1){
+ctx.fillStyle = '#FF5C80'; roundRectPath(ctx, x, y, ts, ts, 14); ctx.fill();
+ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '900 ' + Math.round(ts*0.26) + 'px ' + font;
+ctx.fillText('+' + extra, x + ts/2, y + ts/2 - ts*0.06); ctx.font = '700 ' + Math.round(ts*0.11) + 'px ' + font;
+ctx.fillText('還有更多', x + ts/2, y + ts/2 + ts*0.2); ctx.textAlign = 'left';
+}
+}
+return cv.toDataURL('image/jpeg', 0.88);
+}
+async function shareCategoryLink(zoneKey, cat, label, products, zone){
+var isLive = zoneKey !== 'regular';
+var zoneTitle = isLive ? ((zone && zone.name) || '限時連線專區') + (zone && zone.note ? '｜' + zone.note : '') : '現貨・預購連線';
+var coverId = catCoverId(zoneKey, cat);
+// 老闆／小幫手分享時，先把最新的商品照片拼成預覽圖上傳
+if(isAdminSelf()){
+try{
+showToast('產生分類預覽圖中…');
+var data = await buildCatCollage(products, label, zoneTitle);
+await callMemberApi('admin-upload-product-image', { productId: coverId, imageData: data });
+}catch(e){ showToast('預覽圖產生失敗，先用商品照片分享'); }
+}
+var str = products.map(function(p){ return p.id + ':' + (p.imageVersion || 0); }).join(',');
+try{
+var r = await fetch(SUPABASE_URL + '/storage/v1/object/public/product-images/' + coverId + '.jpg?check=' + Date.now(), { method:'HEAD' });
+if(r.ok) str += '|' + (r.headers.get('last-modified') || r.headers.get('etag') || '');
+}catch(e){}
+var qs = 'z=' + encodeURIComponent(zoneKey) + '&n=' + encodeURIComponent(label) + (isLive && zone && zone.note ? '&zn=' + encodeURIComponent(zone.note) : '') + '&v=' + shortHash(str).slice(0, 6);
+var url = window.location.origin + '/c/' + encodeURIComponent(cat) + '?' + qs;
+openShareMenu(label, url, label + '｜' + zoneTitle + '｜四郎玩具箱');
 }
 async function shareZoneLink(zone){
 var title = (zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '');
