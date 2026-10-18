@@ -4,6 +4,7 @@
   ],
   "rewrites": [
     { "source": "/p/:id", "destination": "/api/p?id=:id" },
-    { "source": "/z/:zone", "destination": "/api/p?zone=:zone" }
+    { "source": "/z/:zone", "destination": "/api/p?zone=:zone" },
+    { "source": "/c/:cat", "destination": "/api/p?cat=:cat" }
   ]
 }
