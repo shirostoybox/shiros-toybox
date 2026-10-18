@@ -1000,7 +1000,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261018-1930';
+var APP_VERSION = '20261018-1930b';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5557,7 +5557,7 @@ var el = document.getElementById(elId);
 if(!el) return;
 if(!cat || cat === 'all' || !zoneKey || !products.length){ el.innerHTML = ''; return; }
 var label = (products[0] && products[0].catLabel) || catLabelFor(cat);
-el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-share-btn">🔗 分享「'+escHtml(label)+'」這個分類</button></div>';
+el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-share-btn">🔗 分享「'+escHtml(label)+'」</button></div>';
 el.querySelector('.cat-share-btn').addEventListener('click', function(){ shareCategoryLink(zoneKey, cat, label, products, zone); });
 }
 function loadCorsImage(url){
