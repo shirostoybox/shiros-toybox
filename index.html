@@ -947,6 +947,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <p>▸ 朋友申請入群時，在入群問題填寫「邀請人的LINE群暱稱」<br>▸ 或由邀請人私訊官方LINE，告知「朋友的LINE群暱稱」<br>核對完成後就會發放免運券 ♡</p>
 <h3>🌸 也歡迎追蹤我們</h3>
 <p>追蹤四郎玩具箱Instagram和Threads，順手幫近期貼文按個讚，就能更快看到新品和連線消息，也是給我們很大的鼓勵 ♡</p>
+<div style="display:flex;gap:10px;margin-top:12px;"><a href="https://www.instagram.com/shiros_toybox" target="_blank" rel="noopener" class="ext-social" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;border-radius:999px;background:#fff;border:1.5px solid var(--text-dark);color:var(--text-dark);font-weight:700;font-size:15px;text-decoration:none;">📷 Instagram</a><a href="https://www.threads.com/@shiros_toybox" target="_blank" rel="noopener" class="ext-social" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;border-radius:999px;background:#fff;border:1.5px solid var(--text-dark);color:var(--text-dark);font-weight:700;font-size:15px;text-decoration:none;">@ Threads</a></div>
 <h3>免運券使用規則</h3>
 <p>▸ 商品消費金額滿NT$1,000（含）可使用1張<br>▸ 每筆訂單限使用1張<br>▸ 每張最高折抵運費$60<br>▸ 超過$60的運費需補差額<br>▸ 不得與其他免運優惠重複使用<br>▸ 使用免運券時，持券人需仍為社群成員<br>▸ 免運券沒有使用期限<br>▸ 免運券可於四郎玩具箱訂單使用 🇯🇵</p>
 <h3>活動期限</h3>
@@ -1001,7 +1002,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261019-1355';
+var APP_VERSION = '20261019-1400';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5877,6 +5878,7 @@ refreshShop();
 setInterval(checkForUpdate, 180000);
 initApp();
 });
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.ext-social');if(!a)return;if(window.liff&&liff.isInClient&&liff.isInClient()){e.preventDefault();liff.openWindow({url:a.href,external:true});}});
 })();
 </script>
 </body>
