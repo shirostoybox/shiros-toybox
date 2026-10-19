@@ -1002,7 +1002,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261019-2150';
+var APP_VERSION = '20261019-2200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4928,8 +4928,8 @@ updateOrderModalSub();
 document.getElementById('qtyValue').textContent = '1';
 startViewTrack(product.id);
 var shareBtn = document.getElementById('orderModalShare');
-// 客訂商品不提供分享連結（按鈕直接隱藏）
-if(shareBtn){ shareBtn.style.display = product.isPrivate ? 'none' : ''; shareBtn.onclick = function(){ shareProductLink(product); }; }
+// 客訂商品也可以分享：連結預覽只會顯示客訂圖和「客訂商品」，沒被勾選的人點進去也看不到真實內容
+if(shareBtn){ shareBtn.style.display = ''; shareBtn.onclick = function(){ shareProductLink(product); }; }
 document.getElementById('orderModal').classList.add('is-open');
 }
 // ---------- 商品熱度（客人看不到）：只記總數，不記是誰 ----------
@@ -5713,7 +5713,7 @@ try{ await navigator.clipboard.writeText(url); showToast('已複製商品連結 
 catch(e){ window.prompt('長按複製這個連結：', url); }
 }
 async function shareProductLink(p){
-if(!p || p.isPrivate) return;
+if(!p) return;
 // 喊單視窗裡已經選了規格一（例如角色）→ 連結帶上這個選項：預覽用它的照片，客人點開直接幫他選好
 var opt = (!p.isPrivate && orderModalProduct && orderModalProduct.id === p.id && orderModalOption) ? orderModalOption : '';
 // 客訂商品分享出去一律用「客訂商品」，不會帶出真實名稱
