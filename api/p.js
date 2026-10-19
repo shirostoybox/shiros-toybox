@@ -19,15 +19,16 @@ async function zonePage(req, res) {
   if (/^[A-Za-z0-9_\-]+$/.test(zoneId)) {
     try {
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?live_zone_id=eq.' + encodeURIComponent(zoneId) + '&stock_status=eq.live_limited&select=id,image_version',
+        SUPABASE_URL + '/rest/v1/products?live_zone_id=eq.' + encodeURIComponent(zoneId) + '&stock_status=eq.live_limited&select=id,image_version,is_private',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
         const rows = await r.json();
         if (Array.isArray(rows) && rows.length) {
           count = rows.length;
-          const last = rows[rows.length - 1];
-          image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + last.id + '.jpg' + (last.image_version ? '?v=' + last.image_version : '');
+          const pub = rows.filter((x) => !x.is_private);
+          const last = pub.length ? pub[pub.length - 1] : null;
+          if (last) image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + last.id + '.jpg' + (last.image_version ? '?v=' + last.image_version : '');
         }
       }
     } catch (e) { /* 讀不到就用一般的預覽 */ }
@@ -115,7 +116,7 @@ async function catPage(req, res) {
         ? '&live_zone_id=eq.' + encodeURIComponent(zoneKey) + '&stock_status=eq.live_limited'
         : '&stock_status=in.(in,preorder)';
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + filter + '&select=id,image_version,cat_label',
+        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + filter + '&select=id,image_version,cat_label,is_private',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
@@ -123,8 +124,9 @@ async function catPage(req, res) {
         if (Array.isArray(rows) && rows.length) {
           count = rows.length;
           if (!label) label = String(rows[0].cat_label || '').trim();
-          const last = rows[rows.length - 1];
-          image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + last.id + '.jpg' + (last.image_version ? '?v=' + last.image_version : '');
+          const pub = rows.filter((x) => !x.is_private);
+          const last = pub.length ? pub[pub.length - 1] : null;
+          if (last) image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + last.id + '.jpg' + (last.image_version ? '?v=' + last.image_version : '');
         }
       }
     } catch (e) { /* 讀不到就用一般的預覽 */ }
@@ -161,7 +163,7 @@ module.exports = async (req, res) => {
   if (id && /^[A-Za-z0-9_\-]+$/.test(id)) {
     try {
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?id=eq.' + encodeURIComponent(id) + '&select=id,name,sub,image_version,options,option_photos',
+        SUPABASE_URL + '/rest/v1/products?id=eq.' + encodeURIComponent(id) + '&select=id,name,sub,image_version,options,option_photos,is_private',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
@@ -177,7 +179,7 @@ module.exports = async (req, res) => {
   // ?o=選項（例如角色）：只接受這件商品規格一裡有的選項
   let opt = String((req.query && req.query.o) || '').trim().slice(0, 40);
   const optList = product ? String(product.options || '').split(/[,，、\n]/).map((x) => x.trim()).filter(Boolean) : [];
-  if (!optList.includes(opt)) opt = '';
+  if (!optList.includes(opt) || (product && product.is_private)) opt = '';
   let optPhotos = {};
   try { optPhotos = product && product.option_photos ? JSON.parse(product.option_photos) : {}; } catch (e) { optPhotos = {}; }
   const optSlot = opt ? parseInt(optPhotos[opt], 10) : 0;
@@ -194,7 +196,10 @@ module.exports = async (req, res) => {
   const desc = product && product.sub
     ? product.sub + '・日本連線代購，點進來看看 ♡'
     : '日本連線代購・點進來看看 ♡';
-  const image = product
+  // 客訂商品：預覽一律用網站上的客訂圖（真實照片放在不公開的空間）
+  const image = product && product.is_private
+    ? 'https://' + host + '/custom-cover.jpg'
+    : product
     ? SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + (optSlot > 1 && optSlot <= 13 ? '-' + optSlot : '') + '.jpg' + (product.image_version ? '?v=' + product.image_version : '')
     : '';
 
