@@ -1002,7 +1002,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261019-1400';
+var APP_VERSION = '20261019-2150';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1125,6 +1125,7 @@ var list = (p.options || []).map(function(o){ return productUnitPrice(p, o); });
 return { min: Math.min.apply(null, list), max: Math.max.apply(null, list) };
 }
 function productPriceText(p){
+if(p && p.isPrivate && !p.privateAccess) return '私訊詢問';
 var r = productPriceRange(p);
 return r.min === r.max ? 'NT$' + r.min : 'NT$' + r.min + ' 起';
 }
@@ -1135,7 +1136,57 @@ var IMAGE_VERSIONS = {};
 function rememberImageVersions(list){
 (list || []).forEach(function(p){ if(p && p.id) IMAGE_VERSIONS[p.id] = p.image_version || p.imageVersion || IMAGE_VERSIONS[p.id] || 0; });
 }
+// ---------- 客訂商品 ----------
+// 一般客人：看到「客訂商品」＋這張客訂圖、價格顯示「私訊詢問」，不能喊單。
+// 被勾選的客人（和老闆、小幫手）：從 member-api 拿到真實名稱和照片的暫時網址（照片放在不公開的空間）
+var CUSTOM_COVER = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600"><rect width="600" height="600" fill="#F1F1F4"/>'
++ '<rect x="140" y="96" width="320" height="408" rx="28" fill="#fff" stroke="#E2E2E8" stroke-width="4"/>'
++ '<g fill="none" stroke="#B9B9C4" stroke-width="10" stroke-linecap="round"><rect x="262" y="176" width="76" height="58" rx="10" fill="#B9B9C4" stroke="none"/><path d="M276 178v-16a24 24 0 0 1 48 0v16"/></g>'
++ '<text x="300" y="352" text-anchor="middle" font-size="112" font-weight="700" fill="#26262C" font-family="-apple-system,PingFang TC,Noto Sans TC,sans-serif">客訂</text>'
++ '<text x="300" y="430" text-anchor="middle" font-size="32" fill="#8C8C98" font-family="-apple-system,PingFang TC,Noto Sans TC,sans-serif">客製化代購</text></svg>');
+var PRIVATE_IDS = {};
+var PRIVATE_ACCESS = {};
+var privateLoadedAt = 0;
+async function loadPrivateAccess(force){
+if(!Object.keys(PRIVATE_IDS).length){ PRIVATE_ACCESS = {}; return; }
+// 暫時網址 6 小時有效，10 分鐘內不重複抓
+if(!force && privateLoadedAt && Date.now() - privateLoadedAt < 10 * 60 * 1000) return;
+try{
+var d = await callMemberApi('get-private-products');
+var m = {};
+(d.items || []).forEach(function(it){ if(it && it.productId) m[it.productId] = it; });
+PRIVATE_ACCESS = m;
+privateLoadedAt = Date.now();
+}catch(e){}
+}
+function rememberPrivateUpload(productId, slot, res){
+if(!res || !res.privateUrl) return;
+var a = PRIVATE_ACCESS[productId] || (PRIVATE_ACCESS[productId] = { productId: productId, photos: {} });
+a.photos = a.photos || {};
+a.photos[String(slot || 1)] = res.privateUrl;
+}
+function openPrivateAsk(){
+var old = document.getElementById('privateAsk'); if(old) old.remove();
+var w = document.createElement('div');
+w.id = 'privateAsk';
+w.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,17,24,.55);display:flex;align-items:flex-end;justify-content:center;';
+w.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));box-sizing:border-box;text-align:center;">'
++ '<p style="margin:0 0 6px;font-size:18px;font-weight:800;color:var(--text-dark);">🔒 客訂商品</p>'
++ '<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:var(--muted);">這是客製化代購商品，只開放給指定的客人查看與喊單。<br>也想找特別的商品嗎？歡迎私訊官方 LINE 詢問客製化喊單 ♡</p>'
++ '<a class="btn btn--primary btn--full link-btn" href="https://line.me/R/ti/p/' + OA_ID + '" target="_blank" rel="noopener" style="text-decoration:none;">私訊官方 LINE 詢問</a>'
++ '<button type="button" class="btn btn--full" id="privateAskClose" style="margin-top:8px;background:transparent;color:var(--muted);">關閉</button>'
++ '</div>';
+document.body.appendChild(w);
+w.addEventListener('click', function(e){ if(e.target === w || e.target.id === 'privateAskClose') w.remove(); });
+}
 function productImageUrl(productId, slot){
+if(PRIVATE_IDS[productId]){
+var acc = PRIVATE_ACCESS[productId];
+var pu = acc && acc.photos && acc.photos[String(slot || 1)];
+if(pu) return pu;
+return slot && slot > 1 ? 'data:,missing' : CUSTOM_COVER;
+}
 var v = IMAGE_VERSIONS[productId] || 0;
 return SUPABASE_URL + '/storage/v1/object/public/product-images/' + productId + (slot ? '-' + slot : '') + '.jpg' + (v ? '?v=' + v : '');
 }
@@ -1160,9 +1211,18 @@ var res = await supabaseClient.from('products').select('*').order('featured', { 
 if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 PRODUCTS = res.data.map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '' };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '', isPrivate:!!p.is_private, publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
+PRIVATE_IDS = {};
+PRODUCTS.forEach(function(p){ if(p.isPrivate) PRIVATE_IDS[p.id] = true; });
+await loadPrivateAccess();
+PRODUCTS.forEach(function(p){
+if(!p.isPrivate) return;
+var a = PRIVATE_ACCESS[p.id];
+if(a){ p.privateAccess = true; p.name = a.name || p.name; p.sub = a.sub || ''; }
+else { PHOTO_SLOTS[p.id] = []; p.optionPhotos = {}; }
+});
 await loadLiveZones();
 registerCategories(PRODUCTS);
 }
@@ -2675,6 +2735,7 @@ adminProductsMode === 'live' ? loadLiveZones() : Promise.resolve()
 adminProductsCache = results[0].products || [];
 adminProductOrderCounts = results[0].orderCounts || {};
 rememberImageVersions(adminProductsCache);
+adminProductsCache.forEach(function(p){ if(p.is_private) PRIVATE_IDS[p.id] = true; else delete PRIVATE_IDS[p.id]; });
 registerCategories(adminProductsCache);
 }catch(e){
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
@@ -3530,7 +3591,9 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 : '<select class="gate-input" id="npStock"><option value="in">現貨</option><option value="preorder">預購連線</option></select>')
 + (isLiveMode ? '<input type="hidden" id="npQty" value="">' : '<input type="number" class="gate-input" id="npQty" placeholder="現貨數量（非現貨可留空）">')
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="npLuxury" style="width:18px;height:18px;"> 🏷️ 品牌選物（累積到品牌選物回饋，限用品牌選物回饋券）</label>'
-+ '<input type="file" accept="image/*" class="gate-input" id="npImage" style="padding:8px;">'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 4px;padding:10px 12px;border:1.5px dashed #8B5CF6;border-radius:var(--r-md);"><input type="checkbox" id="npPrivate" style="width:18px;height:18px;"> 🔒 客訂商品（只給指定客人看）</label>'
++ '<p id="npPrivateHint" style="display:none;margin:0 0 10px;font-size:11.5px;line-height:1.6;color:#6D3FD1;">一般客人只會看到「客訂商品」和客訂圖，照片從一開始就放在不公開的空間。建立後再到這件商品裡加入可以看的客人。</p>'
++ '<input type="file" accept="image/*" class="gate-input" id="npImage" style="padding:8px;margin-top:6px;">'
 + '<button type="button" class="btn btn--primary btn--full" id="npSubmit">建立商品</button>'
 + '</div>';
 }
@@ -3597,7 +3660,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
-+ '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">'+productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) })+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+'</p></div>'
++ '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">'+productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) })+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂' : '')+'</p></div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
@@ -3607,6 +3670,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
 + adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
++ adminPrivatePanelHTML(p)
 + (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
 + (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
 + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(p.live_zone_id===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('')
@@ -3629,6 +3693,126 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '</div>'
 + '</div>';
 }
+// 客訂商品設定：勾選後前台只看到「客訂商品」，下面指定的客人才看得到真實照片、名稱，也才能喊單
+function adminPrivatePanelHTML(p){
+var on = !!p.is_private;
+var list = p.private_allowed || [];
+var pid = escAttr(p.id);
+return '<div class="adm-priv" data-product-id="'+pid+'" style="margin:0 0 10px;padding:10px 12px;border:1.5px dashed #8B5CF6;border-radius:var(--r-md);background:'+(on?'#F6F1FF':'transparent')+';">'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);"><input type="checkbox" class="adm-priv-toggle" data-product-id="'+pid+'"'+(on?' checked':'')+' style="width:18px;height:18px;"> 🔒 客訂商品（只給指定客人看）</label>'
++ (on
+? '<p style="margin:6px 0 8px;font-size:11.5px;color:var(--muted);line-height:1.6;">一般客人只看到「客訂商品」和客訂圖，價格顯示「私訊詢問」、不能喊單。<br>下面的客人看得到真實照片、名稱，也可以喊單。</p>'
++ '<p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6D3FD1;">可以看的客人（'+list.length+'）</p>'
++ '<div class="adm-priv-list" style="display:flex;flex-wrap:wrap;gap:6px;">'
++ (list.length ? list.map(function(m){
+var nm = m.nickname || m.displayName || '（未設定暱稱）';
+return '<span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #D9C9FF;border-radius:999px;padding:4px 6px 4px 10px;font-size:12.5px;color:var(--text-dark);">'+escHtml(nm)
++ (m.displayName && m.displayName !== nm ? '<small style="color:var(--muted);">LINE：'+escHtml(m.displayName)+'</small>' : '')
++ '<button type="button" class="adm-priv-remove" data-product-id="'+pid+'" data-uid="'+escAttr(m.lineUid)+'" style="border:none;background:#EFE7FF;color:#6D3FD1;border-radius:50%;width:20px;height:20px;font-size:11px;line-height:20px;padding:0;">✕</button></span>';
+}).join('') : '<p style="margin:0;font-size:12px;color:var(--muted);">還沒有指定客人，先用下面搜尋加入</p>')
++ '</div>'
++ '<div style="display:flex;gap:6px;margin-top:10px;"><input type="text" class="gate-input adm-priv-q" data-product-id="'+pid+'" placeholder="搜尋客人暱稱或 LINE 名稱" style="margin:0;flex:1;">'
++ '<button type="button" class="btn btn--dark adm-priv-search" data-product-id="'+pid+'" style="white-space:nowrap;">搜尋</button></div>'
++ '<div class="adm-priv-results" data-product-id="'+pid+'" style="margin-top:6px;"></div>'
+: '<p style="margin:6px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">私密商品建議在「新增商品」時就勾「🔒 客訂商品」，照片從頭到尾都不會公開。</p>')
++ '</div>';
+}
+function adminFindCachedProduct(pid){
+for(var i=0;i<adminProductsCache.length;i++){ if(adminProductsCache[i].id === pid) return adminProductsCache[i]; }
+return null;
+}
+function rerenderAdminPrivatePanel(pid){
+var p = adminFindCachedProduct(pid);
+var box = document.querySelector('.adm-priv[data-product-id="'+pid+'"]');
+if(p && box) box.outerHTML = adminPrivatePanelHTML(p);
+}
+async function adminSavePrivateAllowed(pid, list){
+await callMemberApi('admin-set-private-product', { productId: pid, allowedUids: list.map(function(m){ return m.lineUid; }) });
+var p = adminFindCachedProduct(pid);
+if(p) p.private_allowed = list;
+privateLoadedAt = 0;
+rerenderAdminPrivatePanel(pid);
+}
+async function adminPrivateSearch(pid){
+var q = document.querySelector('.adm-priv-q[data-product-id="'+pid+'"]');
+var box = document.querySelector('.adm-priv-results[data-product-id="'+pid+'"]');
+if(!q || !box) return;
+var query = q.value.trim();
+if(!query){ box.innerHTML = ''; return; }
+box.innerHTML = '<p style="margin:0;font-size:12px;color:var(--muted);">搜尋中…</p>';
+try{
+var d = await callMemberApi('admin-search-members', { query: query });
+var p = adminFindCachedProduct(pid);
+var have = {}; ((p && p.private_allowed) || []).forEach(function(m){ have[m.lineUid] = true; });
+var ms = d.members || [];
+box.innerHTML = ms.length ? ms.map(function(m){
+var nm = m.nickname || m.displayName || '（未設定暱稱）';
+return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;">'
++ '<span>'+escHtml(nm)+(m.displayName ? ' <small style="color:var(--muted);">LINE：'+escHtml(m.displayName)+'</small>' : '')+'</span>'
++ (have[m.lineUid] ? '<small style="color:#6D3FD1;font-weight:700;">已加入</small>'
+: '<button type="button" class="btn btn--dark adm-priv-add" data-product-id="'+escAttr(pid)+'" data-uid="'+escAttr(m.lineUid)+'" data-nick="'+escAttr(m.nickname||'')+'" data-dn="'+escAttr(m.displayName||'')+'" style="padding:6px 12px;font-size:12px;">＋ 加入</button>')
++ '</div>';
+}).join('') : '<p style="margin:0;font-size:12px;color:var(--muted);">找不到這位客人</p>';
+}catch(e){ box.innerHTML = '<p style="margin:0;font-size:12px;color:var(--ignis-deep);">搜尋失敗：'+escHtml(e.message)+'</p>'; }
+}
+document.addEventListener('click', async function(e){
+var t = e.target;
+if(!t || !t.closest) return;
+var b = t.closest('.adm-priv-search, .adm-priv-add, .adm-priv-remove');
+if(!b) return;
+var pid = b.getAttribute('data-product-id');
+if(b.classList.contains('adm-priv-search')){ adminPrivateSearch(pid); return; }
+var p = adminFindCachedProduct(pid);
+if(!p) return;
+var list = (p.private_allowed || []).slice();
+var uid = b.getAttribute('data-uid');
+if(b.classList.contains('adm-priv-add')){
+list.push({ lineUid: uid, nickname: b.getAttribute('data-nick') || '', displayName: b.getAttribute('data-dn') || '' });
+} else {
+if(!window.confirm('移除後，這位客人就看不到這件商品的真實照片和名稱，也不能再喊單。確定嗎？')) return;
+list = list.filter(function(m){ return m.lineUid !== uid; });
+}
+b.disabled = true;
+try{ await adminSavePrivateAllowed(pid, list); showToast(b.classList.contains('adm-priv-add') ? '已加入' : '已移除'); }
+catch(err){ b.disabled = false; alert('儲存失敗：' + err.message); }
+});
+document.addEventListener('keydown', function(e){
+var t = e.target;
+if(e.key === 'Enter' && t && t.classList && t.classList.contains('adm-priv-q')){ e.preventDefault(); adminPrivateSearch(t.getAttribute('data-product-id')); }
+});
+document.addEventListener('change', function(e){
+if(!e.target || e.target.id !== 'npPrivate') return;
+var h = document.getElementById('npPrivateHint'); if(h) h.style.display = e.target.checked ? 'block' : 'none';
+});
+document.addEventListener('change', async function(e){
+var t = e.target;
+if(!t || !t.classList || !t.classList.contains('adm-priv-toggle')) return;
+var pid = t.getAttribute('data-product-id');
+var on = t.checked;
+var msg = on
+? '改成客訂商品後：\n・一般客人只看到「客訂商品」和客訂圖，不能喊單\n・照片會搬到不公開的空間\n・只有妳指定的客人看得到真實照片和名稱\n\n確定嗎？'
+: '取消客訂後，真實名稱和照片會公開給所有客人看到，也都可以喊單。\n\n確定嗎？';
+if(!window.confirm(msg)){ t.checked = !on; return; }
+t.disabled = true;
+try{
+var sr = await callMemberApi('admin-set-private-product', { productId: pid, isPrivate: on });
+if(sr && sr.needsConfirm){
+var go = window.confirm('⚠️ 這件商品已經有 '+sr.photoCount+' 張照片放在「公開」的地方。\n\n改成客訂後照片會搬到不公開的空間，但之前已經公開過一段時間，看過的人手機裡、或知道舊網址的人，可能還看得到舊照片一陣子。\n\n✅ 比較安全的做法：按「取消」→ 刪掉這件 → 用「新增商品」重新建立，建立時就勾「🔒 客訂商品」，再上傳照片。\n\n還是要直接改成客訂嗎？');
+if(!go){ t.disabled = false; t.checked = false; return; }
+await callMemberApi('admin-set-private-product', { productId: pid, isPrivate: true, force: true });
+}
+adminProductExpanded[pid] = true;
+if(on) PRIVATE_IDS[pid] = true; else { delete PRIVATE_IDS[pid]; delete PRIVATE_ACCESS[pid]; }
+await loadPrivateAccess(true);
+IMAGE_VERSIONS[pid] = Date.now();
+showToast(on ? '已改成客訂商品' : '已取消客訂');
+await loadAdminProducts();
+refreshShop();
+}catch(err){
+t.disabled = false; t.checked = !on;
+alert('設定失敗：' + err.message);
+}
+});
 function adminExtraPhotoSlotsHTML(p){
 var slots = EXTRA_PHOTO_SLOTS;
 if(p.photo_slots !== undefined) PHOTO_SLOTS[p.id] = parsePhotoSlots(p.photo_slots);
@@ -3981,6 +4165,7 @@ if(!adminConfirmEditOriginal(productId)){ input.value = ''; return; }
 try{
 var compressed = await compressImage(input.files[0]);
 var upRes = await callMemberApi('admin-upload-product-image', { productId: productId, slot: slot, imageData: compressed });
+rememberPrivateUpload(productId, slot, upRes);
 if(upRes && upRes.photoSlots !== undefined) setCachedPhotoSlots(productId, upRes.photoSlots);
 showToast('已上傳');
 var img = document.querySelector('.admin-photo-slot[data-product-id="'+productId+'"][data-slot="'+slot+'"] .admin-extra-thumb');
@@ -4082,7 +4267,8 @@ if(!adminConfirmEditOriginal(productId)) return;
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '上傳中...';
 try{
 var compressed = await compressImage(input.files[0]);
-await callMemberApi('admin-upload-product-image', { productId: productId, imageData: compressed });
+var coverRes = await callMemberApi('admin-upload-product-image', { productId: productId, imageData: compressed });
+rememberPrivateUpload(productId, 1, coverRes);
 showToast('圖片已更新');
 input.value = '';
 var thumb = document.querySelector('.admin-product-thumb[data-product-id="'+productId+'"]');
@@ -4117,6 +4303,7 @@ var qtyRaw = document.getElementById('npQty').value;
 var qty = qtyRaw ? parseInt(qtyRaw) : null;
 var fileInput = document.getElementById('npImage');
 if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+var npPrivateOn = !!(document.getElementById('npPrivate') && document.getElementById('npPrivate').checked);
 var btn = document.getElementById('npSubmit');
 btn.disabled = true; btn.textContent = '建立中...';
 try{
@@ -4126,15 +4313,18 @@ var res = await callMemberApi('admin-create-product', {
 name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: stock, qty: qty,
 liveZoneId: zoneSelect ? zoneSelect.value : null,
 isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked),
+isPrivate: npPrivateOn,
 optionLabel: newOpt.optionLabel || '', options: newOpt.options || '',
 optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || '',
 optionPrices: newOpt.optionPrices || ''
 });
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
-await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: base64 });
+var npUp = await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: base64 });
+if(npPrivateOn) rememberPrivateUpload(res.productId, 1, npUp);
 }
-showToast('商品建立完成');
+if(npPrivateOn){ PRIVATE_IDS[res.productId] = true; adminProductExpanded[res.productId] = true; privateLoadedAt = 0; }
+showToast(npPrivateOn ? '客訂商品建立完成，記得加入可以看的客人 ♡' : '商品建立完成');
 await loadAdminProducts();
 }catch(e){
 alert('建立失敗：' + e.message);
@@ -4204,6 +4394,8 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已售完</button>';
 } else if(isRegularPaused() && !isLiveStock(p.stock)){
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫停喊單中</button>';
+} else if(p.isPrivate && !p.privateAccess){
+orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">私訊詢問</button>';
 } else {
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
@@ -4217,8 +4409,9 @@ return '<article class="card">'
 + '<div class="card-body">'
 + (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
 + (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 品牌選物</span>' : '')
++ (p.isPrivate ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">🔒 客訂</span>' : '')
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
-+ ((p.options || []).length ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
++ ((p.options || []).length && !(p.isPrivate && !p.privateAccess) ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
 + '<div class="card-meta"><span class="price">' + productPriceText(p) + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
 + orderBtnHTML
@@ -4658,6 +4851,7 @@ var thumbs = document.querySelectorAll('#orderModalExtraPhotos .modal-extra-thum
 for(var i=0;i<thumbs.length;i++){ thumbs[i].classList.toggle('is-opt', slot > 1 && thumbs[i].getAttribute('data-zoom') === url); }
 }
 function openOrderModal(product, presetOpt){
+if(product && product.isPrivate && !product.privateAccess){ openPrivateAsk(); return; }
 if(isRegularPaused() && !isLiveStock(product.stock)){
 alert('限時連線忙碌中，暫停現貨與預購連線喊單。\n欲購買商品可以先以限時連線為主，也可以許願 ♡');
 return;
@@ -4734,7 +4928,8 @@ updateOrderModalSub();
 document.getElementById('qtyValue').textContent = '1';
 startViewTrack(product.id);
 var shareBtn = document.getElementById('orderModalShare');
-if(shareBtn) shareBtn.onclick = function(){ shareProductLink(product); };
+// 客訂商品不提供分享連結（按鈕直接隱藏）
+if(shareBtn){ shareBtn.style.display = product.isPrivate ? 'none' : ''; shareBtn.onclick = function(){ shareProductLink(product); }; }
 document.getElementById('orderModal').classList.add('is-open');
 }
 // ---------- 商品熱度（客人看不到）：只記總數，不記是誰 ----------
@@ -5501,7 +5696,7 @@ return (h >>> 0).toString(36).slice(0, 6);
 // 連結後面加「版本號」：商品名稱或照片一改，版本號就跟著變，LINE 會當成新網址重新抓預覽（不會顯示舊的名稱／圖片）
 function productShareVer(p, opt){
 var slot = (opt && p.optionPhotos && p.optionPhotos[opt]) || '';
-var str = String(p.name || '') + '|' + String(p.imageVersion || 0) + '|' + (opt || '') + ':' + slot, h = 0;
+var str = String((p.isPrivate ? p.publicName : p.name) || '') + '|' + String(p.imageVersion || 0) + '|' + (opt || '') + ':' + slot, h = 0;
 for(var i=0;i<str.length;i++){ h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
 return (h >>> 0).toString(36).slice(0, 6);
 }
@@ -5518,10 +5713,11 @@ try{ await navigator.clipboard.writeText(url); showToast('已複製商品連結 
 catch(e){ window.prompt('長按複製這個連結：', url); }
 }
 async function shareProductLink(p){
-if(!p) return;
+if(!p || p.isPrivate) return;
 // 喊單視窗裡已經選了規格一（例如角色）→ 連結帶上這個選項：預覽用它的照片，客人點開直接幫他選好
-var opt = (orderModalProduct && orderModalProduct.id === p.id && orderModalOption) ? orderModalOption : '';
-var label = p.name + (opt ? '・' + opt : '');
+var opt = (!p.isPrivate && orderModalProduct && orderModalProduct.id === p.id && orderModalOption) ? orderModalOption : '';
+// 客訂商品分享出去一律用「客訂商品」，不會帶出真實名稱
+var label = (p.isPrivate ? (p.publicName || '客訂商品') : p.name) + (opt ? '・' + opt : '');
 openShareMenu(label, productShareUrl(p, opt), label + '｜四郎玩具箱');
 }
 async function openShareMenu(label, url, text){
@@ -5591,7 +5787,7 @@ if(n <= 1){ cols = 1; rows = 1; } else if(n <= 3){ cols = n; rows = 1; } else if
 else if(n <= 8){ cols = Math.ceil(n/2); rows = 2; } else if(n <= 12){ cols = 6; rows = 2; } else { cols = 6; rows = 3; }
 var max = cols * rows, extra = n > max ? n - max + 1 : 0;
 var shown = list.slice(0, extra ? max - 1 : max);
-var imgs = await Promise.all(shown.map(function(p){ return loadCorsImage(productImageUrl(p.id)); }));
+var imgs = await Promise.all(shown.map(function(p){ return loadCorsImage(p.isPrivate ? CUSTOM_COVER : productImageUrl(p.id)); }));
 var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
 var ctx = cv.getContext('2d');
 ctx.fillStyle = '#171A24'; ctx.fillRect(0, 0, W, H);
