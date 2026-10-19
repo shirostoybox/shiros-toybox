@@ -1000,7 +1000,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261018-2055';
+var APP_VERSION = '20261018-2315';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2258,11 +2258,12 @@ var restrictToggleBtn = m.orderRestricted
 ? '<button type="button" class="btn btn--full admin-member-unrestrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;">恢復下單資格</button>'
 : '<button type="button" class="btn btn--full admin-member-restrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;border:1.5px solid var(--ink);color:var(--ink);">限制下單資格</button>';
 return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-bottom:14px;">'
-+ '<p style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+(m.nickname||'（未設定暱稱）')+'</p>'
++ '<p class="admin-member-title" data-line-uid="'+escAttr(m.lineUid)+'" style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+escHtml(m.nickname||'（未設定暱稱）')+'</p>'
 + (m.displayName ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px;">LINE：'+m.displayName+'</p>' : '')
 + restrictedBadge
 + (m.staffRole === 'helper' ? '<span style="display:inline-block;background:#EDE9FE;color:#6D28D9;font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin:0 0 8px 6px;">🧑‍💼 小幫手</span>' : '')
-+ '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">'
++ '<label style="display:block;font-size:12px;color:var(--muted);margin-top:6px;">社群暱稱（可直接幫客人修改）<input type="text" maxlength="20" class="gate-input admin-member-nick-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+escAttr(m.nickname||'')+'" placeholder="輸入客人的 LINE 社群暱稱" style="margin-top:4px;margin-bottom:0;"></label>'
++ '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">'
 + '<label style="font-size:12px;color:var(--muted);">回饋券張數<input type="number" min="0" step="1" class="gate-input admin-member-coupon-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.couponBalance+'" style="margin-top:4px;margin-bottom:0;"></label>'
 + '<label style="font-size:12px;color:var(--muted);">免運券張數<input type="number" min="0" step="1" class="gate-input admin-member-referral-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+m.referralCouponBalance+'" style="margin-top:4px;margin-bottom:0;"></label>'
 + '</div>'
@@ -2401,10 +2402,15 @@ var luxSpend = parseInt(document.querySelector('.admin-member-lux-spend-input[da
 var luxRedeemed = parseInt(document.querySelector('.admin-member-lux-redeemed-input[data-line-uid="'+lineUid+'"]').value) || 0;
 if(luxCoupon < 0 || luxSpend < 0 || luxRedeemed < 0){ alert('請輸入正確的數字（不可為負數）'); return; }
 if(luxRedeemed > luxSpend){ alert('品牌選物已兌換金額不能大於品牌選物累積，否則客人會無法兌換品牌選物回饋券'); return; }
+var nickInput = document.querySelector('.admin-member-nick-input[data-line-uid="'+lineUid+'"]');
+var nickname = nickInput ? nickInput.value.trim() : undefined;
+if(nickInput && !nickname){ alert('暱稱不可為空'); return; }
 btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中...';
 try{
-await callMemberApi('admin-update-member-balance', { lineUid: lineUid, couponBalance: couponBalance, referralCouponBalance: referralCouponBalance, cumulativeSpend: cumulativeSpend, redeemedSpend: redeemedSpend, luxuryCouponBalance: luxCoupon, luxuryCumulativeSpend: luxSpend, luxuryRedeemedSpend: luxRedeemed });
+await callMemberApi('admin-update-member-balance', { lineUid: lineUid, couponBalance: couponBalance, referralCouponBalance: referralCouponBalance, cumulativeSpend: cumulativeSpend, redeemedSpend: redeemedSpend, luxuryCouponBalance: luxCoupon, luxuryCumulativeSpend: luxSpend, luxuryRedeemedSpend: luxRedeemed , nickname: nickname});
 showToast('已儲存');
+var titleEl = document.querySelector('.admin-member-title[data-line-uid="'+lineUid+'"]');
+if(titleEl && nickname) titleEl.textContent = nickname;
 }catch(e){
 alert('儲存失敗：' + e.message);
 }
