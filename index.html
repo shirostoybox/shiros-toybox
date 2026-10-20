@@ -590,6 +590,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .share-menu-txt{ display:flex; flex-direction:column; gap:2px; color:var(--text-dark); font-size:14.5px; }
 .share-menu-txt small{ font-size:12px; color:var(--muted); font-weight:500; }
 .share-menu-cancel{ width:100%; margin-top:4px; padding:12px; border:none; border-radius:14px; background:var(--paper); color:var(--muted); font-size:14px; font-weight:700; font-family:var(--font-body); }
+.modal-chip-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0 4px; }
+.modal-chip-row .modal-share{ margin:0; }
+/* 許願：跟底部選單的許願同一個薄荷綠 */
+.modal-wish{ display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:999px; border:1px solid rgba(23,181,168,.45); background:rgba(47,216,201,.12); color:var(--volt-deep); font-size:12px; font-weight:700; font-family:var(--font-body); }
 .modal-share{ display:inline-flex; align-items:center; gap:4px; margin:6px 0 4px; padding:5px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--text-dark); font-size:12px; font-weight:700; font-family:var(--font-body); }
 .modal-sub{ margin:0 0 4px; font-size:12.5px; color:var(--muted); }
 .qty-row{ display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0; }
@@ -709,7 +713,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div id="orderModalExtraPhotos" style="display:none;gap:8px;margin:-6px 0 14px;overflow-x:auto;"></div>
 <h3 id="orderModalTitle"></h3>
 <p class="modal-sub" id="orderModalSub"></p>
-<button type="button" class="modal-share" id="orderModalShare">🔗 分享這個商品</button>
+<div class="modal-chip-row"><button type="button" class="modal-share" id="orderModalShare">🔗 分享這個商品</button><button type="button" class="modal-wish" id="orderModalWish"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5l2.4 5.6 6.1.5-4.6 4 1.4 5.9L12 16.4l-5.3 3.1 1.4-5.9-4.6-4 6.1-.5Z"/></svg>沒看到喜歡的？來許願</button></div>
 <div id="orderModalOptions" style="display:none;"></div>
 <div class="gacha-shell-choice" id="gachaShellChoice">
 <button class="shell-option active" type="button" data-shell="no">不留蛋殼</button>
@@ -1031,7 +1035,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261020-2305';
+var APP_VERSION = '20261021-0015';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5126,6 +5130,9 @@ startViewTrack(product.id);
 var shareBtn = document.getElementById('orderModalShare');
 // 客訂商品也可以分享：連結預覽只會顯示客訂圖和「客訂商品」，沒被勾選的人點進去也看不到真實內容
 if(shareBtn){ shareBtn.style.display = ''; shareBtn.onclick = function(){ shareProductLink(product); }; }
+// 沒看到喜歡的 → 關掉喊單視窗，帶到許願頁
+var wishBtn = document.getElementById('orderModalWish');
+if(wishBtn) wishBtn.onclick = function(){ closeOrderModal(); showView('wish'); window.scrollTo(0, 0); };
 document.getElementById('orderModal').classList.add('is-open');
 }
 // ---------- 商品熱度（客人看不到）：只記總數，不記是誰 ----------
