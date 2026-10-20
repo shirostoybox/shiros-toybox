@@ -136,6 +136,20 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .modal-extra-thumb.is-opt{ outline:3px solid var(--ignis); outline-offset:-3px; }
 .admin-optp-row span{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--text-dark); }
 .admin-optp-row .gate-input{ width:110px; flex:0 0 110px; margin:0; }
+.admin-optp-row .admin-optp-jpy{ width:96px; flex:0 0 96px; }
+.jpy-box{ margin:0 0 8px; padding:10px 12px; border:1.5px dashed #E0A23B; border-radius:var(--r-md); background:#FFF9EE; }
+.jpy-box .jpy-title{ margin:0 0 8px; font-size:12px; font-weight:700; color:var(--text-dark); }
+.jpy-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+.jpy-grid label{ display:block; font-size:11px; font-weight:700; color:var(--muted); }
+.jpy-grid .gate-input{ margin:2px 0 0; padding-left:10px; padding-right:10px; }
+.jpy-result{ margin:8px 0 0; font-size:13px; font-weight:700; color:#B26A00; }
+.jpy-today{ margin:6px 0 0; font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.jpy-today button{ border:1px solid #E0A23B; background:#fff; color:#B26A00; border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:700; }
+.jpy-saved{ margin:6px 0 0; font-size:11.5px; color:var(--muted); line-height:1.6; }
+.jpy-hist-btn{ margin-top:8px; border:none; background:transparent; color:#B26A00; font-size:12px; font-weight:700; padding:0; }
+.jpy-hist{ margin-top:6px; }
+.jpy-hist-row{ padding:7px 0; border-top:1px dashed #F0D9AE; font-size:12px; line-height:1.6; color:var(--text-dark); }
+.jpy-hist-row small{ color:var(--muted); }
 .admin-size-chip{ padding:5px 10px; border-radius:999px; border:1.5px solid var(--line); background:#fff; font-size:12px; font-weight:700; color:var(--muted); font-family:var(--font-body); }
 .admin-size-chip.on{ border-color:var(--ink); background:var(--ink); color:#fff; }
 .shell-option{ flex:1; padding:10px 6px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:12.5px; font-weight:600; color:var(--muted); font-family:var(--font-body); }
@@ -1002,7 +1016,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261019-2200';
+var APP_VERSION = '20261020-2150';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2734,6 +2748,7 @@ adminProductsMode === 'live' ? loadLiveZones() : Promise.resolve()
 ]);
 adminProductsCache = results[0].products || [];
 adminProductOrderCounts = results[0].orderCounts || {};
+if(!ADMIN_FX) loadAdminFx();
 rememberImageVersions(adminProductsCache);
 adminProductsCache.forEach(function(p){ if(p.is_private) PRIVATE_IDS[p.id] = true; else delete PRIVATE_IDS[p.id]; });
 registerCategories(adminProductsCache);
@@ -3582,7 +3597,8 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 + '<input type="text" class="gate-input" id="npSub" placeholder="規格說明（例如：30cm）">'
 + '<select class="gate-input" id="npCat">'+catOptions+'</select>'
 + '<input type="text" class="gate-input" id="npNewCatName" placeholder="新分類名稱" style="display:none;">'
-+ '<input type="number" class="gate-input" id="npPrice" placeholder="價格">'
++ '<input type="number" class="gate-input" id="npPrice" placeholder="台幣價格（或用下面日幣換算自動帶入）">'
++ adminJpyBoxHTML('new', null)
 + adminOptionsEditorHTML('new', '', '')
 + (isLiveMode
 ? '<input type="hidden" id="npStock" value="live_limited">'
@@ -3667,7 +3683,8 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + adminOrigWarnHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
-+ '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="價格" style="margin-bottom:8px;">'
++ '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="台幣價格" style="margin-bottom:8px;">'
++ adminJpyBoxHTML('row-'+p.id, p.cost || null)
 + adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + adminPrivatePanelHTML(p)
@@ -3841,6 +3858,154 @@ return '<div class="admin-opt-group" data-g="'+g+'" style="margin-top:'+(g===1?'
 + '<textarea class="gate-input admin-opt-values" rows="2" placeholder="'+valuesPh+'" style="margin-bottom:0;resize:vertical;">'+escHtml(list.join(', '))+'</textarea>'
 + '</div>';
 }
+// ---------- 日幣換算：日幣 × 匯率 × 倍數 = 台幣，換算時的匯率一起記下來 ----------
+var ADMIN_FX = null;   // { rate, date }
+function todayTW(){ return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+function lastJpyMult(){ try{ return localStorage.getItem('lastJpyMult') || ''; }catch(e){ return ''; } }
+async function loadAdminFx(force){
+try{
+var d = await callMemberApi('admin-get-fx-rate', force ? { force: true } : {});
+if(d && d.rate){ ADMIN_FX = { rate: Number(d.rate), date: d.date || '', stale: !!d.stale }; }
+}catch(e){}
+var boxes = document.querySelectorAll('.jpy-box');
+for(var i=0;i<boxes.length;i++) paintJpyToday(boxes[i]);
+}
+function fmtNum(n){ return Number(n).toLocaleString('en-US'); }
+function jpyCalc(jpy, rate, mult){
+jpy = Number(jpy); rate = Number(rate); mult = Number(mult);
+if(!(jpy > 0 && rate > 0 && mult > 0)) return 0;
+return Math.round(jpy * rate * mult);
+}
+function adminJpyBoxHTML(key, cost){
+cost = cost || {};
+var hasSaved = Number(cost.jpyPrice) > 0 || !!cost.optionJpy;
+var rate = Number(cost.fxRate) > 0 ? cost.fxRate : (ADMIN_FX ? ADMIN_FX.rate : '');
+var mult = Number(cost.multiplier) > 0 ? cost.multiplier : lastJpyMult();
+var saved = '';
+if(hasSaved){
+var tw = jpyCalc(cost.jpyPrice, cost.fxRate, cost.multiplier);
+saved = '<p class="jpy-saved">📒 上次換算紀錄：'
++ (Number(cost.jpyPrice) > 0 ? '¥'+fmtNum(cost.jpyPrice)+' × 匯率 '+cost.fxRate+' × '+cost.multiplier+' 倍'+(tw ? ' = NT$'+fmtNum(tw) : '') : '各規格分開換算')
++ (cost.fxDate ? '（'+escHtml(cost.fxDate)+' 的匯率）' : '') + '</p>';
+}
+return '<div class="jpy-box" data-key="'+escAttr(key)+'" data-fxdate="'+escAttr(cost.fxDate || '')+'" data-optjpy="'+escAttr(cost.optionJpy || '')+'">'
++ '<p class="jpy-title">💴 日幣換算（日幣 × 匯率 × 倍數 = 台幣）</p>'
++ '<div class="jpy-grid">'
++ '<label>日幣價格<input type="number" min="0" class="gate-input jpy-price" value="'+(Number(cost.jpyPrice) > 0 ? cost.jpyPrice : '')+'" placeholder="¥"></label>'
++ '<label>匯率<input type="number" min="0" step="0.0001" class="gate-input jpy-rate" value="'+(rate || '')+'" placeholder="0.21"></label>'
++ '<label>倍數<input type="number" min="0" step="0.01" class="gate-input jpy-mult" value="'+(mult || '')+'" placeholder="1.4"></label>'
++ '</div>'
++ '<p class="jpy-result"></p>'
++ '<div class="jpy-today"></div>'
++ saved
++ (key.indexOf('row-') === 0 ? '<button type="button" class="jpy-hist-btn">📜 看換算歷史</button><div class="jpy-hist" style="display:none;"></div>' : '')
++ '</div>';
+}
+function paintJpyToday(box){
+var el = box.querySelector('.jpy-today'); if(!el) return;
+if(!ADMIN_FX){ el.innerHTML = '今日匯率讀取中…（也可以直接輸入）'; return; }
+var cur = Number(box.querySelector('.jpy-rate').value);
+el.innerHTML = '今日匯率 <b>'+ADMIN_FX.rate+'</b>（'+escHtml(ADMIN_FX.date)+(ADMIN_FX.stale ? '，暫時抓不到最新' : '')+'）'
++ (cur === ADMIN_FX.rate ? '' : '<button type="button" class="jpy-use-today">套用今日匯率</button>');
+if(!box.querySelector('.jpy-rate').value){ box.querySelector('.jpy-rate').value = ADMIN_FX.rate; recalcJpyBox(box); }
+}
+function jpyPriceInputFor(key){
+if(key === 'new') return document.getElementById('npPrice');
+return document.querySelector('.admin-price-input[data-product-id="'+key.slice(4)+'"]');
+}
+function recalcJpyBox(box){
+var key = box.getAttribute('data-key');
+var jpy = box.querySelector('.jpy-price').value, rate = box.querySelector('.jpy-rate').value, mult = box.querySelector('.jpy-mult').value;
+var tw = jpyCalc(jpy, rate, mult);
+var res = box.querySelector('.jpy-result');
+var touched = box.getAttribute('data-touched') === '1';
+if(tw){
+res.textContent = '= NT$' + fmtNum(tw) + (touched ? '（已帶入台幣價格）' : '');
+if(touched){ var pi = jpyPriceInputFor(key); if(pi) pi.value = tw; }
+} else {
+res.textContent = Number(jpy) > 0 ? '請填匯率和倍數' : '';
+}
+// 規格一各選項的日幣 → 台幣
+var ed = document.querySelector('.admin-opt-editor[data-key="'+key+'"]');
+var ob = ed && ed.querySelector('.admin-optp');
+if(ob && touched){
+var jm = {}; try{ jm = JSON.parse(ob.getAttribute('data-jpy') || '{}'); }catch(e){}
+var pm = {}; try{ pm = JSON.parse(ob.getAttribute('data-prices') || '{}'); }catch(e){}
+Object.keys(jm).forEach(function(o){
+var v = jpyCalc(jm[o], rate, mult);
+if(v){ pm[o] = v; var inp = ed.querySelector('.admin-optp-in[data-opt="'+(window.CSS && CSS.escape ? CSS.escape(o) : o)+'"]'); if(inp) inp.value = v; }
+});
+ob.setAttribute('data-prices', JSON.stringify(pm));
+}
+if(touched) box.setAttribute('data-fxdate', todayTW());
+var tb = box.querySelector('.jpy-use-today');
+if(tb && ADMIN_FX && Number(rate) === ADMIN_FX.rate) tb.remove();
+}
+// 讀日幣換算框（儲存／建立商品時一起送出）
+function readJpyBox(key, options){
+var box = document.querySelector('.jpy-box[data-key="'+key+'"]');
+if(!box) return {};
+var jpy = Number(box.querySelector('.jpy-price').value) || 0;
+var rate = Number(box.querySelector('.jpy-rate').value) || 0;
+var mult = Number(box.querySelector('.jpy-mult').value) || 0;
+var ed = document.querySelector('.admin-opt-editor[data-key="'+key+'"]');
+var ob = ed && ed.querySelector('.admin-optp');
+var oj = {};
+if(ob && ob.querySelector('.admin-optp-on').checked){
+var all = {}; try{ all = JSON.parse(ob.getAttribute('data-jpy') || '{}'); }catch(e){}
+parseOptionList(options || '').forEach(function(o){ if(Number(all[o]) > 0) oj[o] = Number(all[o]); });
+}
+if(mult > 0){ try{ localStorage.setItem('lastJpyMult', String(mult)); }catch(e){} }
+return { jpyPrice: jpy || '', multiplier: mult || '', fxRate: rate || '', fxDate: (jpy || Object.keys(oj).length) ? (box.getAttribute('data-fxdate') || todayTW()) : '', optionJpy: Object.keys(oj).length ? JSON.stringify(oj) : '' };
+}
+// 換算歷史：每次日幣／倍數／匯率／台幣價格有變就多一筆，最新的在最上面
+async function toggleJpyHistory(box, btn){
+var el = box.querySelector('.jpy-hist');
+if(el.style.display !== 'none'){ el.style.display = 'none'; btn.textContent = '📜 看換算歷史'; return; }
+el.style.display = 'block'; btn.textContent = '📜 收起換算歷史';
+el.innerHTML = '<p class="jpy-saved">讀取中…</p>';
+try{
+var d = await callMemberApi('admin-cost-history', { productId: box.getAttribute('data-key').slice(4) });
+var h = d.history || [];
+if(!h.length){ el.innerHTML = '<p class="jpy-saved">還沒有歷史紀錄（下次填日幣並儲存後就會開始記錄）</p>'; return; }
+el.innerHTML = h.map(function(r, i){
+var when = r.at ? new Date(r.at).toLocaleDateString('zh-TW', { timeZone:'Asia/Taipei' }) : '';
+var main = Number(r.jpyPrice) > 0 ? '¥'+fmtNum(r.jpyPrice)+' × '+r.fxRate+' × '+r.multiplier+' 倍' : '各規格分開換算';
+var opt = '';
+try{
+var oj = r.optionJpy ? JSON.parse(r.optionJpy) : {}, op = r.optionPrices ? JSON.parse(r.optionPrices) : {};
+var ks = Object.keys(oj);
+if(ks.length) opt = '<br><small>' + ks.map(function(k){ return escHtml(k)+'：¥'+fmtNum(oj[k])+(op[k] ? '→NT$'+fmtNum(op[k]) : ''); }).join('、') + '</small>';
+}catch(e){}
+return '<div class="jpy-hist-row">'+(i === 0 ? '<b style="color:#B26A00;">目前</b>　' : '')+escHtml(when)
++ '<br>'+main+(Number(r.twdPrice) > 0 ? '　→ 賣價 <b>NT$'+fmtNum(r.twdPrice)+'</b>' : '')
++ (r.fxDate ? '　<small>（'+escHtml(r.fxDate)+' 匯率）</small>' : '') + opt + '</div>';
+}).join('');
+}catch(err){ el.innerHTML = '<p class="jpy-saved">讀取失敗：'+escHtml(err.message)+'</p>'; }
+}
+function bindJpyBoxes(container){
+var boxes = container.querySelectorAll('.jpy-box');
+for(var i=0;i<boxes.length;i++){
+(function(box){
+// 把存過的規格日幣放進規格價格那一區
+var ed = document.querySelector('.admin-opt-editor[data-key="'+box.getAttribute('data-key')+'"]');
+var ob = ed && ed.querySelector('.admin-optp');
+if(ob && box.getAttribute('data-optjpy') && !ob.getAttribute('data-jpy')){ ob.setAttribute('data-jpy', box.getAttribute('data-optjpy')); renderAdminOptPrices(ed); }
+var ins = box.querySelectorAll('.jpy-price, .jpy-rate, .jpy-mult');
+for(var k=0;k<ins.length;k++){ ins[k].addEventListener('input', function(){ box.setAttribute('data-touched', '1'); recalcJpyBox(box); }); }
+box.addEventListener('click', function(e){
+if(e.target && e.target.classList && e.target.classList.contains('jpy-hist-btn')){ toggleJpyHistory(box, e.target); return; }
+if(e.target && e.target.classList && e.target.classList.contains('jpy-use-today') && ADMIN_FX){
+box.querySelector('.jpy-rate').value = ADMIN_FX.rate;
+box.setAttribute('data-touched', '1');
+recalcJpyBox(box);
+}
+});
+paintJpyToday(box);
+recalcJpyBox(box);
+})(boxes[i]);
+}
+}
 function adminOptionsEditorHTML(key, label, options, label2, options2, optionPrices, optionPhotos){
 var priceMap = parseOptionPrices(optionPrices || '');
 var isRow = String(key).indexOf('row-') === 0;
@@ -3862,9 +4027,11 @@ var box = ed.querySelector('.admin-optp'); if(!box) return;
 var list = parseOptionList(ed.querySelector('.admin-opt-group[data-g="1"] .admin-opt-values').value);
 var map = {}; try{ map = JSON.parse(box.getAttribute('data-prices') || '{}'); }catch(e){}
 var listEl = box.querySelector('.admin-optp-list');
+var jmap = {}; try{ jmap = JSON.parse(box.getAttribute('data-jpy') || '{}'); }catch(e){}
 listEl.innerHTML = list.length
-? list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span><input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="價格"></div>'; }).join('')
-+ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
+? '<div class="admin-optp-row" style="margin-bottom:2px;"><span></span><small style="width:96px;flex:0 0 96px;font-size:11px;font-weight:700;color:var(--muted);">日幣 ¥</small><small style="width:110px;flex:0 0 110px;font-size:11px;font-weight:700;color:var(--muted);">台幣 NT$</small></div>'
++ list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span><input type="number" min="0" class="gate-input admin-optp-jpy" data-opt="'+escAttr(o)+'" value="'+(jmap[o] || '')+'" placeholder="¥ 日幣"><input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="NT$"></div>'; }).join('')
++ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">填日幣會用上面的匯率和倍數自動換算台幣，也可以直接填台幣。沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
 : '<p style="margin:0;font-size:11.5px;color:var(--muted);">先在上面填規格一的選項</p>';
 var ins = listEl.querySelectorAll('.admin-optp-in');
 for(var i=0;i<ins.length;i++){
@@ -3873,6 +4040,17 @@ var m = {}; try{ m = JSON.parse(box.getAttribute('data-prices') || '{}'); }catch
 var v = parseInt(this.value);
 if(v > 0) m[this.getAttribute('data-opt')] = v; else delete m[this.getAttribute('data-opt')];
 box.setAttribute('data-prices', JSON.stringify(m));
+});
+}
+var jins = listEl.querySelectorAll('.admin-optp-jpy');
+for(var ji=0;ji<jins.length;ji++){
+jins[ji].addEventListener('input', function(){
+var m = {}; try{ m = JSON.parse(box.getAttribute('data-jpy') || '{}'); }catch(e){}
+var v = Number(this.value);
+if(v > 0) m[this.getAttribute('data-opt')] = v; else delete m[this.getAttribute('data-opt')];
+box.setAttribute('data-jpy', JSON.stringify(m));
+var jb = document.querySelector('.jpy-box[data-key="'+ed.getAttribute('data-key')+'"]');
+if(jb){ jb.setAttribute('data-touched', '1'); recalcJpyBox(jb); }
 });
 }
 }
@@ -4008,7 +4186,9 @@ btn.disabled = true; var oldText = btn.textContent; btn.textContent = '儲存中
 try{
 var optEd = document.querySelector('.admin-opt-editor[data-key="row-'+productId+'"]');
 var optPayload = readAdminOptionEditor(optEd);
-await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price, renameOrders: renameOrders }, optPayload));
+var jpyPayload = readJpyBox('row-'+productId, optPayload.options);
+await callMemberApi('admin-update-product-info', Object.assign({ productId: productId, name: name, sub: subInput.value.trim(), price: price, renameOrders: renameOrders }, optPayload, jpyPayload));
+for(var cj=0; cj<adminProductsCache.length; cj++){ if(adminProductsCache[cj].id === productId && jpyPayload.fxDate !== undefined){ adminProductsCache[cj].cost = (jpyPayload.jpyPrice || jpyPayload.optionJpy) ? { jpyPrice: jpyPayload.jpyPrice, multiplier: jpyPayload.multiplier, fxRate: jpyPayload.fxRate, fxDate: jpyPayload.fxDate, optionJpy: jpyPayload.optionJpy } : null; } }
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
 var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
 for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; if(optPayload.optionPhotos !== undefined) adminProductsCache[ci].option_photos = optPayload.optionPhotos; } } }
@@ -4021,6 +4201,7 @@ btn.disabled = false; btn.textContent = oldText;
 }
 function bindAdminProductActions(container){
 bindAdminOptionEditors(container);
+bindJpyBoxes(container);
 var toggle = document.getElementById('adminNewProductToggle');
 if(toggle){ toggle.addEventListener('click', function(){
 var form = document.getElementById('adminNewProductForm');
@@ -4309,7 +4490,7 @@ btn.disabled = true; btn.textContent = '建立中...';
 try{
 var zoneSelect = document.getElementById('npZone');
 var newOpt = readAdminOptionEditor(document.querySelector('.admin-opt-editor[data-key="new"]'));
-var res = await callMemberApi('admin-create-product', {
+var res = await callMemberApi('admin-create-product', Object.assign({
 name: name, sub: sub, cat: cat, catLabel: catLabel, price: price, stockStatus: stock, qty: qty,
 liveZoneId: zoneSelect ? zoneSelect.value : null,
 isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked),
@@ -4317,7 +4498,7 @@ isPrivate: npPrivateOn,
 optionLabel: newOpt.optionLabel || '', options: newOpt.options || '',
 optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || '',
 optionPrices: newOpt.optionPrices || ''
-});
+}, readJpyBox('new', newOpt.options)));
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
 var npUp = await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: base64 });
