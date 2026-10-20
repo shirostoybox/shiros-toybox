@@ -977,11 +977,16 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <section class="view" data-view="wish">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>許願說明</h2></div>
 <div class="guide-content">
-<p style="font-size:14px; color:var(--text-dark); line-height:1.8; margin:0 0 20px;">找不到想要的商品嗎？<br>把想找的東西告訴我，下次去日本掃貨時順便幫你留意，找到馬上通知你！</p>
+<div style="display:flex;align-items:center;gap:12px;margin:0 0 12px;">
+<span style="flex-shrink:0;width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#FF8A65,#E8483B);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 16px rgba(232,72,59,.25);">🔍</span>
+<p style="margin:0;font-size:21px;font-weight:800;color:var(--text-dark);line-height:1.35;">找不到想要的商品嗎？</p>
+</div>
+<p style="font-size:14px; color:var(--text-dark); line-height:1.8; margin:0 0 20px;">把想找的商品告訴我們，我們會幫您尋寶，找到後先報價給您，確認喜歡再上架開放喊單 ♡</p>
 <ol class="guide-steps">
-<li>點下方「立即許願」，會跳轉到LINE</li>
-<li>告訴我商品照片或名稱、想要的款式</li>
-<li>找到後會直接在LINE通知你，確認後就能加入喊單</li>
+<li>點下方「立即許願」，會跳轉到官方 LINE</li>
+<li>傳送商品截圖或照片，並附上名稱、想要的款式</li>
+<li>找到後會在 LINE 通知您並提供報價</li>
+<li>確認報價後，我們會為您上架商品，即可加入喊單</li>
 </ol>
 <a class="btn btn--primary btn--full link-btn" href="https://line.me/R/ti/p/@324flvar" target="_blank" rel="noopener">立即許願</a>
 </div>
@@ -1016,7 +1021,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261020-2150';
+var APP_VERSION = '20261020-2220';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
