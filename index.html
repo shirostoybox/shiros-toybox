@@ -226,6 +226,18 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .stock--live_limited{ background:rgba(226,71,42,.13); color:#C8321C; }
 .stock--live_ended{ background:rgba(125,130,145,.14); color:#7D8291; }
 .stock--sold_out{ background:rgba(125,130,145,.14); color:#7D8291; }
+.card-order-btn.card-order-btn--plus1{ background:var(--ignis); transition:background .2s ease, transform .12s ease; }
+.card-order-btn.card-order-btn--plus1:active{ transform:scale(.97); }
+.card-order-btn.card-order-btn--plus1.is-done{ background:var(--volt-deep); }
+.dm-chip{ display:inline-block; background:#FFE4DC; color:#D9381E; border-color:#FFE4DC; }
+.plus-toast{ position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(20px); z-index:210; display:flex; align-items:center; gap:12px; max-width:calc(100vw - 32px); background:var(--ink); color:#fff; padding:10px 10px 10px 18px; border-radius:999px; font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease; box-shadow:0 10px 26px rgba(0,0,0,.25); }
+.plus-toast.is-visible{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+.plus-toast .pt-msg{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.plus-toast button{ flex-shrink:0; border:none; border-radius:999px; background:rgba(255,255,255,.14); color:var(--volt); font-size:13px; font-weight:800; padding:7px 14px; font-family:var(--font-body); }
+.qk-box{ margin:0 0 12px; padding:14px; border-radius:var(--r-md); border:1.5px solid #FFB9A6; background:#FFF5F1; }
+.qk-box h4{ margin:0 0 4px; font-size:15px; color:var(--text-dark); }
+.qk-photo{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; aspect-ratio:4/3; margin:8px 0 10px; border:1.5px dashed #FFB9A6; border-radius:var(--r-md); background:#fff; color:#D9381E; font-size:14px; font-weight:700; overflow:hidden; position:relative; }
+.qk-photo img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; }
 .card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
 .card-order-btn:active{ transform:scale(.97); }
 /* orders */
@@ -1035,7 +1047,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261021-0015';
+var APP_VERSION = '20261021-0110';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1979,9 +1991,9 @@ var confirmBtn = o.status === '待確認'
 : '<button class="btn btn--full admin-unconfirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px dashed var(--muted);color:var(--muted);font-size:13px;">按錯了，退回待確認</button>';
 var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
 var orderZone = o.is_live_limited ? zoneById(o.live_zone_id || 'z_default') : null;
-var liveBadge = o.is_live_limited
+var liveBadge = (o.is_live_limited
 ? '<span style="display:inline-block;background:var(--volt);color:var(--ink);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">⚡限時連線'+(orderZone && orderZone.note ? '｜'+escHtml(orderZone.note) : '')+'</span>'
-: '';
+: '') + (orderCatInfo(o).key === DONTMISS_CAT ? '<span style="display:inline-block;background:#FFE4DC;color:#D9381E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🔥別錯過</span>' : '');
 var luxuryBadge = o.is_luxury
 ? '<span style="display:inline-block;background:#1B1E27;color:#E9C46A;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🏷️品牌選物</span>'
 : '';
@@ -2801,6 +2813,7 @@ products = adminLiveZoneFilter === '__none__'
 ? unassigned
 : products.filter(function(p){ return p.live_zone_id === adminLiveZoneFilter; });
 }
+if(isLiveMode) html += adminQuickFormHTML();
 html += adminNewProductFormHTML(allProducts, isLiveMode);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">'+(isLiveMode ? '目前沒有限時連線商品。' : '目前沒有商品。')+'</p>';
@@ -2809,6 +2822,7 @@ html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + 
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
+bindAdminQuickForm(listEl);
 bindAdminCatToggles(listEl);
 if(isLiveMode) bindAdminZoneActions(listEl);
 var catSelect = document.getElementById('npCat');
@@ -3604,6 +3618,86 @@ if(willOpen){ adminOpenCats[memKey] = true; } else { delete adminOpenCats[memKey
 });
 }
 }
+// ---------- ⚡ 快速上架（別錯過）：出國時一張照片＋名稱＋價格就上架，客人按 +1 直接喊單 ----------
+var adminQuickOpen = false;
+var adminQuickShare = true;
+var adminQuickFile = null;
+function adminQuickZoneId(){
+if(adminLiveZoneFilter && adminLiveZoneFilter !== '__none__' && zoneById(adminLiveZoneFilter)) return adminLiveZoneFilter;
+for(var i=0;i<LIVE_ZONES.length;i++){ if(LIVE_ZONES[i].is_open) return LIVE_ZONES[i].id; }
+return LIVE_ZONES.length ? LIVE_ZONES[0].id : '';
+}
+function adminQuickFormHTML(){
+if(!LIVE_ZONES.length) return '';
+var zid = adminQuickZoneId();
+return '<div class="qk-box">'
++ '<button type="button" id="qkToggle" style="width:100%;display:flex;justify-content:space-between;align-items:center;border:none;background:none;padding:0;font-family:var(--font-body);">'
++ '<span style="text-align:left;"><span style="display:block;font-size:15px;font-weight:800;color:var(--text-dark);">⚡ 快速上架・🔥別錯過</span><span style="display:block;margin-top:2px;font-size:11.5px;color:var(--muted);">一張照片＋名稱＋價格就上架，客人按 +1 直接喊單</span></span>'
++ '<span style="font-size:13px;color:#D9381E;font-weight:700;">'+(adminQuickOpen ? '收起' : '展開')+'</span></button>'
++ '<div id="qkBody" style="display:'+(adminQuickOpen ? 'block' : 'none')+';margin-top:10px;">'
++ '<label class="qk-photo" id="qkPhotoLabel">📷 拍照或選一張照片<input type="file" accept="image/*" id="qkFile" style="display:none;"></label>'
++ '<input type="text" class="gate-input" id="qkName" placeholder="商品名稱（例如：ちいかわ 毛巾）">'
++ '<input type="text" class="gate-input" id="qkSub" placeholder="簡短說明（可不填，例如：青森限定）">'
++ adminJpyBoxHTML('quick', null)
++ '<input type="number" class="gate-input" id="qkPrice" placeholder="台幣價格（或用上面日幣換算）">'
++ '<select class="gate-input" id="qkZone">' + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(z.id===zid?' selected':'')+'>上架到：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+(z.is_open?'':'（未開放）')+'</option>'; }).join('') + '</select>'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="qkShare"'+(adminQuickShare?' checked':'')+' style="width:18px;height:18px;"> 上架後直接開分享（選群組傳出去）</label>'
++ '<button type="button" class="btn btn--primary btn--full" id="qkSubmit">⚡ 上架到別錯過</button>'
++ '</div></div>';
+}
+function bindAdminQuickForm(container){
+var tg = container.querySelector('#qkToggle');
+if(!tg) return;
+tg.addEventListener('click', function(){
+adminQuickOpen = !adminQuickOpen;
+document.getElementById('qkBody').style.display = adminQuickOpen ? 'block' : 'none';
+this.lastElementChild.textContent = adminQuickOpen ? '收起' : '展開';
+});
+var f = document.getElementById('qkFile');
+f.addEventListener('change', function(){
+adminQuickFile = f.files && f.files[0] ? f.files[0] : null;
+var lab = document.getElementById('qkPhotoLabel');
+var old = lab.querySelector('img'); if(old) old.remove();
+if(adminQuickFile){ var im = document.createElement('img'); im.src = URL.createObjectURL(adminQuickFile); lab.appendChild(im); }
+});
+document.getElementById('qkShare').addEventListener('change', function(){ adminQuickShare = this.checked; });
+document.getElementById('qkSubmit').addEventListener('click', handleAdminQuickCreate);
+}
+async function handleAdminQuickCreate(){
+var name = document.getElementById('qkName').value.trim();
+var sub = document.getElementById('qkSub').value.trim();
+var price = parseInt(document.getElementById('qkPrice').value);
+var zoneId = document.getElementById('qkZone').value;
+if(!adminQuickFile){ alert('請先拍照或選一張照片'); return; }
+if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+var btn = document.getElementById('qkSubmit');
+btn.disabled = true; btn.textContent = '上架中...';
+try{
+var compressed = await compressImage(adminQuickFile);
+var res = await callMemberApi('admin-create-product', Object.assign({
+name: name, sub: sub, cat: DONTMISS_CAT, catLabel: DONTMISS_LABEL, price: price,
+stockStatus: 'live_limited', qty: null, liveZoneId: zoneId, isLuxury: false
+}, readJpyBox('quick', '')));
+await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: compressed });
+IMAGE_VERSIONS[res.productId] = Date.now();
+adminQuickFile = null;
+adminQuickOpen = true;
+showToast('已上架到別錯過 ♡');
+var shareIt = adminQuickShare;
+await loadAdminProducts();
+var nm = document.getElementById('qkName'); if(nm) nm.focus();
+if(shareIt){
+await Promise.all([loadProducts(), loadSiteSettings()]);
+var np = null;
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === res.productId){ np = PRODUCTS[i]; break; } }
+if(np) shareProductLink(np);
+}
+refreshShop();
+}catch(e){
+alert('上架失敗：' + e.message);
+btn.disabled = false; btn.textContent = '⚡ 上架到別錯過';
+}
+}
 function adminNewProductFormHTML(products, isLiveMode){
 var cats = {};
 (products||[]).forEach(function(p){ if(p.cat){ cats[p.cat] = p.cat_label || catLabelFor(p.cat); } });
@@ -3930,6 +4024,7 @@ if(!box.querySelector('.jpy-rate').value){ box.querySelector('.jpy-rate').value 
 }
 function jpyPriceInputFor(key){
 if(key === 'new') return document.getElementById('npPrice');
+if(key === 'quick') return document.getElementById('qkPrice');
 return document.querySelector('.admin-price-input[data-product-id="'+key.slice(4)+'"]');
 }
 function recalcJpyBox(box){
@@ -4424,8 +4519,12 @@ return x < y ? -1 : (x > y ? 1 : 0);
 });
 CATEGORY_ORDER = all;
 }
+// 快速上架「別錯過」：固定用珊瑚紅，一眼就認得
+var DONTMISS_CAT = 'dontmiss';
+var DONTMISS_LABEL = '別錯過';
 function colorForCategory(key){
 key = String(key || '');
+if(key === DONTMISS_CAT) return { tag:'#FFE4DC', tagText:'#D9381E' };
 var idx = CATEGORY_ORDER.indexOf(key);
 if(idx === -1){ registerCategories([{cat:key}]); idx = CATEGORY_ORDER.indexOf(key); }
 if(idx < ADMIN_CATEGORY_COLORS.length) return ADMIN_CATEGORY_COLORS[idx];
@@ -4596,6 +4695,8 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫停喊單中</button>';
 } else if(p.isPrivate && !p.privateAccess){
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">私訊詢問</button>';
+} else if(p.cat === DONTMISS_CAT){
+orderBtnHTML = '<button class="card-order-btn card-order-btn--plus1" data-plus1="' + p.id + '">＋1 喊單</button>';
 } else {
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
@@ -4618,7 +4719,11 @@ return '<article class="card">'
 + '</div></article>';
 }
 function bindCardButtons(container){
-var orderBtns = container.querySelectorAll('.card-order-btn');
+var plusBtns = container.querySelectorAll('[data-plus1]');
+for(var pb=0; pb<plusBtns.length; pb++){
+plusBtns[pb].addEventListener('click', function(e){ e.stopPropagation(); quickPlusOne(this.getAttribute('data-plus1'), this); });
+}
+var orderBtns = container.querySelectorAll('.card-order-btn[data-order]');
 for(var j=0;j<orderBtns.length;j++){
 orderBtns[j].addEventListener('click', (function(btn){
 return function(){
@@ -4948,6 +5053,8 @@ for(var i=0;i<all.length;i++){
 var p = all[i];
 if(p.cat && !cats[p.cat]){ cats[p.cat] = p.catLabel || catLabelFor(p.cat); catKeys.push(p.cat); }
 }
+// 「別錯過」分類固定排第一個
+if(catKeys.indexOf(DONTMISS_CAT) > 0){ catKeys.splice(catKeys.indexOf(DONTMISS_CAT), 1); catKeys.unshift(DONTMISS_CAT); }
 if(liveCategory !== 'all' && !cats[liveCategory]) liveCategory = 'all';
 var tabsWrap = document.getElementById('liveCategoryTabs');
 if(tabsWrap){
@@ -4967,6 +5074,14 @@ tabsWrap.style.display = 'none';
 }
 // 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
 var list = sortProductsByPrice(all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; }));
+// 「別錯過」是出國時邊逛邊上架的，最新上架的排最前面
+if(liveCategory === DONTMISS_CAT){
+list = all.filter(function(p){ return p.cat === DONTMISS_CAT; }).sort(function(a, b){
+var ea = a.stock === 'live_limited' ? 0 : 1, eb = b.stock === 'live_limited' ? 0 : 1;
+if(ea !== eb) return ea - eb;
+return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+});
+}
 renderCatShareBar('liveCatShare', zone ? zone.id : '', isOpen ? liveCategory : 'all', all.filter(function(p){ return p.cat === liveCategory && p.stock === 'live_limited'; }), zone);
 var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
@@ -5300,6 +5415,48 @@ renderHome();
 renderShop();
 renderLive();
 loadMyOrders();
+}
+/* ---------- 別錯過：按 +1 直接喊單（數量 1），幾秒內可以按「復原」 ---------- */
+var plusToastTimer = null;
+var plusBusy = {};
+function showPlusToast(msg, orderId){
+var t = document.getElementById('plusToast');
+if(!t){ t = document.createElement('div'); t.id = 'plusToast'; t.className = 'plus-toast'; document.body.appendChild(t); }
+t.innerHTML = '<span class="pt-msg">'+escHtml(msg)+'</span>' + (orderId ? '<button type="button" id="plusUndo">復原</button>' : '');
+t.classList.add('is-visible');
+clearTimeout(plusToastTimer);
+plusToastTimer = setTimeout(function(){ t.classList.remove('is-visible'); }, orderId ? 6000 : 1800);
+var u = document.getElementById('plusUndo');
+if(u) u.onclick = async function(){
+u.disabled = true; u.textContent = '復原中…';
+try{
+await callMemberApi('delete-order', { orderId: orderId });
+showPlusToast('已取消這筆 +1', null);
+loadMyOrders();
+}catch(err){ showPlusToast('無法復原：' + err.message, null); }
+};
+}
+async function quickPlusOne(productId, btn){
+var p = null;
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === productId){ p = PRODUCTS[i]; break; } }
+if(!p || plusBusy[productId]) return;
+if(myOrderRestricted){ alert('您已失去下單資格，如有疑問請私訊官方LINE了解詳情'); return; }
+plusBusy[productId] = true;
+var btns = document.querySelectorAll('[data-plus1="'+productId+'"]');
+for(var b=0;b<btns.length;b++) btns[b].disabled = true;
+try{
+var r = await callMemberApi('submit-order', {
+product_id: p.id, product_name: p.name, variant: p.sub || '', quantity: 1, price: p.price
+});
+for(var k=0;k<btns.length;k++){ btns[k].classList.add('is-done'); btns[k].textContent = '✓ 已喊單 +1'; }
+setTimeout(function(){ for(var k2=0;k2<btns.length;k2++){ btns[k2].classList.remove('is-done'); btns[k2].textContent = '＋1 喊單'; } }, 1200);
+showPlusToast('已喊單 +1・' + p.name + (r && r.depositRequired ? '（需付訂金）' : ''), r && r.orderId);
+loadMyOrders();
+}catch(e){
+alert('喊單失敗：' + e.message);
+}
+for(var b2=0;b2<btns.length;b2++) btns[b2].disabled = false;
+plusBusy[productId] = false;
 }
 /* ---------- real orders ---------- */
 async function loadMyOrders(){
