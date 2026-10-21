@@ -356,6 +356,17 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .order-body{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .order-product{ margin:0; font-size:14px; font-weight:700; color:var(--text-dark); }
 .order-product .sub{ display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px; }
+.calc-chip{ display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:999px; border:1.5px dashed #F0A58F; background:#fff; color:var(--text-dark); font-family:var(--font-display); font-weight:700; font-size:inherit; line-height:1.3; cursor:pointer; transition:background .15s, color .15s, border-color .15s; }
+.calc-chip.on{ background:var(--ignis); border-color:var(--ignis); border-style:solid; color:#fff; }
+.calc-chip.on::before{ content:'✓'; font-size:.85em; }
+.order-price .calc-chip{ font-size:14.5px; }
+.calc-bar{ position:sticky; bottom:calc(86px + env(safe-area-inset-bottom)); z-index:5; display:none; align-items:center; gap:8px; margin:12px -4px 0; padding:10px 10px 10px 14px; border-radius:16px; background:var(--ink); color:#fff; box-shadow:0 10px 24px rgba(0,0,0,.22); }
+.calc-bar.is-on{ display:flex; }
+.calc-bar .cb-sum{ flex:1; min-width:0; font-size:13px; line-height:1.35; }
+.calc-bar .cb-sum b{ display:block; font-family:var(--font-display); font-size:19px; color:var(--volt); }
+.calc-bar button{ flex-shrink:0; border:none; border-radius:999px; padding:8px 12px; font-size:12.5px; font-weight:700; font-family:var(--font-body); }
+.calc-bar .cb-copy{ background:var(--volt); color:var(--ink); }
+.calc-bar .cb-clear{ background:rgba(255,255,255,.14); color:#fff; }
 .order-price{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--text-dark); white-space:nowrap; }
 .adm-o-right{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0; }
 .adm-o-thumb{ width:72px; height:72px; border-radius:12px; object-fit:cover; background:#fff; border:1px solid var(--line); cursor:pointer; }
@@ -1047,7 +1058,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261021-2230';
+var APP_VERSION = '20261021-2300';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1984,8 +1995,61 @@ var slot = 0;
 if(map){ String(o.variant || '').split('・').forEach(function(seg){ seg = seg.trim(); if(!slot && map[seg]) slot = map[seg]; }); }
 return productImageUrl(o.product_id, slot > 1 ? slot : null);
 }
+// ---------- 🧮 後台加總：點金額加進這位客人的加總，再點一次取消 ----------
+var adminCalc = {};   // { 客人key: { 項目key: { amt, label } } }
+function calcChipHTML(gkey, itemKey, amt, label, text){
+var on = !!(adminCalc[gkey] && adminCalc[gkey][itemKey]);
+return '<button type="button" class="calc-chip'+(on?' on':'')+'" data-g="'+escAttr(gkey)+'" data-k="'+escAttr(itemKey)+'" data-a="'+amt+'" data-l="'+escAttr(label)+'">'+text+'</button>';
+}
+function paintCalcBar(gkey){
+var bars = document.querySelectorAll('.calc-bar');
+for(var i=0;i<bars.length;i++){
+if(bars[i].getAttribute('data-g') !== gkey) continue;
+var m = adminCalc[gkey] || {};
+var keys = Object.keys(m);
+var sum = keys.reduce(function(a, k){ return a + Number(m[k].amt || 0); }, 0);
+bars[i].classList.toggle('is-on', keys.length > 0);
+bars[i].innerHTML = keys.length
+? '<span class="cb-sum">🧮 已選 '+keys.length+' 項<b>NT$'+fmtNum(sum)+'</b></span><button type="button" class="cb-copy">複製</button><button type="button" class="cb-clear">清除</button>'
+: '';
+}
+}
+document.addEventListener('click', async function(e){
+var t = e.target;
+if(!t || !t.closest) return;
+var chip = t.closest('.calc-chip');
+if(chip){
+e.preventDefault(); e.stopPropagation();
+var g = chip.getAttribute('data-g'), k = chip.getAttribute('data-k');
+var m = adminCalc[g] || (adminCalc[g] = {});
+if(m[k]) delete m[k]; else m[k] = { amt: Number(chip.getAttribute('data-a')) || 0, label: chip.getAttribute('data-l') || '' };
+var same = document.querySelectorAll('.calc-chip[data-g="'+(window.CSS && CSS.escape ? CSS.escape(g) : g)+'"][data-k="'+k+'"]');
+for(var i=0;i<same.length;i++) same[i].classList.toggle('on', !!m[k]);
+paintCalcBar(g);
+return;
+}
+var bar = t.closest('.calc-bar');
+if(!bar) return;
+var gk = bar.getAttribute('data-g');
+if(t.closest('.cb-clear')){
+adminCalc[gk] = {};
+var ons = document.querySelectorAll('.calc-chip.on');
+for(var j=0;j<ons.length;j++){ if(ons[j].getAttribute('data-g') === gk) ons[j].classList.remove('on'); }
+paintCalcBar(gk);
+return;
+}
+if(t.closest('.cb-copy')){
+var mm = adminCalc[gk] || {};
+var ks = Object.keys(mm);
+var total = ks.reduce(function(a, x){ return a + Number(mm[x].amt || 0); }, 0);
+var text = ks.map(function(x){ return mm[x].label + '：NT$' + fmtNum(mm[x].amt); }).join('\n') + '\n合計：NT$' + fmtNum(total);
+try{ await navigator.clipboard.writeText(text); showToast('已複製加總明細'); }
+catch(err){ window.prompt('長按複製：', text); }
+}
+});
 function adminOpenOrderRowHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
+var calcGKey = String(o.line_uid || o.nickname || '');
 var statusClass = o.status === '已確認' ? 'order-status order-status--confirmed' : 'order-status';
 var confirmBtn = o.status === '待確認'
 ? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">'+(o.deposit_required && !(Number(o.deposit_amount||0) > 0) ? '輸入訂金後確認' : '確認')+'</button>'
@@ -2008,17 +2072,18 @@ var depositBadge = (o.deposit_required || depositPaidAmt > 0)
 : '';
 // 只有這筆訂單當初判斷需要訂金，才顯示這個輸入格；客人付了多少你就key多少，之後確認／取消都會一起存這個金額。
 var suggestedDeposit = total ? Math.round(total/2) : 0;
+var depChip = calcChipHTML(calcGKey, o.id+'-dep', suggestedDeposit, o.product_name+' 訂金', 'NT$'+suggestedDeposit);
 var depositLabel = o.deposit_required
-? (depositPaidAmt > 0 ? '💰客人已付金額（訂金應收 NT$'+suggestedDeposit+'，一次付清填 NT$'+total+'）' : '💰收到訂金後，在這裡輸入金額（應收 NT$'+suggestedDeposit+'，一次付清填 NT$'+total+'）')
+? (depositPaidAmt > 0 ? '💰客人已付金額（訂金應收 '+depChip+'，一次付清填 NT$'+total+'）' : '💰收到訂金後，在這裡輸入金額（應收 '+depChip+'，一次付清填 NT$'+total+'）')
 : '💳 客人預付／一次付清的金額（沒有就留空，一次付清填 NT$'+total+'）';
 // 所有訂單都可以記錄客人先付的錢：需要訂金的訂單一定要填；其他訂單是客人想先付清才填
-var depositInputHtml = '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">'+depositLabel+'</label>'
+var depositInputHtml = '<div style="margin-top:8px;"><div style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;line-height:1.9;">'+depositLabel+'</div>'
 + '<div style="display:flex;gap:6px;"><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" data-required="'+(o.deposit_required?'1':'0')+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="'+(o.deposit_required ? '尚未收到訂金' : '未預付')+'" style="margin-bottom:0;flex:1;">'
 + '<button type="button" class="btn btn--dark admin-paid-save" data-order-id="'+o.id+'" style="white-space:nowrap;padding:0 14px;font-size:12.5px;">儲存金額</button></div></div>';
 return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'" data-deposit="'+(orderNeedsDeposit(o)?'1':'0')+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
-+ '<div class="adm-o-right"><span class="order-price">'+(total ? 'NT$'+total : '—')+'</span>'+(o.product_id ? '<img class="adm-o-thumb" src="'+orderThumbUrl(o)+'" alt="" loading="lazy" onclick="openProductGallery(\''+o.product_id+'\', this.src)" onerror="this.remove();">' : '')+'</div></div>'
++ '<div class="adm-o-right"><span class="order-price">'+(total ? calcChipHTML(calcGKey, o.id+'-full', total, o.product_name+(o.variant ? '（'+o.variant+'）' : '')+(o.quantity > 1 ? ' ×'+o.quantity : ''), 'NT$'+total) : '—')+'</span>'+(o.product_id ? '<img class="adm-o-thumb" src="'+orderThumbUrl(o)+'" alt="" loading="lazy" onclick="openProductGallery(\''+o.product_id+'\', this.src)" onerror="this.remove();">' : '')+'</div></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
 + (o.admin_note ? '<p class="adm-rand-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
 + depositInputHtml
@@ -2141,6 +2206,15 @@ parts.push(s.order_no||'', s.status||'', s.recipient_name||'', s.phone||'', s.st
 });
 return parts.join(' ');
 }
+function calcBarHTML(g){
+var gk = String(g.lineUid || g.nickname || '');
+var m = adminCalc[gk] || {};
+var keys = Object.keys(m);
+var sum = keys.reduce(function(a, k){ return a + Number(m[k].amt || 0); }, 0);
+return '<div class="calc-bar'+(keys.length ? ' is-on' : '')+'" data-g="'+escAttr(gk)+'">'
++ (keys.length ? '<span class="cb-sum">🧮 已選 '+keys.length+' 項<b>NT$'+fmtNum(sum)+'</b></span><button type="button" class="cb-copy">複製</button><button type="button" class="cb-clear">清除</button>' : '')
++ '</div>';
+}
 function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
 var cnt = adminGroupCounts(g);
@@ -2188,7 +2262,9 @@ settleHtml += '<details class="adm-extra" style="margin-top:12px;"><summary styl
 }
 return '<div class="order-card admin-group" data-gkey="'+escAttr(key)+'" data-c-pending="'+cnt.pending+'" data-c-deposit="'+cnt.deposit+'" data-c-unpaid="'+cnt.unpaid+'" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:12px;background:'+color.bg+';border-left:4px solid '+color.mid+';">'
 + header
-+ '<div class="adm-group-body" style="display:none;">' + restrictedBadge + cycleHtml + restrictBtnHtml + openHtml + cancelledHtml + settleHtml + '</div>'
++ '<div class="adm-group-body" style="display:none;">' + restrictedBadge + cycleHtml + restrictBtnHtml
++ (g.openOrders.length ? '<p style="margin:0 0 2px;font-size:11.5px;color:var(--muted);">🧮 點金額可以加總，再點一次取消</p>' : '')
++ openHtml + calcBarHTML(g) + cancelledHtml + settleHtml + '</div>'
 + '</div>';
 }
 function bindAdminGroupActions(container){
