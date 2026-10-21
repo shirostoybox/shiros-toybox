@@ -1058,7 +1058,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261021-2310';
+var APP_VERSION = '20261022-0140';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1266,7 +1266,8 @@ async function loadProducts(){
 var res = await supabaseClient.from('products').select('*').order('featured', { ascending:false });
 if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
-PRODUCTS = res.data.map(function(p){
+// 隱藏中的商品客人看不到（只在後台顯示）
+PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
 return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
@@ -3862,6 +3863,7 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 + '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:0 0 6px;"><input type="radio" name="npCustomMode" value="all" checked style="width:18px;height:18px;margin-top:2px;"><span><b>👀 所有人都看得到</b><small style="display:block;font-size:11.5px;color:var(--muted);">大家都可以喊單，商品上標「✨ 客訂」</small></span></label>'
 + '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:0;"><input type="radio" name="npCustomMode" value="selected" style="width:18px;height:18px;margin-top:2px;"><span><b>🔒 只給指定客人看</b><small style="display:block;font-size:11.5px;color:var(--muted);">照片從一開始就放在不公開的空間，建立後再到商品裡加入可以看的客人</small></span></label>'
 + '</div></div>'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:8px 0 0;padding:10px 12px;border:1.5px dashed #9CA3AF;border-radius:var(--r-md);"><input type="checkbox" id="npHidden" style="width:18px;height:18px;"> 🙈 先隱藏（客人看不到，價格可以先不填）</label>'
 + '<input type="file" accept="image/*" class="gate-input" id="npImage" style="padding:8px;margin-top:6px;">'
 + '<button type="button" class="btn btn--primary btn--full" id="npSubmit">建立商品</button>'
 + '</div>';
@@ -3929,14 +3931,15 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
-+ '<p class="adm-prod-meta"><span class="adm-prod-price" data-product-id="'+p.id+'">'+productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) })+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p></div>'
++ '<p class="adm-prod-meta">'+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p></div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
 + adminOrigWarnHTML(p)
++ adminHideBoxHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
-+ '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+p.price+'" placeholder="台幣價格" style="margin-bottom:8px;">'
++ '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+(Number(p.price) > 0 ? p.price : '')+'" placeholder="'+(p.is_hidden ? '台幣價格（隱藏中可以先不填）' : '台幣價格')+'" style="margin-bottom:8px;">'
 + adminJpyBoxHTML('row-'+p.id, p.cost || null)
 + adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
@@ -4112,6 +4115,38 @@ var radios = document.querySelectorAll('.adm-priv-mode[data-product-id="'+pid2+'
 for(var i=0;i<radios.length;i++) radios[i].disabled = true;
 adminApplyCustomMode(pid2, mode, function(){ rerenderAdminPrivatePanel(pid2); });
 }
+});
+// 隱藏商品：先在後台建好，客人看不到也不能喊單，決定好再按「公開上架」
+function adminHideBoxHTML(p){
+var pid = escAttr(p.id);
+if(p.is_hidden){
+return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 0;padding:10px 12px;border-radius:var(--r-md);background:#F3F4F6;border:1.5px dashed #9CA3AF;">'
++ '<span style="font-size:12.5px;line-height:1.55;color:#374151;"><b style="display:block;font-size:13.5px;">🙈 隱藏中</b>客人看不到、不能喊單'+(Number(p.price) > 0 ? '' : '・還沒定價')+'</span>'
++ '<button type="button" class="btn btn--primary admin-hide-btn" data-product-id="'+pid+'" data-hidden="0" style="white-space:nowrap;padding:9px 16px;font-size:13px;">👀 公開上架</button></div>';
+}
+return '<div style="display:flex;justify-content:flex-end;margin:10px 0 0;"><button type="button" class="admin-hide-btn" data-product-id="'+pid+'" data-hidden="1" style="border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:var(--font-body);">🙈 先隱藏這件商品</button></div>';
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-hide-btn') : null;
+if(!b) return;
+var pid = b.getAttribute('data-product-id');
+var hide = b.getAttribute('data-hidden') === '1';
+var p = adminFindCachedProduct(pid);
+if(!hide && p && !(Number(p.price) > 0)){
+var pi = document.querySelector('.admin-price-input[data-product-id="'+pid+'"]');
+alert('這件還沒有價格，請先填價格並按「儲存商品資訊」，再公開上架。');
+if(pi) pi.focus();
+return;
+}
+if(!window.confirm(hide ? '隱藏後客人就看不到這件商品，也不能喊單（已經喊的單不受影響）。確定嗎？' : '公開後客人就看得到這件商品，也可以開始喊單。確定嗎？')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-product-hidden', { productId: pid, hidden: hide });
+adminProductExpanded[pid] = true;
+showToast(hide ? '已隱藏' : '已公開上架 ♡');
+await loadAdminProducts();
+refreshShop();
+}catch(err){ b.disabled = false; alert('設定失敗：' + err.message); }
 });
 function adminExtraPhotoSlotsHTML(p){
 var slots = EXTRA_PHOTO_SLOTS;
@@ -4453,8 +4488,10 @@ var nameInput = document.querySelector('.admin-name-input[data-product-id="'+pro
 var subInput = document.querySelector('.admin-sub-input[data-product-id="'+productId+'"]');
 var priceInput = document.querySelector('.admin-price-input[data-product-id="'+productId+'"]');
 var name = nameInput.value.trim();
-var price = parseInt(priceInput.value);
-if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+var price = parseInt(priceInput.value) || 0;
+var cachedP = adminFindCachedProduct(productId);
+if(!name){ alert('請填寫商品名稱'); return; }
+if(!price && !(cachedP && cachedP.is_hidden)){ alert('請填寫商品價格'); return; }
 if(!adminConfirmEditOriginal(productId)) return;
 var oldName = '';
 for(var on=0; on<adminProductsCache.length; on++){ if(adminProductsCache[on].id === productId){ oldName = String(adminProductsCache[on].name || '').trim(); break; } }
@@ -4766,12 +4803,14 @@ cat = catSelectVal;
 var opt = document.querySelector('#npCat option[value="'+catSelectVal+'"]');
 catLabel = opt ? opt.textContent : catLabelFor(catSelectVal);
 }
-var price = parseInt(document.getElementById('npPrice').value);
+var price = parseInt(document.getElementById('npPrice').value) || 0;
 var stock = document.getElementById('npStock').value;
 var qtyRaw = document.getElementById('npQty').value;
 var qty = qtyRaw ? parseInt(qtyRaw) : null;
 var fileInput = document.getElementById('npImage');
-if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+var npHiddenOn = !!(document.getElementById('npHidden') && document.getElementById('npHidden').checked);
+if(!name){ alert('請填寫商品名稱'); return; }
+if(!price && !npHiddenOn){ alert('請填寫商品價格（還不確定價格的話，可以勾「🙈 先隱藏」）'); return; }
 var npCustomOn = !!(document.getElementById('npPrivate') && document.getElementById('npPrivate').checked);
 var npModeEl = document.querySelector('input[name="npCustomMode"]:checked');
 var npPrivateOn = npCustomOn && !!npModeEl && npModeEl.value === 'selected';
@@ -4786,6 +4825,7 @@ liveZoneId: zoneSelect ? zoneSelect.value : null,
 isLuxury: !!(document.getElementById('npLuxury') && document.getElementById('npLuxury').checked),
 isPrivate: npPrivateOn,
 isCustom: npCustomOn,
+isHidden: npHiddenOn,
 optionLabel: newOpt.optionLabel || '', options: newOpt.options || '',
 optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || '',
 optionPrices: newOpt.optionPrices || ''
