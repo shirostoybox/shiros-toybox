@@ -19,7 +19,7 @@ async function zonePage(req, res) {
   if (/^[A-Za-z0-9_\-]+$/.test(zoneId)) {
     try {
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?live_zone_id=eq.' + encodeURIComponent(zoneId) + '&stock_status=eq.live_limited&select=id,image_version,is_private',
+        SUPABASE_URL + '/rest/v1/products?live_zone_id=eq.' + encodeURIComponent(zoneId) + '&stock_status=eq.live_limited&is_hidden=is.false&select=id,image_version,is_private',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
@@ -116,7 +116,7 @@ async function catPage(req, res) {
         ? '&live_zone_id=eq.' + encodeURIComponent(zoneKey) + '&stock_status=eq.live_limited'
         : '&stock_status=in.(in,preorder)';
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + filter + '&select=id,image_version,cat_label,is_private',
+        SUPABASE_URL + '/rest/v1/products?cat=eq.' + encodeURIComponent(cat) + filter + '&is_hidden=is.false&select=id,image_version,cat_label,is_private',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
@@ -163,12 +163,13 @@ module.exports = async (req, res) => {
   if (id && /^[A-Za-z0-9_\-]+$/.test(id)) {
     try {
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?id=eq.' + encodeURIComponent(id) + '&select=id,name,sub,image_version,options,option_photos,is_private',
+        SUPABASE_URL + '/rest/v1/products?id=eq.' + encodeURIComponent(id) + '&select=id,name,sub,image_version,options,option_photos,is_private,is_hidden',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) {
         const rows = await r.json();
-        if (Array.isArray(rows) && rows.length) product = rows[0];
+        // 隱藏中的商品：預覽不顯示名稱和照片，當作找不到
+        if (Array.isArray(rows) && rows.length && !rows[0].is_hidden) product = rows[0];
       }
     } catch (e) { /* 讀不到就用一般的預覽 */ }
   }
