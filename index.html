@@ -1058,7 +1058,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261021-2300';
+var APP_VERSION = '20261021-2310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2079,7 +2079,7 @@ var depositLabel = o.deposit_required
 // 所有訂單都可以記錄客人先付的錢：需要訂金的訂單一定要填；其他訂單是客人想先付清才填
 var depositInputHtml = '<div style="margin-top:8px;"><div style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;line-height:1.9;">'+depositLabel+'</div>'
 + '<div style="display:flex;gap:6px;"><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" data-required="'+(o.deposit_required?'1':'0')+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="'+(o.deposit_required ? '尚未收到訂金' : '未預付')+'" style="margin-bottom:0;flex:1;">'
-+ '<button type="button" class="btn btn--dark admin-paid-save" data-order-id="'+o.id+'" style="white-space:nowrap;padding:0 14px;font-size:12.5px;">儲存金額</button></div></div>';
++ '<button type="button" class="btn btn--dark admin-paid-save" data-order-id="'+o.id+'" style="white-space:nowrap;padding:6px 14px;font-size:12.5px;line-height:1.25;display:flex;flex-direction:column;align-items:center;justify-content:center;">只記收款<small style="font-size:10.5px;font-weight:500;opacity:.75;">不改確認狀態</small></button></div></div>';
 return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'" data-deposit="'+(orderNeedsDeposit(o)?'1':'0')+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
@@ -2321,12 +2321,12 @@ var oid = b.getAttribute('data-order-id');
 var inp = document.querySelector('.admin-deposit-input[data-order-id="'+oid+'"]');
 var v = inp ? inp.value.trim() : '';
 if(v !== '' && !(Number(v) >= 0)){ alert('請輸入正確的金額'); return; }
-b.disabled = true; var t = b.textContent; b.textContent = '儲存中…';
+b.disabled = true; var t = b.innerHTML; b.textContent = '記錄中…';
 try{
 await callMemberApi('admin-set-paid-amount', { orderId: oid, amount: v === '' ? 0 : Number(v) });
-showToast('已儲存金額');
+showToast('已記錄收款（狀態沒有改變）');
 await loadAdminGroups();
-}catch(err){ alert('儲存失敗：' + err.message); b.disabled = false; b.textContent = t; }
+}catch(err){ alert('記錄失敗：' + err.message); b.disabled = false; b.innerHTML = t; }
 });
 async function handleAdminConfirmOrder(btn){
 btn.disabled = true; btn.textContent = '確認中...';
