@@ -1047,7 +1047,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261021-1900';
+var APP_VERSION = '20261021-2230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1669,7 +1669,8 @@ body = adminPurchaseListHTML(groups);
 } else {
 var tot = { pending:0, deposit:0, unpaid:0 };
 groups.forEach(function(g){ var c = adminGroupCounts(g); tot.pending += c.pending; tot.deposit += c.deposit; tot.unpaid += c.unpaid; });
-body = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;">'
+body = adminRefundBoxHTML(groups)
++ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;">'
 + adminChip('全部', adminOrderFilter==='all', 'data-ofilter="all"')
 + adminChip('待確認 ('+tot.pending+')', adminOrderFilter==='pending', 'data-ofilter="pending"')
 + adminChip('💰需訂金未付 ('+tot.deposit+')', adminOrderFilter==='deposit', 'data-ofilter="deposit"')
@@ -1999,19 +2000,21 @@ var luxuryBadge = o.is_luxury
 : '';
 // 訂金標籤跟客人那邊一致：還沒收到錢＝需訂金・未付；收到了＝已付訂（確認後變已付訂・已確認）
 var depositPaidAmt = Number(o.deposit_amount || 0);
-var depositBadgeText = depositPaidAmt > 0 ? (o.status === '已確認' ? '💰已付訂・已確認' : '💰已付訂') : '💰需訂金・未付';
+var paidFull = total && depositPaidAmt >= total;
+var depositBadgeText = paidFull ? '💳已付清' : (depositPaidAmt > 0 ? (o.deposit_required ? (o.status === '已確認' ? '💰已付訂・已確認' : '💰已付訂') : '💳已預付 NT$'+depositPaidAmt) : '💰需訂金・未付');
 var depositBadgeStyle = depositPaidAmt > 0 ? 'background:#DCFCE7;color:#166534;' : 'background:#FEF3C7;color:#92400E;';
-var depositBadge = o.deposit_required
+var depositBadge = (o.deposit_required || depositPaidAmt > 0)
 ? '<span style="display:inline-block;'+depositBadgeStyle+'font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">'+depositBadgeText+'</span>'
 : '';
 // 只有這筆訂單當初判斷需要訂金，才顯示這個輸入格；客人付了多少你就key多少，之後確認／取消都會一起存這個金額。
 var suggestedDeposit = total ? Math.round(total/2) : 0;
-var depositLabel = depositPaidAmt > 0
-? '💰客人已付訂金（應收 NT$'+suggestedDeposit+'）'
-: '💰收到訂金後，在這裡輸入金額（應收 NT$'+suggestedDeposit+'）';
-var depositInputHtml = o.deposit_required
-? '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">'+depositLabel+'</label><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="尚未收到訂金" style="margin-bottom:0;"></div>'
-: '';
+var depositLabel = o.deposit_required
+? (depositPaidAmt > 0 ? '💰客人已付金額（訂金應收 NT$'+suggestedDeposit+'，一次付清填 NT$'+total+'）' : '💰收到訂金後，在這裡輸入金額（應收 NT$'+suggestedDeposit+'，一次付清填 NT$'+total+'）')
+: '💳 客人預付／一次付清的金額（沒有就留空，一次付清填 NT$'+total+'）';
+// 所有訂單都可以記錄客人先付的錢：需要訂金的訂單一定要填；其他訂單是客人想先付清才填
+var depositInputHtml = '<div style="margin-top:8px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">'+depositLabel+'</label>'
++ '<div style="display:flex;gap:6px;"><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" data-required="'+(o.deposit_required?'1':'0')+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="'+(o.deposit_required ? '尚未收到訂金' : '未預付')+'" style="margin-bottom:0;flex:1;">'
++ '<button type="button" class="btn btn--dark admin-paid-save" data-order-id="'+o.id+'" style="white-space:nowrap;padding:0 14px;font-size:12.5px;">儲存金額</button></div></div>';
 return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'" data-deposit="'+(orderNeedsDeposit(o)?'1':'0')+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
@@ -2026,14 +2029,56 @@ return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'"
 }
 function adminCancelledOrderRowHTML(o){
 var total = o.price ? (o.price * o.quantity) : null;
-return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;opacity:.55;">'
+var paid = Number(o.deposit_amount || 0);
+var needRefund = paid > 0 && !o.refunded_at;
+var refundHtml = paid > 0
+? (needRefund
+? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#B45309;">💸 客人已付 NT$'+paid+'・待退款</p><button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="margin-top:6px;padding:7px 14px;font-size:12.5px;">✓ 已退款</button>'
+: '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">✓ 已退款 NT$'+paid+'（'+formatDate(o.refunded_at)+'）</p><button type="button" class="admin-refund-undo" data-order-id="'+o.id+'" style="background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px 0;">按錯了，改回待退款</button>')
+: '';
+return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;'+(needRefund ? '' : 'opacity:.55;')+'">'
 + '<div class="order-top"><span class="order-no">#'+o.order_no+'</span><span class="order-status">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
-+ '<button type="button" class="admin-delete-order-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:none;border:none;color:var(--ignis-deep);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">刪除</button>'
++ refundHtml
++ (needRefund ? '' : '<br><button type="button" class="admin-delete-order-btn" data-order-id="'+o.id+'" style="margin-top:4px;background:none;border:none;color:var(--ignis-deep);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">刪除</button>')
 + '</div>';
 }
+// 待退款：缺貨取消、客人付過錢、還沒按「已退款」的單，集中列在客人訂單最上面
+function adminPendingRefunds(groups){
+var out = [];
+(groups || []).forEach(function(g){ (g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at) out.push({ g:g, o:o }); }); });
+return out;
+}
+function adminRefundBoxHTML(groups){
+var list = adminPendingRefunds(groups);
+if(!list.length) return '';
+var sum = list.reduce(function(a, x){ return a + Number(x.o.deposit_amount || 0); }, 0);
+return '<details open style="margin:0 0 12px;padding:10px 12px;border-radius:var(--r-md);background:#FFF7E6;border:1.5px solid #F5C66B;">'
++ '<summary style="cursor:pointer;font-size:14px;font-weight:800;color:#92400E;">💸 待退款 '+list.length+' 筆・共 NT$'+sum+'</summary>'
++ list.map(function(x){
+var o = x.o;
+return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px dashed #F5C66B;margin-top:8px;">'
++ '<div style="min-width:0;font-size:12.5px;line-height:1.55;color:var(--text-dark);"><b>'+escHtml(x.g.nickname || '')+'</b>・NT$'+Number(o.deposit_amount)
++ '<br><span style="color:var(--muted);">'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(o.variant)+'）' : '')+' #'+escHtml(o.order_no || '')+'</span></div>'
++ '<button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="flex-shrink:0;padding:7px 12px;font-size:12px;">✓ 已退款</button></div>';
+}).join('')
++ '<p style="margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">系統不會自動退錢，請用 LINE Pay／轉帳退給客人後再按「已退款」，客人那邊會顯示已退款。</p>'
++ '</details>';
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-refund-btn, .admin-refund-undo') : null;
+if(!b) return;
+var undo = b.classList.contains('admin-refund-undo');
+if(!undo && !window.confirm('確定已經把錢退給客人了嗎？')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-mark-refunded', { orderId: b.getAttribute('data-order-id'), undo: undo });
+showToast(undo ? '已改回待退款' : '已標記退款');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message); }
+});
 function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
 return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
@@ -2192,6 +2237,21 @@ for(var u=0;u<unrestrictBtns.length;u++){
 unrestrictBtns[u].addEventListener('click', (function(btn){ return function(){ handleAdminUnrestrictCustomer(btn); }; })(unrestrictBtns[u]));
 }
 }
+// 只存「客人已付金額」（不改訂單狀態）：已確認的訂單、或客人想先付清時用
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-paid-save') : null;
+if(!b) return;
+var oid = b.getAttribute('data-order-id');
+var inp = document.querySelector('.admin-deposit-input[data-order-id="'+oid+'"]');
+var v = inp ? inp.value.trim() : '';
+if(v !== '' && !(Number(v) >= 0)){ alert('請輸入正確的金額'); return; }
+b.disabled = true; var t = b.textContent; b.textContent = '儲存中…';
+try{
+await callMemberApi('admin-set-paid-amount', { orderId: oid, amount: v === '' ? 0 : Number(v) });
+showToast('已儲存金額');
+await loadAdminGroups();
+}catch(err){ alert('儲存失敗：' + err.message); b.disabled = false; b.textContent = t; }
+});
 async function handleAdminConfirmOrder(btn){
 btn.disabled = true; btn.textContent = '確認中...';
 var orderId = btn.getAttribute('data-order-id');
@@ -2200,7 +2260,7 @@ var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-d
 var payload = { orderId: orderId };
 if(depositInput && depositInput.value !== ''){ payload.depositAmount = depositInput.value; }
 // 需要訂金的喊單：沒輸入訂金金額就不能確認
-if(depositInput && !(Number(depositInput.value) > 0)){
+if(depositInput && depositInput.getAttribute('data-required') === '1' && !(Number(depositInput.value) > 0)){
 alert('這筆需要訂金，請先在訂金欄位輸入客人付的金額，再按確認。\n客人還沒付訂金的話，先不要確認。');
 btn.disabled = false; btn.textContent = '輸入訂金後確認';
 depositInput.focus();
@@ -5577,25 +5637,34 @@ var total = o.price ? (o.price * o.quantity) : null;
 var statusClass = 'order-status';
 if(o.status === '已確認') statusClass = 'order-status order-status--confirmed';
 else if(o.status === '缺貨已幫您取消') statusClass = 'order-status order-status--cancelled';
-var deleteBtn = o.status === '待確認'
+var deleteBtn = (o.status === '待確認' && !(Number(o.deposit_amount || 0) > 0))
 ? '<button type="button" class="settle-item-delete my-order-delete" data-order-id="'+o.id+'" style="margin-top:8px;">移除</button>'
 : '';
 var depositAmount = Number(o.deposit_amount || 0);
 // 需要訂金的商品：狀態標籤直接寫出訂金狀態，客人一看就知道要不要先付訂
 var statusText = o.status;
-if(o.deposit_required && o.status === '待確認'){
+var paidFull = total && depositAmount >= total;
+if(o.status === '缺貨已幫您取消'){
+statusText = o.status;
+} else if(paidFull){
+statusText = o.status === '已確認' ? '已付清・已確認' : '已付清・待確認';
+} else if(o.deposit_required && o.status === '待確認'){
 statusText = depositAmount > 0 ? '已付訂・待確認' : '待確認・未付訂';
 } else if(o.deposit_required && o.status === '已確認' && depositAmount > 0){
 statusText = '已付訂・已確認';
 }
 var depositHtml = '';
-if(depositAmount > 0){
-depositHtml = '<p class="my-row-dep is-paid">💰已付訂金 NT$'+depositAmount+'</p>';
+if(depositAmount > 0 && o.status === '缺貨已幫您取消'){
+depositHtml = o.refunded_at
+? '<p class="my-row-dep is-paid">💸已退款 NT$'+depositAmount+'（'+formatDate(o.refunded_at)+'）</p>'
+: '<p class="my-row-dep is-paid">💰您已付的 NT$'+depositAmount+' 會全額退還給您 ♡</p>';
+} else if(depositAmount > 0){
+depositHtml = '<p class="my-row-dep is-paid">'+(paidFull ? '💳已付清 NT$' : (o.deposit_required ? '💰已付訂金 NT$' : '💳已預付 NT$'))+depositAmount+'</p>';
 } else if(o.deposit_required && o.status === '待確認' && total){
 depositHtml = '<p class="my-row-dep">💰需付訂金 NT$'+Math.round(total/2)+'（商品金額一半）<br><span style="font-weight:500;">會用 LINE 通知您付訂金，請留意 LINE 訊息 📢<br>若最後沒買到，訂金將全額退還 ♡</span></p>';
 }
 var thumb = o.product_id ? '<img class="my-row-img" src="'+productImageUrl(o.product_id)+'" alt="" onerror="this.style.visibility=\'hidden\';">' : '<span class="my-row-img"></span>';
-var delLink = o.status === '待確認' ? '<button type="button" class="my-order-delete my-row-del" data-order-id="'+o.id+'">移除</button>' : '';
+var delLink = (o.status === '待確認' && !(depositAmount > 0)) ? '<button type="button" class="my-order-delete my-row-del" data-order-id="'+o.id+'">移除</button>' : '';
 return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel' : '')+'">'
 + thumb
 + '<div class="my-row-main">'
@@ -5841,9 +5910,9 @@ if(isConfirmed){ confirmedSubtotal += lineTotal; confirmedDeposit += depositPaid
 var rowClass = isConfirmed ? 'settle-item-row' : 'settle-item-row settle-item-row--pending';
 var nameHtml = (o.is_luxury ? '🏷️ ' : '')+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity
 + (isConfirmed ? '' : '<br><span class="settle-item-pending-note">尚未確認，這次無法結單</span>')
-+ (depositPaid > 0 ? '<br><span style="font-size:11.5px;color:var(--muted);">💰已付訂金 NT$'+depositPaid+'</span>' : '');
++ (depositPaid > 0 ? '<br><span style="font-size:11.5px;color:var(--muted);">'+(depositPaid >= lineTotal ? '💳已付清 NT$' : '💰已付 NT$')+depositPaid+'（結單時扣除）</span>' : '');
 var rightHtml = '<span style="display:flex;flex-direction:column;align-items:flex-end;">NT$'+lineTotal
-+ (isConfirmed ? '' : '<button type="button" class="settle-item-delete" data-order-id="'+o.id+'">移除</button>')
++ ((isConfirmed || depositPaid > 0) ? '' : '<button type="button" class="settle-item-delete" data-order-id="'+o.id+'">移除</button>')
 + '</span>';
 return '<div class="'+rowClass+'"><span>'+nameHtml+'</span>'+rightHtml+'</div>';
 }).join('');
