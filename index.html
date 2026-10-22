@@ -716,12 +716,12 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="gate-overlay" id="verifyGate">
 <div class="gate-card">
 <p class="gate-eyebrow">步驟 2/3・會員綁定</p>
-<h2>綁定 LINE 官方帳號</h2>
-<p class="gate-desc">請把下面這組會員綁定碼傳送給「四郎玩具箱」官方帳號，完成後就能正式成為會員</p>
-<div class="verify-code-box"><span id="verifyCodeText">------</span><button class="copy-btn" id="verifyCodeCopy">複製</button></div>
-<a class="btn btn--primary btn--full link-btn" id="verifyGoLine" href="#">前往官方帳號傳送</a>
-<button class="btn btn--ghost btn--full" id="verifyRecheck" style="margin-top:10px;color:var(--text-dark);border-color:var(--line);">已經傳送了，重新檢查</button>
-<p class="verify-status" id="verifyStatusText">傳送後這裡會自動偵測，請稍候幾秒⋯</p>
+<h2>傳送綁定碼就完成</h2>
+<p class="gate-desc">按下面的按鈕，到 LINE 按「傳送」就好 ♡</p>
+<a class="btn btn--primary btn--full link-btn" id="verifyGoLine" href="#">前往 LINE 傳送綁定碼</a>
+<p class="verify-status" id="verifyStatusText" style="margin:10px 0 16px;">傳送後會自動進入下一步⋯</p>
+<div class="verify-code-box" style="padding:10px 14px;"><span style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0;font-family:var(--font-body);white-space:nowrap;">綁定碼</span><span id="verifyCodeText" style="flex:1;font-size:20px;">------</span><button class="copy-btn" id="verifyCodeCopy">複製</button></div>
+<button class="btn btn--ghost btn--full" id="verifyRecheck" style="margin-top:10px;color:var(--text-dark);border-color:var(--line);">我已經傳送了</button>
 </div>
 </div>
 <div class="modal-overlay" id="orderModal">
@@ -1053,7 +1053,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1715';
+var APP_VERSION = '20261022-1730';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
