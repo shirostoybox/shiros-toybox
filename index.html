@@ -1104,7 +1104,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-2005';
+var APP_VERSION = '20261022-2025';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2108,6 +2108,9 @@ var orderZone = o.is_live_limited ? zoneById(o.live_zone_id || 'z_default') : nu
 var liveBadge = (o.is_live_limited
 ? '<span style="display:inline-block;background:var(--volt);color:var(--ink);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">⚡限時連線'+(orderZone && orderZone.note ? '｜'+escHtml(orderZone.note) : '')+'</span>'
 : '') + (orderCatInfo(o).key === DONTMISS_CAT ? '<span style="display:inline-block;background:#FFE4DC;color:#D9381E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🔥別錯過</span>' : '');
+var testBadge = o.is_test
+? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試單・不算分潤</span>'
+: '';
 var luxuryBadge = o.is_luxury
 ? '<span style="display:inline-block;background:#1B1E27;color:#E9C46A;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🏷️品牌選物</span>'
 : '';
@@ -2130,12 +2133,13 @@ var depositInputHtml = '<div style="margin-top:8px;"><div style="font-size:12px;
 + '<div style="display:flex;gap:6px;"><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" data-required="'+(o.deposit_required?'1':'0')+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="'+(o.deposit_required ? '尚未收到訂金' : '未預付')+'" style="margin-bottom:0;flex:1;">'
 + '<button type="button" class="btn btn--dark admin-paid-save" data-order-id="'+o.id+'" style="white-space:nowrap;padding:6px 14px;font-size:12.5px;line-height:1.25;display:flex;flex-direction:column;align-items:center;justify-content:center;">只記收款<small style="font-size:10.5px;font-weight:500;opacity:.75;">不改確認狀態</small></button></div></div>';
 return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'" data-deposit="'+(orderNeedsDeposit(o)?'1':'0')+'" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">'
-+ '<div class="order-top"><span class="order-no">#'+o.order_no+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">#'+o.order_no+testBadge+liveBadge+luxuryBadge+depositBadge+'</span><span class="'+statusClass+'">'+o.status+'</span></div>'
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<div class="adm-o-right"><span class="order-price">'+(total ? calcChipHTML(calcGKey, o.id+'-full', total, o.product_name+(o.variant ? '（'+o.variant+'）' : '')+(o.quantity > 1 ? ' ×'+o.quantity : ''), 'NT$'+total) : '—')+'</span>'+(o.product_id ? '<img class="adm-o-thumb" src="'+orderThumbUrl(o)+'" alt="" loading="lazy" onclick="openProductGallery(\''+o.product_id+'\', this.src)" onerror="this.remove();">' : '')+'</div></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
 + (o.admin_note ? '<p class="adm-rand-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
 + depositInputHtml
++ '<button type="button" class="admin-test-toggle" data-order-id="'+o.id+'" data-test="'+(o.is_test?'0':'1')+'" style="display:block;margin:6px 0 0;background:none;border:none;padding:2px 0;color:#4F46E5;font-size:12px;font-weight:700;text-decoration:underline;font-family:var(--font-body);">'+(o.is_test ? '🧪 這筆不是測試，改成正式單（列入分潤）' : '🧪 標記為測試單（不算分潤）')+'</button>'
 + confirmBtn
 + orderRandomBtnHTML(o, 'btn btn--full', 'margin-top:8px;background:#F5F3FF;border:1px solid #DDD6FE;color:#5B21B6;')
 + cancelBtn
@@ -2208,7 +2212,7 @@ var deleteBtn = '<button type="button" class="btn btn--full admin-delete-settlem
 var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
 var fillColor = color ? color.mid : '#F3F4F6';
 return '<div class="adm-row" data-unpaid="'+(isPaid?'0':'1')+'" data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
-+ '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+(s.is_test ? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試結單・不算分潤</span>' : '')+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + (function(){
 if(!s.live_zone_id) return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4px 0 8px;">📦 現貨／預購商品</p>';
@@ -2362,6 +2366,19 @@ for(var u=0;u<unrestrictBtns.length;u++){
 unrestrictBtns[u].addEventListener('click', (function(btn){ return function(){ handleAdminUnrestrictCustomer(btn); }; })(unrestrictBtns[u]));
 }
 }
+// 測試單／正式單切換
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-test-toggle') : null;
+if(!b) return;
+var toTest = b.getAttribute('data-test') === '1';
+if(!window.confirm(toTest ? '標記為測試單後，這筆不會算進分潤。確定嗎？' : '改成正式單後，這筆會算進分潤（例如妳幫客人代喊的單）。確定嗎？')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-order-test', { orderId: b.getAttribute('data-order-id'), isTest: toTest });
+showToast(toTest ? '已標記為測試單' : '已改成正式單');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('操作失敗：' + err.message); }
+});
 // 只存「客人已付金額」（不改訂單狀態）：已確認的訂單、或客人想先付清時用
 document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-paid-save') : null;
@@ -3207,6 +3224,7 @@ var monthRows = Object.keys(months).sort().reverse().map(function(m){
 return rowHTML('regular:' + m, '現貨・預購 ' + Number(m.slice(0,4)) + ' 年 ' + Number(m.slice(5,7)) + ' 月', '依結單月份', 'pf-r');
 }).join('');
 listEl.innerHTML = '<p class="pf-hint">每個限時連線專區一張結算表，現貨・預購每個月一張。收入直接用已付款結單的實收金額（已經扣掉免運券、回饋券、品牌選物券），你只要補上成本。'+(adminRole === 'owner' ? '只有你和被開放「分潤權限」的小幫手看得到（到「會員」分頁設定）。' : '')+'</p>'
++ '<p class="pf-hint" style="margin-top:-4px;">🧪 老闆和小幫手下的單是「測試單」，不會算進分潤'+((pfOverview && pfOverview.testCount) ? '（已排除 '+pfOverview.testCount+' 筆測試結單）' : '')+'。</p>'
 + '<p class="pf-h">限時連線</p>' + (zoneRows || '<p class="pf-hint">還沒有專區</p>')
 + '<p class="pf-h">現貨・預購</p>' + monthRows;
 var btns = listEl.querySelectorAll('.pf-li');
@@ -5933,6 +5951,7 @@ return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel'
 + thumb
 + '<div class="my-row-main">'
 + '<div class="my-row-top"><p class="my-row-name">'+escHtml(o.product_name)+'</p><span class="my-row-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
++ (o.is_test ? '<p style="margin:2px 0 0;font-size:11px;font-weight:700;color:#4F46E5;">🧪 測試單（老闆／小幫手下的單，不算分潤）</p>' : '')
 + '<div class="my-row-mid"><span class="my-row-var">'+escHtml(o.variant || '')+' ×'+o.quantity+'</span><span class="'+statusClass+' my-row-st">'+statusText+'</span></div>'
 + (o.admin_note && o.status !== '缺貨已幫您取消' ? '<p class="my-row-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
 + depositHtml
