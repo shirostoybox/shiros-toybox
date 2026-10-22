@@ -1058,7 +1058,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1440';
+var APP_VERSION = '20261022-1510';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3736,10 +3736,31 @@ return '<div class="admin-cat-group" style="margin-bottom:10px;">'
 + '</span>'
 + '<span class="admin-cat-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s ease;transform:rotate('+(isOpen?'90':'0')+'deg);">▶</span>'
 + '</button>'
-+ '<div class="admin-cat-body" data-cat-key="'+escAttr(g.key)+'" style="display:'+(isOpen?'block':'none')+';margin-top:10px;">'+rows+'</div>'
++ '<div class="admin-cat-body" data-cat-key="'+escAttr(g.key)+'" style="display:'+(isOpen?'block':'none')+';margin-top:10px;">'
++ ((g.key !== '__none__' && g.key !== DONTMISS_CAT) ? '<div style="display:flex;justify-content:flex-end;margin:0 0 8px;"><button type="button" class="admin-cat-rename" data-cat-key="'+escAttr(g.key)+'" data-label="'+escAttr(g.label)+'" style="border:1px solid var(--line);background:#fff;color:var(--text-dark);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:var(--font-body);">✏️ 改分類名稱</button></div>' : '')
++ rows+'</div>'
 + '</div>';
 }).join('');
 }
+// 改分類名稱：同一個分類底下所有商品一起改（現貨、預購、限時連線都會跟著變）
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-cat-rename') : null;
+if(!b) return;
+var cat = b.getAttribute('data-cat-key');
+var oldLabel = b.getAttribute('data-label') || '';
+var label = window.prompt('把「'+oldLabel+'」改成：\n（這個分類底下的所有商品都會一起改，最多 20 字）', oldLabel);
+if(label === null) return;
+label = label.trim();
+if(!label){ alert('分類名稱不能空白'); return; }
+if(label === oldLabel) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-rename-category', { cat: cat, label: label, oldLabel: oldLabel });
+showToast('已改成「'+label+'」（'+(r && r.count ? r.count : 0)+' 件商品）');
+await loadAdminProducts();
+refreshShop();
+}catch(err){ b.disabled = false; alert('修改失敗：' + err.message); }
+});
 function bindAdminCatToggles(container){
 var toggles = container.querySelectorAll('.admin-cat-toggle');
 for(var i=0;i<toggles.length;i++){
