@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0215';
+var APP_VERSION = '20261023-0230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4067,7 +4067,7 @@ var IMPORT_SAMPLE = '[\n  {\n    "name": "飛天小女警 PREMIUM DASH 扭蛋",\
 function adminImportBoxHTML(isLiveMode){
 var zid = adminQuickZoneId ? adminQuickZoneId() : '';
 return '<div class="imp-box">'
-+ '<button type="button" id="impToggle" class="imp-head"><span><b>📥 批次匯入扭蛋</b><small>貼上 Claude 整理好的清單，按一下全部上架</small></span><span class="imp-open">'+(adminImportOpen?'收起':'展開')+'</span></button>'
++ '<button type="button" id="impToggle" class="imp-head"><span><b>📥 批次匯入商品</b><small>扭蛋、一般商品都可以・貼上 Claude 整理好的清單</small></span><span class="imp-open">'+(adminImportOpen?'收起':'展開')+'</span></button>'
 + '<div id="impBody" style="display:'+(adminImportOpen?'block':'none')+';margin-top:10px;">'
 + '<textarea id="impText" class="gate-input" rows="7" placeholder="'+escAttr(IMPORT_SAMPLE)+'" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical;"></textarea>'
 + (isLiveMode && LIVE_ZONES.length
@@ -4086,7 +4086,36 @@ for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
 return new Blob([arr], { type: m[1] });
 }
 function gachaPrice(jpy){ return GACHA_PRICES[Number(jpy)] || null; }
+function isGeneralImport(it){ return String(it.type || '').toLowerCase() === 'item'; }
+// 用分類名稱找現有分類，找不到就開新分類（同一批同名的放一起）
+var importCatMap = {};
+function importCatFor(label){
+label = String(label || '').trim() || '日本選物';
+if(importCatMap[label]) return importCatMap[label];
+var list = adminProductsCache || [];
+for(var i=0;i<list.length;i++){ var p = list[i]; if(p.cat && (p.cat_label || catLabelFor(p.cat)) === label){ importCatMap[label] = { cat: p.cat, label: label, isNew: false }; return importCatMap[label]; } }
+importCatMap[label] = { cat: 'cat' + Date.now().toString(36) + Math.floor(Math.random()*100), label: label, isNew: true };
+return importCatMap[label];
+}
+function toOptArr(v){ return (Array.isArray(v) ? v : parseOptionList(v || '')).map(function(x){ return String(x).trim(); }).filter(Boolean); }
+// 一般商品：日幣原價先帶進換算框，台幣價格可以先不填（先隱藏，之後手動補）
+function normalizeGeneralItem(it){
+var out = { general: true, name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, tax: String(it.tax || '').trim(), cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
+out.category = String(it.category || '').trim() || '日本選物';
+out.luxury = !!it.luxury;
+out.options = toOptArr(it.options);
+out.optionLabel = out.options.length ? (String(it.optionLabel || '').trim() || '款式') : '';
+out.options2 = toOptArr(it.options2);
+out.optionLabel2 = out.options2.length ? (String(it.optionLabel2 || '').trim() || '尺寸') : '';
+out.base = Number(it.price) || 0;
+out.optionPrices = {};
+if(it.optionPrices && typeof it.optionPrices === 'object'){ Object.keys(it.optionPrices).forEach(function(k){ var v = Number(it.optionPrices[k]); if(v > 0 && out.options.indexOf(k) !== -1) out.optionPrices[k] = v; }); }
+if(!out.name) out.warn.push('沒有商品名稱');
+if(!out.cover) out.warn.push('沒有封面照片');
+return out;
+}
 function normalizeImportItem(it){
+if(isGeneralImport(it)) return normalizeGeneralItem(it);
 var out = { name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
 var opts = (Array.isArray(it.options) ? it.options : parseOptionList(it.options || '')).map(function(x){ return String(x).trim(); }).filter(function(x){ return x && x !== '不指定'; });
 var tbl = gachaPrice(out.jpy);
@@ -4111,8 +4140,13 @@ var nPhotos = (x.cover ? 1 : 0) + x.options.filter(function(o){ return x.photos[
 return '<div class="imp-row" data-i="'+i+'">'
 + (x.cover ? '<img src="'+escAttr(x.cover)+'" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility=\'hidden\';">' : '<span class="imp-noimg">無圖</span>')
 + '<div style="min-width:0;flex:1;"><b>'+escHtml(x.name || '（沒有名稱）')+'</b>'
-+ '<small>¥'+(x.jpy||'?')+' → '+(x.options.length ? '不指定 NT$'+x.base+'・指定 NT$'+x.pick : 'NT$'+x.base)+'</small>'
-+ (x.options.length ? '<small>'+escHtml(x.options.join('、'))+'</small>' : '')
++ (x.general
+? '<small>🛍️ '+escHtml(x.category)+(x.luxury ? '・🏷️ 特選商品' : '')+'</small>'
++ '<small>日幣原價 '+(x.jpy ? '¥'+fmtNum(x.jpy)+(x.tax ? '（'+escHtml(x.tax)+'）' : '') : '？')+' → '+(x.base ? 'NT$'+x.base : '<b style="color:#B26A00;">台幣之後手動填（會先隱藏）</b>')+'</small>'
++ (x.options.length ? '<small>'+escHtml(x.optionLabel)+'：'+escHtml(x.options.join('、'))+'</small>' : '')
++ (x.options2.length ? '<small>'+escHtml(x.optionLabel2)+'：'+escHtml(x.options2.join('、'))+'</small>' : '')
+: '<small>🥚 扭蛋・¥'+(x.jpy||'?')+' → '+(x.options.length ? '不指定 NT$'+x.base+'・指定 NT$'+x.pick : 'NT$'+x.base)+'</small>'
++ (x.options.length ? '<small>'+escHtml(x.options.join('、'))+'</small>' : ''))
 + '<small>📷 '+nPhotos+' 張照片</small>'
 + x.warn.map(function(w){ return '<small style="color:var(--ignis-deep);font-weight:700;">⚠️ '+escHtml(w)+'</small>'; }).join('')
 + x.notes.map(function(w){ return '<small style="color:#B26A00;font-weight:700;">📝 '+escHtml(w)+'</small>'; }).join('')
@@ -4134,14 +4168,27 @@ var st = document.querySelector('.imp-row[data-i="'+i+'"] .imp-st');
 btn.textContent = '上架中… '+(i+1)+' / '+adminImportItems.length;
 if(st) st.textContent = '⏳ 建立中…';
 try{
-var res = await callMemberApi('admin-create-product', {
-name: x.name, sub: x.sub, cat: 'gacha', catLabel: '扭蛋', price: x.base,
+var common = { name: x.name, sub: x.sub, price: x.base,
 stockStatus: zoneEl ? 'live_limited' : (stockEl ? stockEl.value : 'in'), qty: null,
-liveZoneId: zoneEl ? zoneEl.value : null, isLuxury: false, isHidden: hidden,
+liveZoneId: zoneEl ? zoneEl.value : null, jpyPrice: x.jpy || '', fxDate: x.jpy ? todayTW() : '' };
+var res;
+if(x.general){
+var ci = importCatFor(x.category);
+// 一般商品：沒有台幣價格一定先隱藏；匯率和倍數用今天的匯率＋上次用的倍數先填好，打開商品就能換算
+res = await callMemberApi('admin-create-product', Object.assign(common, {
+cat: ci.cat, catLabel: ci.label, isLuxury: x.luxury, isHidden: hidden || !x.base,
+optionLabel: x.optionLabel, options: x.options.join(', '),
+optionLabel2: x.optionLabel2, options2: x.options2.join(', '),
+optionPrices: Object.keys(x.optionPrices).length ? JSON.stringify(x.optionPrices) : '',
+fxRate: x.jpy && ADMIN_FX ? ADMIN_FX.rate : '', multiplier: x.jpy ? (lastJpyMult() || '') : ''
+}));
+} else {
+res = await callMemberApi('admin-create-product', Object.assign(common, {
+cat: 'gacha', catLabel: '扭蛋', isLuxury: false, isHidden: hidden,
 optionLabel: x.options.length ? '角色' : '', options: x.options.join(', '),
-optionLabel2: '', options2: '', optionPrices: x.options.length ? JSON.stringify(x.optionPrices) : '',
-jpyPrice: x.jpy || '', fxDate: x.jpy ? todayTW() : ''
-});
+optionLabel2: '', options2: '', optionPrices: x.options.length ? JSON.stringify(x.optionPrices) : ''
+}));
+}
 var images = [], optPhotos = {}, slot = 2;
 if(x.cover) images.push({ slot: 1, url: x.cover });
 x.options.forEach(function(o){ if(x.photos[o] && slot <= 13){ images.push({ slot: slot, url: x.photos[o] }); optPhotos[o] = slot; slot++; } });
@@ -4161,7 +4208,8 @@ await callMemberApi('admin-upload-product-image', up);
 Object.keys(optPhotos).forEach(function(o){ if(bad.indexOf(optPhotos[o]) !== -1) delete optPhotos[o]; });
 if(Object.keys(optPhotos).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(optPhotos) });
 photoFail += bad.length;
-if(st){ st.textContent = bad.length ? '✓ 已上架・'+bad.length+' 張照片抓不到，請手動補' : '✓ 已上架'; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
+var doneTxt = (x.general && !x.base) ? '✓ 已建立（隱藏中，請補台幣價格）' : (hidden ? '✓ 已建立（隱藏中）' : '✓ 已上架');
+if(st){ st.textContent = bad.length ? doneTxt+'・'+bad.length+' 張照片抓不到，請手動補' : doneTxt; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
 okCount++;
 }catch(e){
 failCount++;
@@ -4190,6 +4238,7 @@ var raw = (document.getElementById('impText') || {}).value || '';
 var data;
 try{ data = JSON.parse(raw.trim()); }catch(err){ alert('格式不對，請整段重新貼上 Claude 給的清單（從 [ 到 ]）'); return; }
 if(!Array.isArray(data)) data = [data];
+importCatMap = {};
 adminImportItems = data.map(normalizeImportItem);
 renderImportPreview();
 return;
@@ -4746,6 +4795,8 @@ var jpy = box.querySelector('.jpy-price').value, rate = box.querySelector('.jpy-
 var tw = jpyCalc(jpy, rate, mult);
 var res = box.querySelector('.jpy-result');
 var touched = box.getAttribute('data-touched') === '1';
+// 還沒有台幣價格的商品（例如批次匯入的草稿）：打開就先幫忙帶入換算好的台幣，按儲存才會存
+if(tw && !touched && key.indexOf('row-') === 0){ var pe = jpyPriceInputFor(key); if(pe && !(Number(pe.value) > 0)){ touched = true; box.setAttribute('data-touched', '1'); } }
 if(tw){
 res.textContent = '= NT$' + fmtNum(tw) + (touched ? '（已帶入台幣價格）' : '');
 if(touched){ var pi = jpyPriceInputFor(key); if(pi) pi.value = tw; }
