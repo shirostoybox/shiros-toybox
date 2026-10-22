@@ -80,6 +80,12 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .hln-price{ padding:0 10px; font-size:13px; font-weight:800; color:#FF9E7A; }
 .hln-more{ flex:0 0 96px; align-items:center; justify-content:center; padding:0; color:var(--volt); font-size:13px; font-weight:800; text-align:center; line-height:1.6; }
 /* 付款方式頁的重點字：螢光筆效果（不用底線，避免看起來像可以點的連結） */
+.pay-tabs{ position:sticky; top:0; z-index:3; display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 16px; padding:6px 0; background:var(--paper, #F2F3F5); }
+.pay-tab{ display:flex; flex-direction:column; align-items:center; gap:2px; padding:11px 6px; border-radius:16px; border:1.5px solid var(--line); background:var(--card); color:var(--text-dark); font-family:var(--font-body); cursor:pointer; }
+.pay-tab b{ font-size:14.5px; }
+.pay-tab small{ font-size:11px; color:var(--muted); }
+.pay-tab.is-on{ background:var(--ink); border-color:var(--ink); color:#fff; }
+.pay-tab.is-on small{ color:var(--volt); }
 .view[data-view="payment"] .qa-a b{ color:var(--text-dark); font-weight:800; background:linear-gradient(transparent 52%, rgba(255,170,90,.55) 52%, rgba(255,170,90,.55) 92%, transparent 92%); padding:0 2px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
 /* 逛商品的頁面（首頁、商品頁、限時連線專區）用封面同色的深色底 */
 .page:has(.view-dark.is-active){ background:var(--ink-2); }
@@ -954,7 +960,12 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <section class="view" data-view="payment">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>付款方式</h2></div>
 <div class="guide-content">
-<h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">📦 結單與付款</h3>
+<div class="pay-tabs">
+<button type="button" class="pay-tab is-on" data-paytab="regular"><b>📦 現貨／預購</b><small>喊單後 3 天內結單</small></button>
+<button type="button" class="pay-tab" data-paytab="live"><b>⚡ 限時連線</b><small>專區關閉後才倒數</small></button>
+</div>
+<div class="pay-sec" data-paysec="regular">
+<h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">📦 現貨／預購的結單規定</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：怎麼結單？</p><p class="qa-a">A：到「喊單」頁，看到「結單倒數」卡片後按「前往結單」，選擇寄送方式、填寫收件資料、選擇要使用的優惠券，送出後就完成結單 ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：喊單後多久要結單？</p><p class="qa-a">A：自第一筆喊單起算，<b>3天內（第3天24:00前）</b>要完成結單。<br>這3天內喊的商品可以一起結單、只付一次運費。<br>例如：10/1喊第一件 → 10/3 24:00前要結單，10/1～10/3喊的商品都可以一起結。</p></div>
@@ -964,14 +975,18 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-item"><p class="qa-q">Q：「待確認」的商品可以結單嗎？</p><p class="qa-a">A：不行喔。商品要變成「已確認」才能結單；同一組裡還有「待確認」的商品時，暫時無法送出結單，也可以先按「移除」拿掉該商品再結單。</p></div>
 <div class="qa-item"><p class="qa-q">Q：什麼時候出貨？</p><p class="qa-a">A：預購商品會等該筆訂單的商品全部到齊後，再統一安排寄出；完成付款不代表立即出貨 ♡</p></div>
 </div>
-<h3 style="margin:26px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚡ 限時連線</h3>
+</div>
+<div class="pay-sec" data-paysec="live" style="display:none;">
+<h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚡ 限時連線的結單規定</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：限時連線的商品怎麼結單？</p><p class="qa-a">A：每個限時連線專區<b>各自獨立結單、各自計算運費</b>，不會跟現貨／預購或其他專區合併。<br>・連線進行中：不用結單、不倒數，可以繼續喊單。<br>・專區關閉後：才開始3天結單倒數。</p></div>
 <div class="qa-item"><p class="qa-q">Q：為什麼喊單後顯示「待確認」？</p><p class="qa-a">A：限時連線商品依喊單順序於當地採購，成功購買後將更新為「已確認」。<b>若數量不足，未購得的訂單將顯示「缺貨已幫您取消」，已付訂金將全額退還</b> ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：限時連線商品要付訂金嗎？</p><p class="qa-a">A：同一件限時連線商品，喊單金額合計<b>滿NT$1,000（含）</b>，需要支付金額一半的訂金，已付的訂金會從應付總額中扣除。</p></div>
 <div class="qa-item"><p class="qa-q">Q：限時連線期間，現貨／預購還能喊單嗎？</p><p class="qa-a">A：可以。限時連線跟現貨／預購是分開的，互不影響。<br>如果店家連線忙碌，可能會暫停現貨／預購喊單，首頁和商品頁會顯示公告；暫停期間，已喊單的現貨／預購<b>結單倒數也會一起暫停</b>，恢復後重新倒數3天。</p></div>
+<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？運費怎麼算？</p><p class="qa-a">A：跟現貨／預購一樣，送出結單後<b>3天內（第3天24:00前）</b>要完成匯款。<br>運費：7-11／全家 NT$60、黑貓宅急便 NT$130，每個專區的結單各自計算。</p></div>
 </div>
-<h3 style="margin:26px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚠️ 注意事項</h3>
+</div>
+<h3 style="margin:26px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚠️ 注意事項（兩種都適用）</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：超過期限沒結單會怎樣？</p><p class="qa-a">A：超過結單期限仍未結單，請立即私訊官方LINE說明原因；未說明者將視同棄單，<b>清空優惠券、移出社群並永久封鎖</b>，恕不再開放加入。</p></div>
 <div class="qa-item"><p class="qa-q">Q：超過期限沒付款會怎樣？</p><p class="qa-a">A：逾期未付款將視同棄單並取消訂單，<b>清空優惠券、移出社群並永久封鎖</b>，恕不再開放加入；如已支付訂金，訂金恕不退還。</p></div>
@@ -1070,7 +1085,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1800';
+var APP_VERSION = '20261022-1910';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6601,6 +6616,16 @@ renderHome();
 renderShop();
 renderLive();
 }
+/* 付款方式頁：「現貨／預購」「限時連線」兩個按鈕切換各自的結單規定 */
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('.pay-tab') : null;
+if(!b) return;
+var k = b.getAttribute('data-paytab');
+var tabs = document.querySelectorAll('.pay-tab');
+for(var i=0;i<tabs.length;i++) tabs[i].classList.toggle('is-on', tabs[i] === b);
+var secs = document.querySelectorAll('.pay-sec');
+for(var j=0;j<secs.length;j++) secs[j].style.display = secs[j].getAttribute('data-paysec') === k ? '' : 'none';
+});
 /* ---------- wire static controls ---------- */
 document.addEventListener('DOMContentLoaded', function(){
 var navItems = document.querySelectorAll('.nav-item');
