@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0145';
+var APP_VERSION = '20261023-0205';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3209,6 +3209,7 @@ products = adminLiveZoneFilter === '__none__'
 }
 if(isLiveMode) html += adminQuickFormHTML();
 html += adminImportBoxHTML(isLiveMode);
+html += adminStripJpBarHTML(products);
 html += adminNewProductFormHTML(allProducts, isLiveMode);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">'+(isLiveMode ? '目前沒有限時連線商品。' : '目前沒有商品。')+'</p>';
@@ -4368,6 +4369,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
 + adminOrigWarnHTML(p)
 + adminHideBoxHTML(p)
++ adminStripJpBtnHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+(Number(p.price) > 0 ? p.price : '')+'" placeholder="'+(p.is_hidden ? '台幣價格（隱藏中可以先不填）' : '台幣價格')+'" style="margin-bottom:8px;">'
@@ -4548,6 +4550,81 @@ adminApplyCustomMode(pid2, mode, function(){ rerenderAdminPrivatePanel(pid2); })
 }
 });
 // 隱藏商品：先在後台建好，客人看不到也不能喊單，決定好再按「公開上架」
+// ---------- 🈁 一鍵刪除括號裡的日文：「兔巴哥（バッグス・バニー）」→「兔巴哥」 ----------
+var JP_PAREN_RE = /\s*[（(][^（）()]*[\u3040-\u30ff][^（）()]*[）)]/g;
+function stripJp(str){
+var out = String(str || '').replace(JP_PAREN_RE, '').replace(/\s{2,}/g, ' ').trim();
+return out || String(str || '');
+}
+function hasJpParen(str){ JP_PAREN_RE.lastIndex = 0; var r = JP_PAREN_RE.test(String(str || '')); JP_PAREN_RE.lastIndex = 0; return r; }
+function productHasJp(p){
+return hasJpParen(p.name) || hasJpParen(p.sub) || parseOptionList(p.options).some(hasJpParen) || parseOptionList(p.options2).some(hasJpParen);
+}
+function stripJpOptions(raw){
+var map = {}, used = {}, list = [];
+parseOptionList(raw).forEach(function(o){
+var n = stripJp(o);
+if(used[n]) n = o;   // 刪掉日文後跟別的選項撞名，就保留原本的
+used[n] = true; map[o] = n; list.push(n);
+});
+return { list: list, map: map };
+}
+function remapKeys(raw, map){
+var obj = {}; try{ obj = typeof raw === 'string' ? (raw ? JSON.parse(raw) : {}) : (raw || {}); }catch(e){ obj = {}; }
+var out = {};
+Object.keys(obj).forEach(function(k){ out[map[k] || k] = obj[k]; });
+return Object.keys(out).length ? JSON.stringify(out) : '';
+}
+async function stripJpForProduct(p){
+var o1 = stripJpOptions(p.options), o2 = stripJpOptions(p.options2);
+var newName = stripJp(p.name);
+await callMemberApi('admin-update-product-info', {
+productId: p.id, name: newName, sub: stripJp(p.sub), price: Number(p.price) || 0,
+optionLabel: p.option_label || '', options: o1.list.join(', '),
+optionLabel2: p.option2_label || '', options2: o2.list.join(', '),
+optionPrices: remapKeys(p.option_prices, o1.map),
+optionPhotos: remapKeys(p.option_photos, o1.map),
+renameOrders: newName !== String(p.name || '').trim()
+});
+}
+function adminStripJpBarHTML(products){
+var n = (products || []).filter(productHasJp).length;
+if(!n) return '';
+return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:var(--r-md);background:#FFF7E6;border:1.5px dashed #F5C66B;">'
++ '<span style="font-size:12.5px;line-height:1.55;color:#92400E;"><b>🈁 有 '+n+' 件商品名稱還有括號日文</b><br>檢查過中文沒問題，就可以一鍵刪掉</span>'
++ '<button type="button" class="btn btn--dark" id="admStripJpAll" style="white-space:nowrap;padding:8px 14px;font-size:12.5px;">全部刪除日文</button></div>';
+}
+function adminStripJpBtnHTML(p){
+if(!productHasJp(p)) return '';
+return '<button type="button" class="admin-strip-jp" data-product-id="'+escAttr(p.id)+'" style="display:block;margin:10px 0 0;border:1px solid #F5C66B;background:#FFF7E6;color:#92400E;border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700;font-family:var(--font-body);">🈁 刪除這件的括號日文</button>'
++ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">刪除後：'+escHtml(stripJp(p.name))+'</p>';
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-strip-jp, #admStripJpAll') : null;
+if(!b) return;
+var targets;
+if(b.id === 'admStripJpAll'){
+var all = adminProductsCache.filter(function(p){ return productHasJp(p) && (adminProductsMode === 'live' ? isLiveStock(p.stock_status) : !isLiveStock(p.stock_status)); });
+if(!all.length) return;
+if(!window.confirm('確定要把這 '+all.length+' 件商品名稱、角色裡的括號日文全部刪掉嗎？\n\n例如「兔巴哥（バッグス・バニー）」→「兔巴哥」\n刪掉後沒辦法自動復原，請先確認中文都沒問題。')) return;
+targets = all;
+} else {
+var p0 = adminFindCachedProduct(b.getAttribute('data-product-id'));
+if(!p0) return;
+if(!window.confirm('確定要刪除這件的括號日文嗎？\n\n「'+p0.name+'」\n→「'+stripJp(p0.name)+'」\n\n角色名稱也會一起刪掉日文。')) return;
+targets = [p0];
+}
+b.disabled = true;
+var ok = 0, fail = 0;
+for(var i=0;i<targets.length;i++){
+if(targets.length > 1) b.textContent = '處理中… '+(i+1)+' / '+targets.length;
+try{ await stripJpForProduct(targets[i]); ok++; }catch(err){ fail++; }
+}
+showToast('已刪除日文 '+ok+' 件'+(fail ? '・失敗 '+fail+' 件' : ''));
+targets.forEach(function(p){ adminProductExpanded[p.id] = adminProductExpanded[p.id]; });
+await loadAdminProducts();
+refreshShop();
+});
 function adminHideBoxHTML(p){
 var pid = escAttr(p.id);
 if(p.is_hidden){
