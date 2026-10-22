@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0105';
+var APP_VERSION = '20261023-0130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4086,7 +4086,7 @@ return new Blob([arr], { type: m[1] });
 }
 function gachaPrice(jpy){ return GACHA_PRICES[Number(jpy)] || null; }
 function normalizeImportItem(it){
-var out = { name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [] };
+var out = { name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
 var opts = (Array.isArray(it.options) ? it.options : parseOptionList(it.options || '')).map(function(x){ return String(x).trim(); }).filter(function(x){ return x && x !== '不指定'; });
 var tbl = gachaPrice(out.jpy);
 out.base = Number(it.price) || (tbl ? tbl[0] : 0);
@@ -4114,6 +4114,7 @@ return '<div class="imp-row" data-i="'+i+'">'
 + (x.options.length ? '<small>'+escHtml(x.options.join('、'))+'</small>' : '')
 + '<small>📷 '+nPhotos+' 張照片</small>'
 + x.warn.map(function(w){ return '<small style="color:var(--ignis-deep);font-weight:700;">⚠️ '+escHtml(w)+'</small>'; }).join('')
++ x.notes.map(function(w){ return '<small style="color:#B26A00;font-weight:700;">📝 '+escHtml(w)+'</small>'; }).join('')
 + '<span class="imp-st"></span></div></div>';
 }).join('')
 + (bad ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">📥 全部上架（'+adminImportItems.length+' 件）</button>');
