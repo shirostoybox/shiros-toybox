@@ -826,7 +826,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="settle-total-row"><span>商品小計</span><span id="settleSubtotal">NT$0</span></div>
 <div class="settle-total-row"><span>運費</span><span id="settleShipFee">NT$0</span></div>
 <div class="settle-total-row" id="settleDiscountRow" style="display:none;"><span>優惠折抵</span><span id="settleDiscount" style="color:var(--ignis-deep);">-NT$0</span></div>
-<div class="settle-total-row" id="settleDepositRow" style="display:none;"><span>💰已付訂金</span><span id="settleDeposit" style="color:var(--ignis-deep);">-NT$0</span></div>
+<div class="settle-total-row" id="settleDepositRow" style="display:none;"><span>💰已付訂金／預付</span><span id="settleDeposit" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
 </div>
 <p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
@@ -1123,7 +1123,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-2235';
+var APP_VERSION = '20261022-2245';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1904,9 +1904,13 @@ var total = Number(o.price || 0) * q;
 var st = o.status === '已確認'
 ? '<span class="adm-p-st is-ok">已確認</span>'
 : '<span class="adm-p-st is-wait">待確認</span>';
-var dep = o.deposit_required
+// 已付金額：付滿商品金額＝已付清；需要訂金的＝已付訂／未付訂；不需訂金但先付了＝已預付
+var paidAmt = Number(o.deposit_amount || 0);
+var dep = (total && paidAmt >= total)
+? '<span class="adm-p-st is-ok">💳已付清</span>'
+: (o.deposit_required
 ? (needDep ? '<span class="adm-p-st is-dep">💰未付訂</span>' : '<span class="adm-p-st is-ok">💰已付訂</span>')
-: '';
+: (paidAmt > 0 ? '<span class="adm-p-st is-ok">💳已預付</span>' : ''));
 var actions = '';
 if(o.status === '待確認'){
 actions = (needDep ? '<input type="number" min="0" class="admin-deposit-input adm-p-dep" data-order-id="'+o.id+'" placeholder="訂金 '+Math.round(total/2)+'">' : '')
@@ -2243,7 +2247,7 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
 + '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
-+ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
++ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
@@ -6429,7 +6433,7 @@ return '<div class="order-card" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
 + '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
-+ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
++ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
