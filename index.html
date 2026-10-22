@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0045';
+var APP_VERSION = '20261023-0105';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4077,6 +4077,13 @@ return '<div class="imp-box">'
 + '<div id="impResult" style="margin-top:10px;"></div>'
 + '</div></div>';
 }
+function dataUrlToBlob(d){
+var m = String(d || '').match(/^data:([^;]+);base64,(.*)$/);
+if(!m) throw new Error('圖片資料錯誤');
+var bin = atob(m[2]), arr = new Uint8Array(bin.length);
+for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+return new Blob([arr], { type: m[1] });
+}
 function gachaPrice(jpy){ return GACHA_PRICES[Number(jpy)] || null; }
 function normalizeImportItem(it){
 var out = { name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [] };
@@ -4137,9 +4144,20 @@ var images = [], optPhotos = {}, slot = 2;
 if(x.cover) images.push({ slot: 1, url: x.cover });
 x.options.forEach(function(o){ if(x.photos[o] && slot <= 13){ images.push({ slot: slot, url: x.photos[o] }); optPhotos[o] = slot; slot++; } });
 x.extra.forEach(function(u){ if(u && slot <= 13){ images.push({ slot: slot, url: u }); slot++; } });
-if(st) st.textContent = '📷 抓照片中…';
-var r2 = images.length ? await callMemberApi('admin-import-images', { productId: res.productId, images: images, optionPhotos: JSON.stringify(optPhotos) }) : { results: [] };
-var bad = (r2.results || []).filter(function(r){ return !r.ok; });
+// 照片：系統先把官網圖抓回來，在這裡壓縮（長邊 1200、JPG 80%），再跟平常一樣上傳
+var bad = [];
+for(var k=0;k<images.length;k++){
+if(st) st.textContent = '📷 照片 '+(k+1)+' / '+images.length+'（抓取＋壓縮）…';
+try{
+var fr = await callMemberApi('admin-fetch-image', { url: images[k].url });
+var small = await compressImage(dataUrlToBlob(fr.dataUrl));
+var up = { productId: res.productId, imageData: small };
+if(images[k].slot > 1) up.slot = images[k].slot;
+await callMemberApi('admin-upload-product-image', up);
+}catch(err){ bad.push(images[k].slot); }
+}
+Object.keys(optPhotos).forEach(function(o){ if(bad.indexOf(optPhotos[o]) !== -1) delete optPhotos[o]; });
+if(Object.keys(optPhotos).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(optPhotos) });
 photoFail += bad.length;
 if(st){ st.textContent = bad.length ? '✓ 已上架・'+bad.length+' 張照片抓不到，請手動補' : '✓ 已上架'; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
 okCount++;
