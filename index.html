@@ -86,6 +86,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pay-tab small{ font-size:11px; color:var(--muted); }
 .pay-tab.is-on{ background:var(--ink); border-color:var(--ink); color:#fff; }
 .pay-tab.is-on small{ color:var(--volt); }
+.view[data-view="shipping"] .qa-a b{ color:var(--text-dark); font-weight:800; background:linear-gradient(transparent 52%, rgba(255,170,90,.55) 52%, rgba(255,170,90,.55) 92%, transparent 92%); padding:0 2px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
 .view[data-view="payment"] .qa-a b{ color:var(--text-dark); font-weight:800; background:linear-gradient(transparent 52%, rgba(255,170,90,.55) 52%, rgba(255,170,90,.55) 92%, transparent 92%); padding:0 2px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
 /* 逛商品的頁面（首頁、商品頁、限時連線專區）用封面同色的深色底 */
 .page:has(.view-dark.is-active){ background:var(--ink-2); }
@@ -961,10 +962,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>付款方式</h2></div>
 <div class="guide-content">
 <div class="pay-tabs">
-<button type="button" class="pay-tab is-on" data-paytab="regular"><b>📦 現貨／預購</b><small>喊單後 3 天內結單</small></button>
-<button type="button" class="pay-tab" data-paytab="live"><b>⚡ 限時連線</b><small>專區關閉後才倒數</small></button>
+<button type="button" class="pay-tab is-on" data-paytab="regular" data-paygrp="pay"><b>📦 現貨／預購</b><small>喊單後 3 天內結單</small></button>
+<button type="button" class="pay-tab" data-paytab="live" data-paygrp="pay"><b>⚡ 限時連線</b><small>專區關閉後才倒數</small></button>
 </div>
-<div class="pay-sec" data-paysec="regular">
+<div class="pay-sec" data-paysec="regular" data-paygrp="pay">
 <h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">📦 現貨／預購的結單規定</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：怎麼結單？</p><p class="qa-a">A：到「喊單」頁，看到「結單倒數」卡片後按「前往結單」，選擇寄送方式、填寫收件資料、選擇要使用的優惠券，送出後就完成結單 ♡</p></div>
@@ -976,7 +977,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-item"><p class="qa-q">Q：什麼時候出貨？</p><p class="qa-a">A：預購商品會等該筆訂單的商品全部到齊後，再統一安排寄出；完成付款不代表立即出貨 ♡</p></div>
 </div>
 </div>
-<div class="pay-sec" data-paysec="live" style="display:none;">
+<div class="pay-sec" data-paysec="live" data-paygrp="pay" style="display:none;">
 <h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚡ 限時連線的結單規定</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：限時連線的商品怎麼結單？</p><p class="qa-a">A：每個限時連線專區<b>各自獨立結單、各自計算運費</b>，不會跟現貨／預購或其他專區合併。<br>・連線進行中：不用結單、不倒數，可以繼續喊單。<br>・專區關閉後：才開始3天結單倒數。</p></div>
@@ -998,13 +999,31 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <section class="view" data-view="shipping">
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>回饋券Q&A</h2></div>
 <div class="guide-content">
+<div class="pay-tabs">
+<button type="button" class="pay-tab is-on" data-paytab="gen" data-paygrp="reward"><b>🎟️ 一般回饋券</b><small>每滿 2,500 送 60</small></button>
+<button type="button" class="pay-tab" data-paytab="brand" data-paygrp="reward"><b>🏷️ 品牌選物</b><small>每滿 5,000 送 50</small></button>
+</div>
+<div class="pay-sec" data-paysec="gen" data-paygrp="reward">
+<h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">🎟️ 一般回饋券</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：怎麼獲得回饋券？</p><p class="qa-a">A：累積消費每滿NT$2,500，即贈送1張NT$60回饋券 ✨<br>・累積NT$2,500 → 1張<br>・累積NT$5,000 → 2張<br>・累積NT$7,500 → 3張<br>以此類推 ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：超過NT$2,500的金額會浪費嗎？</p><p class="qa-a">A：不會。每滿NT$2,500取得1張回饋券後，剩餘消費金額會繼續保留累積。<br>例如：累積消費NT$3,200 → 可獲得1張NT$60回饋券，剩餘NT$700會繼續累積下一張。</p></div>
 <div class="qa-item"><p class="qa-q">Q：回饋券要消費滿多少才能使用？</p><p class="qa-a">A：一般商品（品牌選物除外）金額滿NT$500即可使用回饋券 ♡<br>回饋券使用門檻以「折抵前的商品金額」計算。</p></div>
 <div class="qa-item"><p class="qa-q">Q：一次可以使用幾張回饋券？</p><p class="qa-a">A：使用張數不限，可依目前持有的回饋券自由使用。</p></div>
 <div class="qa-item"><p class="qa-q">Q：如果回饋券金額超過這次消費金額怎麼辦？</p><p class="qa-a">A：回饋券折抵金額最高以本次實際商品金額為限，超過的部分不找零，也不兌換現金。<br>例如：商品金額NT$500，持有9張回饋券共NT$540，本次最多折抵NT$500，超過的NT$40不另外退還。也可以選擇使用8張折抵NT$480，本次支付NT$20，並將剩餘1張回饋券保留至下次使用。</p></div>
-<div class="qa-item"><p class="qa-q">Q：品牌選物的消費怎麼回饋？</p><p class="qa-a">A：品牌選物（例如精品、潮牌等品牌商品）價格透明、代購費已壓低，因此回饋另外計算 ♡<br>標示「🏷️ 品牌選物」的商品另外累積「品牌選物消費」，品牌選物累積每滿NT$5,000，即可兌換1張NT$50品牌選物回饋券 ✨<br>・品牌選物回饋券只能折抵品牌選物商品，張數不限，最多折抵到本次品牌選物金額為止。<br>・一般回饋券（NT$60）只能折抵一般商品，不能折抵品牌選物。<br>・同一筆結單同時有品牌選物和一般商品時，兩種券可以分別使用，免運券也照原本規則使用。<br>・品牌選物折抵的金額一樣不列入品牌選物累積。</p></div>
+</div>
+</div>
+<div class="pay-sec" data-paysec="brand" data-paygrp="reward" style="display:none;">
+<h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">🏷️ 品牌選物回饋</h3>
+<div class="qa-list">
+<div class="qa-item"><p class="qa-q">Q：什麼是品牌選物回饋？</p><p class="qa-a">A：品牌選物（例如精品、潮牌等品牌商品）價格透明、代購費已壓低，因此回饋另外計算 ♡<br>標示「🏷️ 品牌選物」的商品，會另外累積「品牌選物消費」，<b>每滿NT$5,000可兌換1張NT$50品牌選物回饋券</b> ✨</p></div>
+<div class="qa-item"><p class="qa-q">Q：品牌選物回饋券怎麼用？</p><p class="qa-a">A：<b>只能折抵品牌選物商品</b>，張數不限，最多折抵到本次品牌選物金額為止。</p></div>
+<div class="qa-item"><p class="qa-q">Q：一般回饋券可以折品牌選物嗎？</p><p class="qa-a">A：不行喔。一般回饋券（NT$60）只能折抵一般商品。<br>同一筆結單同時有品牌選物和一般商品時，兩種券可以分別使用，免運券也照原本規則使用。</p></div>
+<div class="qa-item"><p class="qa-q">Q：品牌選物折抵後怎麼累積？</p><p class="qa-a">A：用品牌選物回饋券折抵的金額，不列入品牌選物累積，其餘照常累積。</p></div>
+</div>
+</div>
+<h3 style="margin:26px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">📌 共同規則（兩種都適用）</h3>
+<div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：回饋券可以換現金嗎？</p><p class="qa-a">A：回饋券僅限折抵商品消費使用，恕不兌換現金。</p></div>
 <div class="qa-item"><p class="qa-q">Q：哪些消費會列入累積？</p><p class="qa-a">A：以實際購買成功並完成付款的「商品金額」計算。運費、缺貨、取消商品皆不列入消費累積。</p></div>
 <div class="qa-item"><p class="qa-q">Q：使用回饋券折抵後，消費金額怎麼累積？</p><p class="qa-a">A：消費累積以「折抵後實際支付的商品金額」計算。<br>例如：商品NT$2,000，使用1張NT$60回饋券折抵商品，本次實際支付NT$1,940，因此本次累積消費金額為NT$1,940。</p></div>
@@ -1085,7 +1104,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1910';
+var APP_VERSION = '20261022-1920';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6621,9 +6640,10 @@ document.addEventListener('click', function(e){
 var b = e.target && e.target.closest ? e.target.closest('.pay-tab') : null;
 if(!b) return;
 var k = b.getAttribute('data-paytab');
-var tabs = document.querySelectorAll('.pay-tab');
+var g = b.getAttribute('data-paygrp');
+var tabs = document.querySelectorAll('.pay-tab[data-paygrp="'+g+'"]');
 for(var i=0;i<tabs.length;i++) tabs[i].classList.toggle('is-on', tabs[i] === b);
-var secs = document.querySelectorAll('.pay-sec');
+var secs = document.querySelectorAll('.pay-sec[data-paygrp="'+g+'"]');
 for(var j=0;j<secs.length;j++) secs[j].style.display = secs[j].getAttribute('data-paysec') === k ? '' : 'none';
 });
 /* ---------- wire static controls ---------- */
