@@ -383,6 +383,9 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-mb.is-warn{ background:#FFE4E6; color:#BE123C; }
 .adm-mb.is-ban{ background:var(--ink); color:#fff; }
 .adm-mb.is-staff{ background:#EDE9FE; color:#6D28D9; }
+.adm-store-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 10px; padding:10px; border-radius:14px; background:#FFF7E6; border:1.5px dashed #F5C66B; }
+.adm-p-store{ display:flex; align-items:center; gap:8px; margin:2px 0 8px; font-size:12px; font-weight:700; color:var(--muted); }
+.adm-p-store select{ flex:1; max-width:220px; padding:6px 10px; border-radius:999px; border:1.5px solid var(--line); background:#fff; font-size:13px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
 .calc-chip{ display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:999px; border:1.5px dashed #F0A58F; background:#fff; color:var(--text-dark); font-family:var(--font-display); font-weight:700; font-size:inherit; line-height:1.3; cursor:pointer; transition:background .15s, color .15s, border-color .15s; }
 .calc-chip.on{ background:var(--ignis); border-color:var(--ignis); border-style:solid; color:#fff; }
 .calc-chip.on::before{ content:'✓'; font-size:.85em; }
@@ -1123,7 +1126,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-2245';
+var APP_VERSION = '20261022-2310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1335,7 +1338,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -1848,6 +1851,68 @@ if(adminPurchaseZone === 'regular' && o.is_live_limited) return false;
 if(adminPurchaseZone !== 'all' && adminPurchaseZone !== 'regular' && (!o.is_live_limited || (o.live_zone_id || 'z_default') !== adminPurchaseZone)) return false;
 return true;
 }
+// ---------- 🏬 採購店家：把商品分到要去哪間店買，到了那間店點一下就只看那間要買的 ----------
+var adminPurchaseStore = 'all';
+function productBuyStore(pid){
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === pid) return PRODUCTS[i].buyStore || ''; }
+for(var j=0;j<adminProductsCache.length;j++){ if(adminProductsCache[j].id === pid) return adminProductsCache[j].buy_store || ''; }
+return '';
+}
+function setLocalBuyStore(pids, store){
+pids.forEach(function(pid){
+PRODUCTS.forEach(function(p){ if(p.id === pid) p.buyStore = store; });
+adminProductsCache.forEach(function(p){ if(p.id === pid) p.buy_store = store; });
+});
+}
+function buyStoreList(){
+var list = [];
+try{ list = JSON.parse((siteSettings && siteSettings.buy_stores) || '[]') || []; }catch(e){ list = []; }
+return list.filter(function(x){ return x && typeof x === 'string'; });
+}
+async function saveBuyStoreList(list){
+await callMemberApi('admin-update-site-setting', { key: 'buy_stores', value: JSON.stringify(list) });
+siteSettings = siteSettings || {}; siteSettings.buy_stores = JSON.stringify(list);
+}
+function buyStoreSelectHTML(P){
+var stores = buyStoreList();
+if(P.store && stores.indexOf(P.store) === -1) stores = stores.concat([P.store]);
+return '<label class="adm-p-store"><span>📍 在哪買</span><select class="adm-p-store-sel" data-pid="'+escAttr(P.productId || '')+'">'
++ '<option value=""'+(P.store?'':' selected')+'>未分配</option>'
++ stores.map(function(x){ return '<option value="'+escAttr(x)+'"'+(P.store===x?' selected':'')+'>'+escHtml(x)+'</option>'; }).join('')
++ '<option value="__new__">＋ 新增店家…</option></select></label>';
+}
+document.addEventListener('change', async function(e){
+var sel = e.target;
+if(!sel || !sel.classList || !sel.classList.contains('adm-p-store-sel')) return;
+var pid = sel.getAttribute('data-pid');
+if(!pid){ alert('這筆找不到商品資料，無法分配店家'); renderAdminOrders(); return; }
+var store = sel.value;
+if(store === '__new__'){
+var name = (window.prompt('新增店家名稱（例如：唐吉訶德 青森店）') || '').trim().slice(0, 20);
+if(!name){ renderAdminOrders(); return; }
+var list = buyStoreList();
+if(list.indexOf(name) === -1){ list.push(name); try{ await saveBuyStoreList(list); }catch(err){ alert('新增失敗：' + err.message); renderAdminOrders(); return; } }
+store = name;
+}
+sel.disabled = true;
+try{
+await callMemberApi('admin-set-buy-store', { productId: pid, store: store });
+setLocalBuyStore([pid], store);
+showToast(store ? '已分到「'+store+'」' : '已改成未分配');
+}catch(err){ alert('儲存失敗：' + err.message); }
+renderAdminOrders();
+});
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.adm-store-manage') : null;
+if(!b) return;
+var list = buyStoreList();
+var txt = window.prompt('編輯店家清單（用逗號分開，可以改順序、刪掉不用的）\n已經分配好的商品不會被清掉', list.join('，'));
+if(txt === null) return;
+var next = [];
+txt.split(/[,，、\n]/).forEach(function(x){ x = x.trim().slice(0, 20); if(x && next.indexOf(x) === -1) next.push(x); });
+try{ await saveBuyStoreList(next); showToast('已更新店家清單'); renderAdminOrders(); }
+catch(err){ alert('儲存失敗：' + err.message); }
+});
 function adminPurchaseProducts(groups){
 var pmap = {}, porder = [];
 groups.forEach(function(g){
@@ -1859,7 +1924,7 @@ if(!pmap[pk]){
 var prod = null;
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === o.product_id){ prod = PRODUCTS[i]; break; } }
 var ci = orderCatInfo(o);
-pmap[pk] = { name:o.product_name, cat: ci.label, catKey: ci.key, catInfo: ci, qty:0, vmap:{}, vorder:[] };
+pmap[pk] = { name:o.product_name, productId:o.product_id || '', store: productBuyStore(o.product_id), cat: ci.label, catKey: ci.key, catInfo: ci, qty:0, vmap:{}, vorder:[] };
 porder.push(pk);
 }
 var P = pmap[pk], vk = o.variant || '';
@@ -1934,12 +1999,21 @@ var zoneChips = adminChip('全部', adminPurchaseZone==='all', 'data-pzone="all"
 var allProds = adminPurchaseProducts(groups);
 // 分類篩選：到了某一間店（例如扭蛋區），只看這個分類要買什麼
 var catSeen = {}, catList = [];
-allProds.forEach(function(P){ if(!catSeen[P.catKey]){ catSeen[P.catKey] = { info:P.catInfo, n:0 }; catList.push(P.catKey); } catSeen[P.catKey].n += P.qty; });
+allProds.filter(function(P){ return adminPurchaseStore === 'all' || (adminPurchaseStore === '__none__' ? !P.store : P.store === adminPurchaseStore); }).forEach(function(P){ if(!catSeen[P.catKey]){ catSeen[P.catKey] = { info:P.catInfo, n:0 }; catList.push(P.catKey); } catSeen[P.catKey].n += P.qty; });
 if(adminPurchaseCat !== 'all' && !catSeen[adminPurchaseCat]) adminPurchaseCat = 'all';
 var catChips = '<button type="button" class="cat-tab'+(adminPurchaseCat==='all'?' active':'')+'" data-pcat="all" style="padding:7px 13px;font-size:13px;">全部分類</button>'
 + catList.map(function(k){ var c = catSeen[k]; var on = adminPurchaseCat === k;
 return '<button type="button" class="cat-tab adm-pcat'+(on?' active':'')+'" data-pcat="'+escAttr(k)+'" style="padding:7px 13px;font-size:13px;'+(on?'':'background:'+c.info.color.tag+';color:'+c.info.color.tagText+';border-color:'+c.info.color.tag+';')+'">'+escHtml(c.info.label)+' '+c.n+'</button>'; }).join('');
-var prods = adminPurchaseCat === 'all' ? allProds : allProds.filter(function(P){ return P.catKey === adminPurchaseCat; });
+// 採購店家篩選
+var storeSeen = {}, storeOrder = buyStoreList().slice(), unassigned = 0;
+allProds.forEach(function(P){ if(P.store){ storeSeen[P.store] = (storeSeen[P.store] || 0) + P.qty; if(storeOrder.indexOf(P.store) === -1) storeOrder.push(P.store); } else { unassigned += P.qty; } });
+if(adminPurchaseStore !== 'all' && adminPurchaseStore !== '__none__' && !storeSeen[adminPurchaseStore]) adminPurchaseStore = 'all';
+var storeChips = adminChip('🏬 全部店家', adminPurchaseStore==='all', 'data-pstore="all"')
++ storeOrder.filter(function(x){ return storeSeen[x]; }).map(function(x){ return adminChip('📍 '+escHtml(x)+' '+storeSeen[x], adminPurchaseStore===x, 'data-pstore="'+escAttr(x)+'"'); }).join('')
++ (unassigned ? adminChip('未分配 '+unassigned, adminPurchaseStore==='__none__', 'data-pstore="__none__"') : '')
++ '<button type="button" class="adm-store-manage" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;font-family:var(--font-body);padding:4px;">✏️ 管理店家</button>';
+var storeFiltered = allProds.filter(function(P){ return adminPurchaseStore === 'all' || (adminPurchaseStore === '__none__' ? !P.store : P.store === adminPurchaseStore); });
+var prods = adminPurchaseCat === 'all' ? storeFiltered : storeFiltered.filter(function(P){ return P.catKey === adminPurchaseCat; });
 var byCat = {}, cats = [];
 prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
 cats.forEach(function(c){ byCat[c].sort(function(a,b){ return a.name.localeCompare(b.name, 'zh-Hant'); }); });
@@ -1951,6 +2025,7 @@ return '<p class="adm-p-cat">'+catPillHTML(byCat[c][0].catInfo, '<span class="ad
 var multi = P.variants.length > 1 || P.variants[0].variant;
 return '<div class="adm-p-item">'
 + '<div class="adm-p-top"><p class="adm-p-name">'+escHtml(P.name)+'</p><span class="adm-p-qty">×'+P.qty+'</span></div>'
++ buyStoreSelectHTML(P)
 + P.variants.map(function(V){
 var pendingIds = V.orders.filter(function(o){ return o.status === '待確認' && !orderNeedsDeposit(o); }).map(function(o){ return o.id; });
 var skipDep = V.orders.filter(function(o){ return o.status === '待確認' && orderNeedsDeposit(o); }).length;
@@ -1969,6 +2044,8 @@ return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'
 + adminChip('只看已確認', adminPurchaseStatus==='confirmed', 'data-pstatus="confirmed"')
 + '</div>'
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'+zoneChips+'</div>'
++ '<div class="adm-store-row">'+storeChips+'</div>'
++ (adminPurchaseStore !== 'all' ? '<p style="margin:-2px 0 10px;font-size:12.5px;font-weight:700;color:var(--ignis-deep);">'+(adminPurchaseStore === '__none__' ? '還沒分配店家的商品' : '📍 在「'+escHtml(adminPurchaseStore)+'」要買的商品')+'</p>' : '')
 + (catList.length > 1 ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;">'+catChips+'</div>' : '<div style="height:4px;"></div>')
 + '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;">'
 + '<p style="font-size:13px;font-weight:700;color:var(--text-dark);margin:0;">共 '+prods.length+' 樣商品・'+totalQty+' 件</p>'
@@ -1983,6 +2060,8 @@ var sBtns = listEl.querySelectorAll('[data-pstatus]');
 for(var i=0;i<sBtns.length;i++){ sBtns[i].addEventListener('click', function(){ adminPurchaseStatus = this.getAttribute('data-pstatus'); renderAdminOrders(); }); }
 var zBtns = listEl.querySelectorAll('[data-pzone]');
 for(var j=0;j<zBtns.length;j++){ zBtns[j].addEventListener('click', function(){ adminPurchaseZone = this.getAttribute('data-pzone'); renderAdminOrders(); }); }
+var stBtns = listEl.querySelectorAll('[data-pstore]');
+for(var sb=0; sb<stBtns.length; sb++){ stBtns[sb].addEventListener('click', function(){ adminPurchaseStore = this.getAttribute('data-pstore'); renderAdminOrders(); }); }
 var cBtns = listEl.querySelectorAll('[data-pcat]');
 for(var cb=0; cb<cBtns.length; cb++){ cBtns[cb].addEventListener('click', function(){ adminPurchaseCat = this.getAttribute('data-pcat'); renderAdminOrders(); }); }
 // 單筆確認／缺貨：沿用客人訂單那邊的同一套處理（訂金規則一樣）
@@ -2004,8 +2083,9 @@ await loadAdminGroups();
 }
 var copyBtn = document.getElementById('admCopyPurchase');
 if(copyBtn) copyBtn.addEventListener('click', async function(){
-var prods = adminPurchaseProducts(adminGroupsCache);
+var prods = adminPurchaseProducts(adminGroupsCache).filter(function(P){ return adminPurchaseStore === 'all' || (adminPurchaseStore === '__none__' ? !P.store : P.store === adminPurchaseStore); });
 var byCat = {}, cats = [], lines = [];
+if(adminPurchaseStore !== 'all') lines.push('📍 '+(adminPurchaseStore === '__none__' ? '未分配店家' : adminPurchaseStore));
 prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
 cats.forEach(function(c){
 lines.push('【'+c+'】');
