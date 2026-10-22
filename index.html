@@ -445,6 +445,22 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .live-entry-sub{ display:block; font-size:12.5px; opacity:.92; line-height:1.45; }
 .live-entry.is-idle[class*="zone-"]{ background:linear-gradient(125deg,#20242F 0%,#3A3F4F 100%); box-shadow:none; }
 .live-entry-arrow{ flex:0 0 auto; font-size:22px; opacity:.9; }
+.live-notice{ position:relative; margin:0 20px 12px; padding:12px 14px 12px; border-radius:18px; background:linear-gradient(135deg,#FFF4E6,#FFE8EC); border:2px solid #FF8A65; box-shadow:0 8px 22px rgba(255,102,71,.25); color:#4A2A1F; overflow:hidden; }
+.live-notice::before{ content:''; position:absolute; inset:0; background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%); transform:translateX(-120%); animation:lnShine 4.5s ease-in-out 1.2s infinite; pointer-events:none; }
+.live-notice.is-fresh{ animation:lnWiggle .9s ease-in-out .3s 2; }
+.ln-head{ display:flex; align-items:center; justify-content:space-between; margin:0 0 6px; }
+.ln-tag{ display:inline-block; padding:3px 10px; border-radius:999px; background:var(--ignis-deep); color:#fff; font-size:12px; font-weight:800; letter-spacing:.05em; }
+.ln-live{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; color:#E2472A; }
+.ln-live i{ width:8px; height:8px; border-radius:50%; background:#E2472A; animation:lnDot 1.2s ease-in-out infinite; }
+.ln-title{ margin:0 0 4px; font-size:15.5px; font-weight:800; color:#C8321C; }
+.ln-text{ margin:0 0 4px; font-size:13.5px; font-weight:600; line-height:1.6; }
+.ln-wish-row{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.ln-wish{ position:relative; display:inline-flex; align-items:center; gap:5px; padding:6px 14px; border-radius:999px; border:none; background:var(--volt); color:var(--ink); font-size:13.5px; font-weight:800; font-family:var(--font-body); cursor:pointer; animation:lnWishGlow 1.8s ease-out infinite; }
+@keyframes lnShine{ 0%{ transform:translateX(-120%); } 40%,100%{ transform:translateX(120%); } }
+@keyframes lnWiggle{ 0%,100%{ transform:rotate(0); } 20%{ transform:rotate(-1.2deg); } 40%{ transform:rotate(1.2deg); } 60%{ transform:rotate(-.8deg); } 80%{ transform:rotate(.6deg); } }
+@keyframes lnDot{ 0%,100%{ opacity:1; } 50%{ opacity:.25; } }
+@keyframes lnWishGlow{ 0%{ box-shadow:0 0 0 0 rgba(47,216,201,.7); } 70%,100%{ box-shadow:0 0 0 10px rgba(47,216,201,0); } }
+@media (prefers-reduced-motion: reduce){ .live-notice::before, .live-notice.is-fresh, .ln-live i, .ln-wish{ animation:none; } }
 .live-status-note{ margin:0 20px 10px; padding:10px 14px; border-radius:var(--r-md); font-size:12.5px; font-weight:600; line-height:1.55; }
 .live-status-note.is-on{ background:#FEF2F2; color:#C8321C; border:1px solid rgba(226,71,42,.35); }
 .live-notice{ margin:0 20px 12px; padding:14px 16px; border-radius:var(--r-md); background:#FFF8F6; border:1px solid rgba(226,71,42,.22); }
@@ -1104,7 +1120,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-2025';
+var APP_VERSION = '20261022-2140';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5412,6 +5428,12 @@ if(currentLiveZoneId !== zoneId){ liveCategory = 'all'; }
 currentLiveZoneId = zoneId;
 showView('live');
 }
+// 公告：每天第一次看到時會晃一下、亮一下，吸引大家看一眼
+function liveNoticeFresh(){
+var today = new Date(Date.now() + 8*3600*1000).toISOString().slice(0,10);
+try{ if(localStorage.getItem('liveNoticeSeen') === today) return false; localStorage.setItem('liveNoticeSeen', today); }catch(e){}
+return true;
+}
 function renderLive(){
 renderLiveEntries();
 var zone = zoneById(currentLiveZoneId);
@@ -5471,10 +5493,15 @@ setEndNote('liveEndNote', isOpen && list.length > 0);
 var noteEl = document.getElementById('liveStatusNote');
 if(noteEl){
 noteEl.innerHTML = isOpen
-? '<div class="live-status-note is-on">'
-+ '<p style="margin:0;">🔴 限時連線進行中！</p>'
-+ '<p style="margin:6px 0 0;">連線結束後才開始結單倒數，期間遇到好物也會隨時上架並通知大家 ♡</p>'
+? '<div class="live-notice'+(liveNoticeFresh() ? ' is-fresh' : '')+'">'
++ '<div class="ln-head"><span class="ln-tag">📢 公告</span><span class="ln-live"><i></i>LIVE 連線中</span></div>'
++ '<p class="ln-title">🔴 限時連線進行中！</p>'
++ '<p class="ln-text">每天都會努力💪 上架新品，記得天天回來逛逛 ♡</p>'
++ '<div class="ln-wish-row"><span class="ln-text" style="margin:0;">想找什麼也歡迎</span>'
++ '<button type="button" class="ln-wish" id="liveNoticeWish"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5l2.4 5.6 6.1.5-4.6 4 1.4 5.9L12 16.4l-5.3 3.1 1.4-5.9-4.6-4 6.1-.5Z"/></svg>許願</button></div>'
 + '</div>' : '';
+var lnw = document.getElementById('liveNoticeWish');
+if(lnw) lnw.onclick = function(){ showView('wish'); window.scrollTo(0, 0); };
 }
 var emptyEl = document.getElementById('liveEmpty');
 if(emptyEl){
