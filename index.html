@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0205';
+var APP_VERSION = '20261023-0215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4753,17 +4753,7 @@ if(touched){ var pi = jpyPriceInputFor(key); if(pi) pi.value = tw; }
 res.textContent = Number(jpy) > 0 ? '請填匯率和倍數' : '';
 }
 // 規格一各選項的日幣 → 台幣
-var ed = document.querySelector('.admin-opt-editor[data-key="'+key+'"]');
-var ob = ed && ed.querySelector('.admin-optp');
-if(ob && touched){
-var jm = {}; try{ jm = JSON.parse(ob.getAttribute('data-jpy') || '{}'); }catch(e){}
-var pm = {}; try{ pm = JSON.parse(ob.getAttribute('data-prices') || '{}'); }catch(e){}
-Object.keys(jm).forEach(function(o){
-var v = jpyCalc(jm[o], rate, mult);
-if(v){ pm[o] = v; var inp = ed.querySelector('.admin-optp-in[data-opt="'+(window.CSS && CSS.escape ? CSS.escape(o) : o)+'"]'); if(inp) inp.value = v; }
-});
-ob.setAttribute('data-prices', JSON.stringify(pm));
-}
+// （規格選項的日幣欄已移除，選項價格只填台幣）
 if(touched) box.setAttribute('data-fxdate', todayTW());
 var tb = box.querySelector('.jpy-use-today');
 if(tb && ADMIN_FX && Number(rate) === ADMIN_FX.rate) tb.remove();
@@ -4775,13 +4765,7 @@ if(!box) return {};
 var jpy = Number(box.querySelector('.jpy-price').value) || 0;
 var rate = Number(box.querySelector('.jpy-rate').value) || 0;
 var mult = Number(box.querySelector('.jpy-mult').value) || 0;
-var ed = document.querySelector('.admin-opt-editor[data-key="'+key+'"]');
-var ob = ed && ed.querySelector('.admin-optp');
 var oj = {};
-if(ob && ob.querySelector('.admin-optp-on').checked){
-var all = {}; try{ all = JSON.parse(ob.getAttribute('data-jpy') || '{}'); }catch(e){}
-parseOptionList(options || '').forEach(function(o){ if(Number(all[o]) > 0) oj[o] = Number(all[o]); });
-}
 if(mult > 0){ try{ localStorage.setItem('lastJpyMult', String(mult)); }catch(e){} }
 return { jpyPrice: jpy || '', multiplier: mult || '', fxRate: rate || '', fxDate: (jpy || Object.keys(oj).length) ? (box.getAttribute('data-fxdate') || todayTW()) : '', optionJpy: Object.keys(oj).length ? JSON.stringify(oj) : '' };
 }
@@ -4856,9 +4840,9 @@ var map = {}; try{ map = JSON.parse(box.getAttribute('data-prices') || '{}'); }c
 var listEl = box.querySelector('.admin-optp-list');
 var jmap = {}; try{ jmap = JSON.parse(box.getAttribute('data-jpy') || '{}'); }catch(e){}
 listEl.innerHTML = list.length
-? '<div class="admin-optp-row" style="margin-bottom:2px;"><span></span><small style="width:96px;flex:0 0 96px;font-size:11px;font-weight:700;color:var(--muted);">日幣 ¥</small><small style="width:110px;flex:0 0 110px;font-size:11px;font-weight:700;color:var(--muted);">台幣 NT$</small></div>'
-+ list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span><input type="number" min="0" class="gate-input admin-optp-jpy" data-opt="'+escAttr(o)+'" value="'+(jmap[o] || '')+'" placeholder="¥ 日幣"><input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="NT$"></div>'; }).join('')
-+ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">填日幣會用上面的匯率和倍數自動換算台幣，也可以直接填台幣。沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
+? '<div class="admin-optp-row" style="margin-bottom:2px;"><span></span><small style="width:110px;flex:0 0 110px;font-size:11px;font-weight:700;color:var(--muted);">台幣 NT$</small></div>'
++ list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span><input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="NT$"></div>'; }).join('')
++ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
 : '<p style="margin:0;font-size:11.5px;color:var(--muted);">先在上面填規格一的選項</p>';
 var ins = listEl.querySelectorAll('.admin-optp-in');
 for(var i=0;i<ins.length;i++){
