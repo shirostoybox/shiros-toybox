@@ -356,6 +356,23 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .order-body{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .order-product{ margin:0; font-size:14px; font-weight:700; color:var(--text-dark); }
 .order-product .sub{ display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px; }
+.adm-mrow{ margin:0 0 8px; border:1.5px solid var(--line); border-radius:var(--r-md); background:var(--card); overflow:hidden; }
+.adm-mrow.is-open{ border-color:var(--ink); }
+.adm-mrow-head{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 12px; border:none; background:none; text-align:left; font-family:var(--font-body); cursor:pointer; }
+.adm-mrow-main{ min-width:0; display:flex; flex-direction:column; gap:2px; }
+.adm-mrow-main b{ font-size:14.5px; color:var(--text-dark); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.adm-mrow-main small{ font-size:11.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.adm-mrow-badges{ display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
+.adm-mrow-side{ flex-shrink:0; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); white-space:nowrap; }
+.adm-mrow-side i{ font-style:normal; font-size:13px; }
+.adm-mrow-body{ padding:0 10px 10px; }
+.adm-mrow-body .order-card{ margin:0 !important; box-shadow:none; }
+.adm-mb{ display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; }
+.adm-mb.is-ok{ background:#DCFCE7; color:#166534; }
+.adm-mb.is-wait{ background:#FEF3C7; color:#92400E; }
+.adm-mb.is-warn{ background:#FFE4E6; color:#BE123C; }
+.adm-mb.is-ban{ background:var(--ink); color:#fff; }
+.adm-mb.is-staff{ background:#EDE9FE; color:#6D28D9; }
 .calc-chip{ display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:999px; border:1.5px dashed #F0A58F; background:#fff; color:var(--text-dark); font-family:var(--font-display); font-weight:700; font-size:inherit; line-height:1.3; cursor:pointer; transition:background .15s, color .15s, border-color .15s; }
 .calc-chip.on{ background:var(--ignis); border-color:var(--ignis); border-style:solid; color:#fff; }
 .calc-chip.on::before{ content:'✓'; font-size:.85em; }
@@ -1053,7 +1070,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1735';
+var APP_VERSION = '20261022-1800';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2457,38 +2474,110 @@ alert('操作失敗：' + e.message);
 btn.disabled = false; btn.textContent = '恢復下單資格';
 }
 }
+// ---------- 會員管理：一次列出全部會員，可以點「已綁定／未綁定…」分類，再用名字篩選 ----------
+var adminMembersCache = null;
+var adminMemberFilter = 'all';
+var adminMemberOpen = {};
+var ADMIN_MEMBER_FILTERS = [
+['all', '全部', function(){ return true; }],
+['verified', '✅ 已綁定', function(m){ return m.isVerified; }],
+['unverified', '⏳ 未綁定', function(m){ return !m.isVerified; }],
+['nonick', '✏️ 沒填暱稱', function(m){ return m.isVerified && !m.nickname; }],
+['coupon', '🚚 有免運券', function(m){ return (m.referralCouponBalance || 0) > 0; }],
+['restricted', '🚫 限制下單', function(m){ return m.orderRestricted; }],
+['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }]
+];
 async function loadAdminMembers(){
 var listEl = document.getElementById('adminTabContent');
 if(!listEl) return;
-listEl.innerHTML = '<input type="text" class="gate-input" id="adminMemberSearch" placeholder="搜尋客人暱稱／LINE顯示名稱">'
-+ '<button type="button" class="btn btn--dark btn--full" id="adminMemberSearchBtn" style="margin-bottom:16px;">搜尋</button>'
-+ '<div id="adminMemberResults"></div>';
+listEl.innerHTML = '<div id="adminMemberChips" style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;"></div>'
++ '<input type="text" class="gate-input" id="adminMemberSearch" placeholder="搜尋暱稱或 LINE 名稱" style="margin-bottom:6px;">'
++ '<p id="adminMemberHint" style="margin:0 0 12px;font-size:12px;color:var(--muted);"></p>'
++ '<div id="adminMemberResults"><p style="font-size:14px;color:var(--muted);">讀取中...</p></div>';
 var input = document.getElementById('adminMemberSearch');
-var searchBtn = document.getElementById('adminMemberSearchBtn');
-var runSearch = function(){ handleAdminSearchMembers(input.value.trim()); };
-if(searchBtn) searchBtn.addEventListener('click', runSearch);
-if(input) input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+input.addEventListener('input', function(){ renderAdminMemberList(); });
+await handleAdminSearchMembers('');
 }
+// 重新讀取全部會員（儲存、限制、設小幫手之後也會呼叫這個）
 async function handleAdminSearchMembers(query){
 var resultsEl = document.getElementById('adminMemberResults');
 if(!resultsEl) return;
-if(!query){ resultsEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">請輸入客人暱稱搜尋。</p>'; return; }
-resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">搜尋中...</p>';
-var data;
 try{
-data = await callMemberApi('admin-search-members', { query: query });
+var data = await callMemberApi('admin-list-members');
+adminMembersCache = data.members || [];
 }catch(e){
-resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">搜尋失敗：'+e.message+'</p>';
+resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+escHtml(e.message)+'</p>';
 return;
 }
-var members = data.members || [];
-if(members.length === 0){
-resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">找不到符合的客人。</p>';
-return;
+var input = document.getElementById('adminMemberSearch');
+if(input && query !== undefined && query !== null && input.value.trim() !== query) input.value = query;
+renderAdminMemberList();
 }
-resultsEl.innerHTML = members.map(adminMemberCardHTML).join('');
+function adminMemberStatusBadges(m){
+var out = m.isVerified
+? '<span class="adm-mb is-ok">✅ 已綁定</span>'
+: '<span class="adm-mb is-wait">⏳ 未綁定</span>';
+if(m.isVerified && !m.nickname) out += '<span class="adm-mb is-warn">✏️ 沒填暱稱</span>';
+if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</span>';
+if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 小幫手</span>';
+if(m.staffRole === 'owner') out += '<span class="adm-mb is-staff">👑 老闆</span>';
+return out;
+}
+function renderAdminMemberList(){
+var chipsEl = document.getElementById('adminMemberChips');
+var resultsEl = document.getElementById('adminMemberResults');
+var hintEl = document.getElementById('adminMemberHint');
+if(!resultsEl || !adminMembersCache) return;
+var all = adminMembersCache;
+chipsEl.innerHTML = ADMIN_MEMBER_FILTERS.map(function(f){
+var n = all.filter(f[2]).length;
+return adminChip(f[1]+' ('+n+')', adminMemberFilter === f[0], 'data-mfilter="'+f[0]+'"');
+}).join('');
+var chips = chipsEl.querySelectorAll('[data-mfilter]');
+for(var i=0;i<chips.length;i++){ chips[i].addEventListener('click', function(){ adminMemberFilter = this.getAttribute('data-mfilter'); renderAdminMemberList(); }); }
+var fn = ADMIN_MEMBER_FILTERS.filter(function(f){ return f[0] === adminMemberFilter; })[0] || ADMIN_MEMBER_FILTERS[0];
+var q = ((document.getElementById('adminMemberSearch') || {}).value || '').trim().toLowerCase();
+var list = all.filter(fn[2]).filter(function(m){
+if(!q) return true;
+return String(m.nickname || '').toLowerCase().indexOf(q) !== -1 || String(m.displayName || '').toLowerCase().indexOf(q) !== -1;
+});
+if(hintEl) hintEl.textContent = '共 ' + list.length + ' 位' + (adminMemberFilter === 'unverified' ? '・這些客人登入過網站，但還沒傳綁定碼給官方帳號，不能喊單' : '') + '　點名字可以展開編輯';
+if(!list.length){ resultsEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">沒有符合的會員。</p>'; return; }
+var shown = list.slice(0, 200);
+resultsEl.innerHTML = shown.map(function(m){
+var open = !!adminMemberOpen[m.lineUid];
+return '<div class="adm-mrow'+(open?' is-open':'')+'" data-line-uid="'+escAttr(m.lineUid)+'">'
++ '<button type="button" class="adm-mrow-head" data-line-uid="'+escAttr(m.lineUid)+'">'
++ '<span class="adm-mrow-main"><b>'+escHtml(m.nickname || '（未設定暱稱）')+'</b>'
++ (m.displayName ? '<small>LINE：'+escHtml(m.displayName)+'</small>' : '')
++ '<span class="adm-mrow-badges">'+adminMemberStatusBadges(m)+'</span></span>'
++ '<span class="adm-mrow-side">'+(m.isVerified ? '🚚'+(m.referralCouponBalance||0)+'　🎟️'+(m.couponBalance||0) : '')+'<i>'+(open?'▾':'▸')+'</i></span>'
++ '</button>'
++ (open ? '<div class="adm-mrow-body">'+adminMemberCardHTML(m)+'</div>' : '')
++ '</div>';
+}).join('') + (list.length > shown.length ? '<p style="font-size:12px;color:var(--muted);">只顯示前 200 位，請用搜尋縮小範圍。</p>' : '');
+var heads = resultsEl.querySelectorAll('.adm-mrow-head');
+for(var h=0; h<heads.length; h++){
+heads[h].addEventListener('click', function(){
+var uid = this.getAttribute('data-line-uid');
+adminMemberOpen[uid] = !adminMemberOpen[uid];
+renderAdminMemberList();
+});
+}
 bindAdminMemberActions(resultsEl);
 }
+// 手動完成綁定：客人綁定碼傳不出去、妳確認是本人時使用
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-member-verify-btn') : null;
+if(!b) return;
+if(!window.confirm('確定要幫這位客人完成會員綁定嗎？\n\n請先確認是妳認識的客人（例如已經私訊妳、說綁定碼傳不出去）。完成後他就可以填暱稱、開始喊單。')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-verify-member', { lineUid: b.getAttribute('data-line-uid') });
+showToast('已完成綁定');
+await handleAdminSearchMembers((document.getElementById('adminMemberSearch') || {}).value || '');
+}catch(err){ b.disabled = false; alert('操作失敗：' + err.message); }
+});
 function adminMemberCardHTML(m){
 var restrictedBadge = m.orderRestricted
 ? '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin-bottom:8px;">🚫 已限制下單資格</span>'
@@ -2498,7 +2587,12 @@ var restrictToggleBtn = m.orderRestricted
 : '<button type="button" class="btn btn--full admin-member-restrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;border:1.5px solid var(--ink);color:var(--ink);">限制下單資格</button>';
 return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-bottom:14px;">'
 + '<p class="admin-member-title" data-line-uid="'+escAttr(m.lineUid)+'" style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+escHtml(m.nickname||'（未設定暱稱）')+'</p>'
-+ (m.displayName ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px;">LINE：'+m.displayName+'</p>' : '')
++ (m.displayName ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px;">LINE：'+escHtml(m.displayName)+'</p>' : '')
++ (m.isVerified === false
+? '<div style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#FFF7E6;border:1.5px solid #F5C66B;">'
++ '<p style="margin:0;font-size:12.5px;line-height:1.6;color:#92400E;"><b>⏳ 尚未完成綁定</b>：登入過網站，但還沒把綁定碼傳給官方帳號，目前不能喊單'+(m.verifyCode ? '<br>他的綁定碼：<b style="font-size:15px;letter-spacing:.08em;">'+escHtml(m.verifyCode)+'</b>' : '')+'</p>'
++ '<button type="button" class="btn btn--dark admin-member-verify-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;padding:8px 14px;font-size:12.5px;">手動完成綁定</button></div>'
+: '')
 + restrictedBadge
 + (m.staffRole === 'helper' ? '<span style="display:inline-block;background:#EDE9FE;color:#6D28D9;font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin:0 0 8px 6px;">🧑‍💼 小幫手</span>' : '')
 + '<label style="display:block;font-size:12px;color:var(--muted);margin-top:6px;">社群暱稱（可直接幫客人修改）<input type="text" maxlength="20" class="gate-input admin-member-nick-input" data-line-uid="'+escAttr(m.lineUid)+'" value="'+escAttr(m.nickname||'')+'" placeholder="輸入客人的 LINE 社群暱稱" style="margin-top:4px;margin-bottom:0;"></label>'
@@ -2650,6 +2744,8 @@ await callMemberApi('admin-update-member-balance', { lineUid: lineUid, couponBal
 showToast('已儲存');
 var titleEl = document.querySelector('.admin-member-title[data-line-uid="'+lineUid+'"]');
 if(titleEl && nickname) titleEl.textContent = nickname;
+// 會員清單的資料也一起更新（分類數字、列表名字才會跟著變）
+if(adminMembersCache){ handleAdminSearchMembers((document.getElementById('adminMemberSearch') || {}).value || ''); }
 }catch(e){
 alert('儲存失敗：' + e.message);
 }
