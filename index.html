@@ -245,6 +245,9 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .qk-box h4{ margin:0 0 4px; font-size:15px; color:var(--text-dark); }
 .qk-photo{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; aspect-ratio:4/3; margin:8px 0 10px; border:1.5px dashed #FFB9A6; border-radius:var(--r-md); background:#fff; color:#D9381E; font-size:14px; font-weight:700; overflow:hidden; position:relative; }
 .qk-photo img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; }
+.new-badge{ position:absolute; top:8px; left:8px; z-index:2; padding:4px 9px; border-radius:999px; background:linear-gradient(135deg,#FF6647,#FF3D7F); color:#fff; font-size:11px; font-weight:800; letter-spacing:.03em; box-shadow:0 4px 10px rgba(255,61,127,.35); animation:newPop 2.4s ease-in-out infinite; pointer-events:none; }
+@keyframes newPop{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.08); } }
+@media (prefers-reduced-motion: reduce){ .new-badge{ animation:none; } }
 .card-order-btn{ width:100%; margin-top:9px; padding:9px; border-radius:var(--r-full); border:none; background:var(--ink); color:#fff; font-size:12px; font-weight:700; font-family:var(--font-body); }
 .card-order-btn:active{ transform:scale(.97); }
 /* orders */
@@ -1120,7 +1123,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-2140';
+var APP_VERSION = '20261022-2200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3851,6 +3854,19 @@ return String(a.sub || '').localeCompare(String(b.sub || ''), 'zh-Hant', { numer
 }
 // 前台排序：低價到高價；同名商品（例如複製出來的不同規格）排在一起，整組照組內最低價排
 // 連線已結束、缺貨的放最後面
+// ---------- 🆕 新上架：上架 24 小時內的商品標「新上架」並排在最上面（最新的最前面） ----------
+var NEW_PRODUCT_HOURS = 24;
+function isNewProduct(p){
+if(!p || !p.createdAt) return false;
+if(p.stock === 'sold_out' || p.stock === 'live_ended') return false;
+var t = Date.parse(p.createdAt);
+return !isNaN(t) && (Date.now() - t) < NEW_PRODUCT_HOURS * 3600 * 1000;
+}
+function sortNewFirst(list){
+var fresh = list.filter(isNewProduct).sort(function(a, b){ return String(b.createdAt).localeCompare(String(a.createdAt)); });
+var rest = list.filter(function(p){ return !isNewProduct(p); });
+return fresh.concat(rest);
+}
 function sortProductsByPrice(list){
 var groups = {}, order = [];
 list.forEach(function(p){
@@ -5101,6 +5117,7 @@ var depositNoteHTML = (p.stock === 'live_limited' && productPriceRange(p).max >=
 : '';
 return '<article class="card">'
 + '<div class="card-visual">' + visualHTML(p)
++ (isNewProduct(p) ? '<span class="new-badge">NEW 新上架</span>' : '')
 + '</div>'
 + '<div class="card-body">'
 + (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
@@ -5368,7 +5385,7 @@ renderPausedNotices();
 renderRegularHero();
 renderLiveEntries();
 var grid = document.getElementById('shopGrid');
-var list = sortProductsByPrice(getFilteredShop());
+var list = sortNewFirst(sortProductsByPrice(getFilteredShop()));
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件・持續上架中 🔄';
@@ -5474,7 +5491,7 @@ tabsWrap.style.display = 'none';
 }
 }
 // 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
-var list = sortProductsByPrice(all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; }));
+var list = sortNewFirst(sortProductsByPrice(all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; })));
 // 「別錯過」是出國時邊逛邊上架的，最新上架的排最前面
 if(liveCategory === DONTMISS_CAT){
 list = all.filter(function(p){ return p.cat === DONTMISS_CAT; }).sort(function(a, b){
