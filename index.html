@@ -1053,7 +1053,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1730';
+var APP_VERSION = '20261022-1735';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5872,6 +5872,22 @@ if(!group || group === 'regular') return 'grp-regular';
 var zid = String(group).replace(/^zone:/, '');
 return 'grp-zone ' + zoneColorClass(zoneById(zid));
 }
+// 從專區的日期（例如「10/26～10/31」）抓出結束那天「10/31」；只有一天就用那天；抓不到就不顯示日期
+function zoneEndText(group){
+if(!group || group === 'regular') return '';
+var z = zoneById(String(group).replace(/^zone:/, ''));
+var t = String((z && z.trip_date) || '').trim();
+if(!t) return '';
+var parts = t.split(/[～~〜\-－—至到]/).map(function(x){ return x.trim(); }).filter(Boolean);
+var last = parts.length ? parts[parts.length - 1] : '';
+var m = last.match(/(\d{1,2})\s*[\/.月]\s*(\d{1,2})\s*日?\s*$/);
+if(m) return Number(m[1]) + '/' + Number(m[2]);
+// 「10/26～31」這種只寫日期的：月份用前面那段的
+var d = last.match(/^(\d{1,2})\s*日?$/);
+var first = parts[0] ? parts[0].match(/(\d{1,2})\s*[\/.月]\s*\d{1,2}\s*日?\s*$/) : null;
+if(d && first) return Number(first[1]) + '/' + Number(d[1]);
+return '';
+}
 function cycleBannerHTML(group){
 var gcls = cycleGroupClass(group);
 var pc = pendingCycles[group];
@@ -5888,7 +5904,7 @@ if(pc.paused){
 return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🔴</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
 + '<p class="cycle-main-text">連線進行中・還可以繼續喊單</p>'
-+ '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>連線結束後才會開始結單倒數，這期間可以盡情喊單 ♡</p>'
++ '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>'+(zoneEndText(group) ? '預計'+zoneEndText(group)+'連線結束後' : '連線結束後')+'才會開始結單倒數，這期間可以盡情喊單 ♡</p>'
 + '<p class="cycle-sub-text cycle-reminder" style="margin-top:8px;padding-top:8px;border-top-width:1px;border-top-style:dashed;">📌 小提醒：喊單即代表確定購買，訂單「已確認」後就無法更改或取消囉，請確認需求後再喊單，謝謝大家的體諒與支持 🙏</p>'
 + '</div>';
 }
