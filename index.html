@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0130';
+var APP_VERSION = '20261023-0145';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1348,7 +1348,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
