@@ -1017,7 +1017,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <h3 style="margin:4px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">🏷️ 品牌選物回饋</h3>
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：什麼是品牌選物回饋？</p><p class="qa-a">A：品牌選物（精品、潮牌等品牌商品）<br>因商品類型與回饋方式不同，將採獨立回饋計算。<br>標示「🏷️ 品牌選物」的商品，會另外累積「品牌選物消費」，<b>每滿NT$5,000可兌換1張NT$50品牌選物回饋券</b> ✨</p></div>
-<div class="qa-item"><p class="qa-q">Q：品牌選物回饋券怎麼用？</p><p class="qa-a">A：<b>只能折抵品牌選物商品</b>，張數不限，最多折抵到本次品牌選物金額為止。</p></div>
+<div class="qa-item"><p class="qa-q">Q：品牌選物回饋券怎麼用？</p><p class="qa-a">A：<b>只能折抵品牌選物商品</b>，本次品牌選物金額<b>滿NT$1,000（含）</b>即可使用，張數不限，最多折抵到本次品牌選物金額為止。<br>使用門檻以「折抵前的品牌選物金額」計算。</p></div>
 <div class="qa-item"><p class="qa-q">Q：一般回饋券可以折品牌選物嗎？</p><p class="qa-a">A：不行喔。一般回饋券（NT$60）只能折抵一般商品。<br>同一筆結單同時有品牌選物和一般商品時，兩種券可以分別使用，免運券也照原本規則使用。</p></div>
 <div class="qa-item"><p class="qa-q">Q：品牌選物折抵後怎麼累積？</p><p class="qa-a">A：用品牌選物回饋券折抵的金額，不列入品牌選物累積，其餘照常累積。</p></div>
 </div>
@@ -1104,7 +1104,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1925';
+var APP_VERSION = '20261022-1955';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1167,6 +1167,8 @@ var REWARD_THRESHOLD = 2500;
 // 品牌選物回饋券：品牌選物累積每滿多少可兌換1張、面額多少（要跟 member-api 一致），只能折抵品牌選物
 var LUXURY_THRESHOLD = 5000;
 var LUXURY_COUPON_VALUE = 50;
+// 品牌選物回饋券使用門檻：這次結單的品牌選物金額滿多少才能用（要跟 member-api 一致）
+var LUXURY_MIN_USE = 1000;
 var REWARD_COUPON_VALUE = 60;
 // 商品選項（尺寸／顏色…）：後台用逗號分開填寫，例如「XS, S, M, L」或「01 粉色, 02 膚色」
 var SIZE_PRESET = ['XS','S','M','L','XL','2XL'];
@@ -5962,7 +5964,7 @@ var b = myBalance;
 // 品牌選物卡片一直顯示（0 元、0 張也顯示），讓客人知道品牌選物另外累積
 var pos = Math.min(b.luxuryRedeemable, LUXURY_THRESHOLD);
 var percent = Math.round(pos / LUXURY_THRESHOLD * 100);
-var note = (b.canRedeemLuxury ? '已可兌換1張品牌選物回饋券 🎉' : '距離下一張品牌選物回饋券還差 NT$' + (LUXURY_THRESHOLD - pos)) + '<br><span style="font-size:11.5px;opacity:.8;">每滿NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'換1張NT$'+LUXURY_COUPON_VALUE+'品牌選物回饋券，限折抵品牌選物</span>';
+var note = (b.canRedeemLuxury ? '已可兌換1張品牌選物回饋券 🎉' : '距離下一張品牌選物回饋券還差 NT$' + (LUXURY_THRESHOLD - pos)) + '<br><span style="font-size:11.5px;opacity:.8;">每滿NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'換1張NT$'+LUXURY_COUPON_VALUE+'品牌選物回饋券，限折抵品牌選物（品牌選物滿NT$1,000可使用）</span>';
 var btn = b.canRedeemLuxury ? '<button class="btn btn--primary" id="redeemLuxuryCouponBtn" style="flex-shrink:0;">兌換品牌選物回饋券（-NT$'+LUXURY_THRESHOLD.toLocaleString('en-US')+'）</button>' : '';
 return '<div class="balance-card" style="background:linear-gradient(135deg,#1B1E27,#3A3424);margin-top:12px;">'
 + '<p class="balance-label" style="color:#E9C46A;">🏷️ 品牌選物累積消費</p>'
@@ -6132,12 +6134,14 @@ html += '<div style="margin-top:10px;'+(canReward?'':'opacity:.5;')+'">'
 }
 // 品牌選物回饋券：這筆結單裡有品牌選物才出現，只能折抵品牌選物的金額
 if(myBalance.luxuryCouponBalance > 0 && luxurySubtotal > 0){
-html += '<div style="margin-top:10px;">'
-+ '<p style="font-size:13px;margin:0 0 6px;color:var(--text-dark);">🏷️ 品牌選物回饋券（每張NT$'+LUXURY_COUPON_VALUE+'，持有'+myBalance.luxuryCouponBalance+'張）<br><span style="font-size:11.5px;color:var(--muted);">只能折抵品牌選物，這次品牌選物共NT$'+luxurySubtotal+'</span></p>'
+// 品牌選物回饋券：這次品牌選物滿 NT$1,000（含）才能使用，張數不限
+var canLux = luxurySubtotal >= LUXURY_MIN_USE;
+html += '<div style="margin-top:10px;'+(canLux?'':'opacity:.5;')+'">'
++ '<p style="font-size:13px;margin:0 0 6px;color:var(--text-dark);">🏷️ 品牌選物回饋券（每張NT$'+LUXURY_COUPON_VALUE+'，持有'+myBalance.luxuryCouponBalance+'張）<br><span style="font-size:11.5px;color:var(--muted);">只能折抵品牌選物，這次品牌選物共NT$'+luxurySubtotal+(canLux ? '' : '，需滿NT$1,000才能使用')+'</span></p>'
 + '<div class="qty-row" style="justify-content:flex-start;gap:16px;margin:8px 0;">'
-+ '<button type="button" id="settleLuxuryMinus">−</button>'
++ '<button type="button" id="settleLuxuryMinus"'+(canLux?'':' disabled')+'>−</button>'
 + '<span id="settleLuxuryCount">0</span>'
-+ '<button type="button" id="settleLuxuryPlus">＋</button>'
++ '<button type="button" id="settleLuxuryPlus"'+(canLux?'':' disabled')+'>＋</button>'
 + '</div></div>';
 }
 return html;
