@@ -383,6 +383,16 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-mb.is-warn{ background:#FFE4E6; color:#BE123C; }
 .adm-mb.is-ban{ background:var(--ink); color:#fff; }
 .adm-mb.is-staff{ background:#EDE9FE; color:#6D28D9; }
+.imp-box{ margin:0 0 12px; padding:14px; border-radius:var(--r-md); border:1.5px solid #A7D8F0; background:#F0F8FF; }
+.imp-head{ width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; border:none; background:none; padding:0; text-align:left; font-family:var(--font-body); cursor:pointer; }
+.imp-head b{ display:block; font-size:15px; color:var(--text-dark); }
+.imp-head small{ display:block; margin-top:2px; font-size:11.5px; color:var(--muted); }
+.imp-open{ font-size:13px; font-weight:700; color:#1D6FA5; white-space:nowrap; }
+.imp-row{ display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px dashed #A7D8F0; }
+.imp-row img, .imp-noimg{ width:56px; height:56px; flex-shrink:0; border-radius:10px; object-fit:cover; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
+.imp-row b{ display:block; font-size:13.5px; color:var(--text-dark); }
+.imp-row small{ display:block; font-size:11.5px; color:var(--muted); line-height:1.55; }
+.imp-st{ display:block; margin-top:3px; font-size:12px; font-weight:700; }
 .adm-store-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 10px; padding:10px; border-radius:14px; background:#FFF7E6; border:1.5px dashed #F5C66B; }
 .adm-p-store{ display:flex; align-items:center; gap:8px; margin:2px 0 8px; font-size:12px; font-weight:700; color:var(--muted); }
 .adm-p-store select{ flex:1; max-width:220px; padding:6px 10px; border-radius:999px; border:1.5px solid var(--line); background:#fff; font-size:13px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
@@ -1126,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-2310';
+var APP_VERSION = '20261023-0045';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3198,6 +3208,7 @@ products = adminLiveZoneFilter === '__none__'
 : products.filter(function(p){ return p.live_zone_id === adminLiveZoneFilter; });
 }
 if(isLiveMode) html += adminQuickFormHTML();
+html += adminImportBoxHTML(isLiveMode);
 html += adminNewProductFormHTML(allProducts, isLiveMode);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">'+(isLiveMode ? '目前沒有限時連線商品。' : '目前沒有商品。')+'</p>';
@@ -4046,6 +4057,125 @@ if(adminLiveZoneFilter && adminLiveZoneFilter !== '__none__' && zoneById(adminLi
 for(var i=0;i<LIVE_ZONES.length;i++){ if(LIVE_ZONES[i].is_open) return LIVE_ZONES[i].id; }
 return LIVE_ZONES.length ? LIVE_ZONES[0].id : '';
 }
+// ---------- 📥 批次匯入扭蛋：貼上整理好的清單，按一下全部上架（照片系統自己從網址抓） ----------
+// 扭蛋定價表：日幣 → [不指定, 指定角色]
+var GACHA_PRICES = { 200:[80,110], 300:[110,140], 400:[130,160], 500:[160,180], 600:[185,205], 700:[210,230], 800:[240,260], 1000:[290,310], 1200:[345,365], 1500:[420,440] };
+var adminImportOpen = false;
+var adminImportItems = null;
+var IMPORT_SAMPLE = '[\n  {\n    "name": "飛天小女警 PREMIUM DASH 扭蛋",\n    "jpy": 400,\n    "options": ["💗 花花", "🩵 泡泡", "💚 毛毛", "💜 魔人啾啾"],\n    "cover": "https://…/cover.jpg",\n    "photos": { "💗 花花": "https://…/1.jpg", "🩵 泡泡": "https://…/2.jpg" }\n  }\n]';
+function adminImportBoxHTML(isLiveMode){
+var zid = adminQuickZoneId ? adminQuickZoneId() : '';
+return '<div class="imp-box">'
++ '<button type="button" id="impToggle" class="imp-head"><span><b>📥 批次匯入扭蛋</b><small>貼上 Claude 整理好的清單，按一下全部上架</small></span><span class="imp-open">'+(adminImportOpen?'收起':'展開')+'</span></button>'
++ '<div id="impBody" style="display:'+(adminImportOpen?'block':'none')+';margin-top:10px;">'
++ '<textarea id="impText" class="gate-input" rows="7" placeholder="'+escAttr(IMPORT_SAMPLE)+'" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical;"></textarea>'
++ (isLiveMode && LIVE_ZONES.length
+? '<select class="gate-input" id="impZone">'+LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(z.id===zid?' selected':'')+'>上架到：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('')+'</select>'
+: '<select class="gate-input" id="impStock"><option value="in">現貨</option><option value="preorder">預購連線</option></select>')
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="impHidden" checked style="width:18px;height:18px;"> 🙈 先隱藏，檢查沒問題再一件件公開</label>'
++ '<button type="button" class="btn btn--dark btn--full" id="impPreview">預覽</button>'
++ '<div id="impResult" style="margin-top:10px;"></div>'
++ '</div></div>';
+}
+function gachaPrice(jpy){ return GACHA_PRICES[Number(jpy)] || null; }
+function normalizeImportItem(it){
+var out = { name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [] };
+var opts = (Array.isArray(it.options) ? it.options : parseOptionList(it.options || '')).map(function(x){ return String(x).trim(); }).filter(function(x){ return x && x !== '不指定'; });
+var tbl = gachaPrice(out.jpy);
+out.base = Number(it.price) || (tbl ? tbl[0] : 0);
+out.pick = Number(it.pickPrice) || (tbl ? tbl[1] : 0);
+if(!out.name) out.warn.push('沒有商品名稱');
+if(!out.base) out.warn.push('¥'+(out.jpy||'?')+' 不在定價表，請在清單補上 "price"');
+if(opts.length && !out.pick) out.warn.push('沒有指定價，請補上 "pickPrice"');
+if(!out.cover) out.warn.push('沒有封面照片');
+out.options = opts.length ? ['不指定'].concat(opts) : [];
+out.optionPrices = {};
+if(opts.length){ out.optionPrices['不指定'] = out.base; opts.forEach(function(o){ out.optionPrices[o] = out.pick; }); }
+return out;
+}
+function renderImportPreview(){
+var box = document.getElementById('impResult');
+if(!box || !adminImportItems) return;
+var bad = adminImportItems.filter(function(x){ return x.warn.length && x.warn.some(function(w){ return w.indexOf('照片') === -1; }); }).length;
+box.innerHTML = '<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:var(--text-dark);">共 '+adminImportItems.length+' 件'+(bad ? '・<span style="color:var(--ignis-deep);">'+bad+' 件要先修正</span>' : '')+'</p>'
++ adminImportItems.map(function(x, i){
+var nPhotos = (x.cover ? 1 : 0) + x.options.filter(function(o){ return x.photos[o]; }).length + x.extra.length;
+return '<div class="imp-row" data-i="'+i+'">'
++ (x.cover ? '<img src="'+escAttr(x.cover)+'" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility=\'hidden\';">' : '<span class="imp-noimg">無圖</span>')
++ '<div style="min-width:0;flex:1;"><b>'+escHtml(x.name || '（沒有名稱）')+'</b>'
++ '<small>¥'+(x.jpy||'?')+' → '+(x.options.length ? '不指定 NT$'+x.base+'・指定 NT$'+x.pick : 'NT$'+x.base)+'</small>'
++ (x.options.length ? '<small>'+escHtml(x.options.join('、'))+'</small>' : '')
++ '<small>📷 '+nPhotos+' 張照片</small>'
++ x.warn.map(function(w){ return '<small style="color:var(--ignis-deep);font-weight:700;">⚠️ '+escHtml(w)+'</small>'; }).join('')
++ '<span class="imp-st"></span></div></div>';
+}).join('')
++ (bad ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">📥 全部上架（'+adminImportItems.length+' 件）</button>');
+}
+async function runImport(){
+var btn = document.getElementById('impGo');
+if(!btn || !adminImportItems) return;
+if(!window.confirm('確定要上架這 '+adminImportItems.length+' 件嗎？')) return;
+btn.disabled = true;
+var zoneEl = document.getElementById('impZone'), stockEl = document.getElementById('impStock');
+var hidden = !!(document.getElementById('impHidden') || {}).checked;
+var okCount = 0, failCount = 0, photoFail = 0;
+for(var i=0;i<adminImportItems.length;i++){
+var x = adminImportItems[i];
+var st = document.querySelector('.imp-row[data-i="'+i+'"] .imp-st');
+btn.textContent = '上架中… '+(i+1)+' / '+adminImportItems.length;
+if(st) st.textContent = '⏳ 建立中…';
+try{
+var res = await callMemberApi('admin-create-product', {
+name: x.name, sub: x.sub, cat: 'gacha', catLabel: '扭蛋', price: x.base,
+stockStatus: zoneEl ? 'live_limited' : (stockEl ? stockEl.value : 'in'), qty: null,
+liveZoneId: zoneEl ? zoneEl.value : null, isLuxury: false, isHidden: hidden,
+optionLabel: x.options.length ? '角色' : '', options: x.options.join(', '),
+optionLabel2: '', options2: '', optionPrices: x.options.length ? JSON.stringify(x.optionPrices) : '',
+jpyPrice: x.jpy || '', fxDate: x.jpy ? todayTW() : ''
+});
+var images = [], optPhotos = {}, slot = 2;
+if(x.cover) images.push({ slot: 1, url: x.cover });
+x.options.forEach(function(o){ if(x.photos[o] && slot <= 13){ images.push({ slot: slot, url: x.photos[o] }); optPhotos[o] = slot; slot++; } });
+x.extra.forEach(function(u){ if(u && slot <= 13){ images.push({ slot: slot, url: u }); slot++; } });
+if(st) st.textContent = '📷 抓照片中…';
+var r2 = images.length ? await callMemberApi('admin-import-images', { productId: res.productId, images: images, optionPhotos: JSON.stringify(optPhotos) }) : { results: [] };
+var bad = (r2.results || []).filter(function(r){ return !r.ok; });
+photoFail += bad.length;
+if(st){ st.textContent = bad.length ? '✓ 已上架・'+bad.length+' 張照片抓不到，請手動補' : '✓ 已上架'; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
+okCount++;
+}catch(e){
+failCount++;
+if(st){ st.textContent = '✕ 失敗：'+e.message; st.style.color = 'var(--ignis-deep)'; }
+}
+}
+btn.textContent = '完成：上架 '+okCount+' 件'+(failCount ? '・失敗 '+failCount+' 件' : '')+(photoFail ? '・'+photoFail+' 張照片要手動補' : '');
+showToast('批次上架完成 ♡');
+adminImportItems = null;
+var keep = document.getElementById('impResult').innerHTML;
+await loadAdminProducts();
+var rb = document.getElementById('impResult'); if(rb){ rb.innerHTML = keep; var b2 = document.getElementById('impGo'); if(b2) b2.remove(); }
+refreshShop();
+}
+document.addEventListener('click', function(e){
+var t = e.target && e.target.closest ? e.target : null;
+if(!t) return;
+if(t.closest('#impToggle')){
+adminImportOpen = !adminImportOpen;
+var b = document.getElementById('impBody'); if(b) b.style.display = adminImportOpen ? 'block' : 'none';
+var o = document.querySelector('#impToggle .imp-open'); if(o) o.textContent = adminImportOpen ? '收起' : '展開';
+return;
+}
+if(t.closest('#impPreview')){
+var raw = (document.getElementById('impText') || {}).value || '';
+var data;
+try{ data = JSON.parse(raw.trim()); }catch(err){ alert('格式不對，請整段重新貼上 Claude 給的清單（從 [ 到 ]）'); return; }
+if(!Array.isArray(data)) data = [data];
+adminImportItems = data.map(normalizeImportItem);
+renderImportPreview();
+return;
+}
+if(t.closest('#impGo')){ runImport(); }
+});
 function adminQuickFormHTML(){
 if(!LIVE_ZONES.length) return '';
 var zid = adminQuickZoneId();
