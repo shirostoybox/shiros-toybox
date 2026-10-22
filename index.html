@@ -706,16 +706,11 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="gate-overlay" id="nicknameGate">
 <div class="gate-card">
 <p class="gate-eyebrow" id="nicknameEyebrow">需完成個人資料</p>
-<h2>還差一步</h2>
-<p class="gate-desc">請填寫妳的LINE社群暱稱，方便之後對照訂單與聯繫</p>
-<p style="margin:-6px 0 14px;font-size:12px;line-height:1.6;color:var(--ignis-deep);">⚠️ 請先加入LINE社群並取得社群暱稱，務必填寫正確的LINE社群暱稱</p>
-<div style="margin:0 0 14px;padding:10px 12px;border-radius:12px;background:#F3FAF5;border:1px solid #D3EEDB;">
-<p style="margin:0;font-size:11.5px;line-height:1.6;color:#2F6B45;">還沒加入社群嗎？請先加入「四郎玩具箱LINE社群」🇯🇵活動+連線通知📢，之後再回來填寫社群暱稱
-<button type="button" id="joinCommunityBtn" style="display:inline-block;margin-left:4px;padding:2px 10px;border-radius:999px;border:1px solid #06C755;background:#fff;color:#06A046;font-size:11.5px;font-weight:700;font-family:var(--font-body);vertical-align:baseline;">加入社群 ›</button></p>
-<p style="margin:6px 0 0;font-size:12px;line-height:1.6;color:var(--text-dark);font-weight:700;">✅ 如果已經加入，請直接在下方輸入暱稱，點選「儲存並繼續」就可以了</p>
-</div>
-<input type="text" class="gate-input" id="nicknameInput" placeholder="輸入LINE社群暱稱" maxlength="20">
-<button class="btn btn--dark btn--full" id="nicknameSubmit">儲存並繼續</button>
+<h2>填寫 LINE 社群暱稱</h2>
+<p class="gate-desc">請輸入你在四郎玩具箱社群裡的名字，方便對照訂單 ♡</p>
+<input type="text" class="gate-input" id="nicknameInput" placeholder="例如：小花🌸" maxlength="20">
+<button class="btn btn--dark btn--full" id="nicknameSubmit">完成</button>
+<p style="margin:14px 0 0;text-align:center;font-size:12.5px;color:var(--muted);">還沒加入社群？<button type="button" id="joinCommunityBtn" style="border:none;background:none;padding:0;color:#06A046;font-size:12.5px;font-weight:700;font-family:var(--font-body);text-decoration:underline;">點這裡加入 ›</button></p>
 </div>
 </div>
 <div class="gate-overlay" id="verifyGate">
@@ -1058,7 +1053,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261022-1510';
+var APP_VERSION = '20261022-1715';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1475,11 +1470,11 @@ btn.disabled = true; btn.textContent = '儲存中...';
 try{
 await callMemberApi('submit-nickname', { nickname: val });
 }catch(e){
-btn.disabled = false; btn.textContent = '儲存並繼續';
+btn.disabled = false; btn.textContent = '完成';
 alert('儲存失敗，請再試一次');
 return;
 }
-btn.disabled = false; btn.textContent = '儲存並繼續';
+btn.disabled = false; btn.textContent = '完成';
 currentUser.nickname = val;
 document.getElementById('nicknameGate').classList.remove('is-open');
 startApp();
