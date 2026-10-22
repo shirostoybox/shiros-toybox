@@ -1,11 +1,24 @@
 {
-  "redirects": [
-    { "source": "/group", "destination": "https://line.me/ti/g2/6eKephXLnV_w7uW_rM89DwXmkefupLX2B0WZZA", "permanent": false }
-  ],
   "rewrites": [
-    { "source": "/p/:id", "destination": "/api/p?id=:id" },
-    { "source": "/z/:zone", "destination": "/api/p?zone=:zone" },
-    { "source": "/c/:cat/:v", "destination": "/api/p?cat=:cat&v=:v" },
-    { "source": "/c/:cat", "destination": "/api/p?cat=:cat" }
+    {
+      "source": "/group",
+      "destination": "/group.html"
+    },
+    {
+      "source": "/p/:id",
+      "destination": "/api/p?id=:id"
+    },
+    {
+      "source": "/z/:zone",
+      "destination": "/api/p?zone=:zone"
+    },
+    {
+      "source": "/c/:cat/:v",
+      "destination": "/api/p?cat=:cat&v=:v"
+    },
+    {
+      "source": "/c/:cat",
+      "destination": "/api/p?cat=:cat"
+    }
   ]
 }
