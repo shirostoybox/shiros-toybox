@@ -201,7 +201,7 @@ module.exports = async (req, res) => {
   const image = product && product.is_private
     ? 'https://' + host + '/custom-cover.jpg'
     : product
-    ? SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + (optSlot > 1 && optSlot <= 13 ? '-' + optSlot : '') + '.jpg' + (product.image_version ? '?v=' + product.image_version : '')
+    ? SUPABASE_URL + '/storage/v1/object/public/product-images/' + product.id + (optSlot > 1 && optSlot <= 20 ? '-' + optSlot : '') + '.jpg' + (product.image_version ? '?v=' + product.image_version : '')
     : '';
 
   const html = '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
