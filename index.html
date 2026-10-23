@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-1815';
+var APP_VERSION = '20261023-1830';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1204,8 +1204,9 @@ var LUXURY_MIN_USE = 1000;
 var REWARD_COUPON_VALUE = 60;
 // 商品選項（尺寸／顏色…）：後台用逗號分開填寫，例如「XS, S, M, L」或「01 粉色, 02 膚色」
 var SIZE_PRESET = ['XS','S','M','L','XL','2XL'];
-// 更多照片欄位 2～13 號（加封面總共 13 張）
-var EXTRA_PHOTO_SLOTS = [2,3,4,5,6,7,8,9,10,11,12,13];
+// 更多照片欄位 2～20 號（加封面總共 20 張）
+var MAX_PHOTO_SLOT = 20;
+var EXTRA_PHOTO_SLOTS = []; for(var _ps=2; _ps<=MAX_PHOTO_SLOT; _ps++) EXTRA_PHOTO_SLOTS.push(_ps);
 // 每件商品記錄「哪幾格有更多照片」（photo_slots，例如 "2,3,5"），只讀有照片的格子。
 // 還沒記錄過的舊商品（null）才退回去 10 格都檢查一遍，舊照片不會不見
 var PHOTO_SLOTS = {};
@@ -1245,7 +1246,7 @@ function parseOptionPhotos(raw){
 var obj = raw, out = {};
 if(typeof raw === 'string'){ try{ obj = raw ? JSON.parse(raw) : {}; }catch(e){ obj = {}; } }
 if(!obj || typeof obj !== 'object') return out;
-Object.keys(obj).forEach(function(k){ var v = parseInt(obj[k], 10); if(k && v >= 1 && v <= 13) out[k] = v; });
+Object.keys(obj).forEach(function(k){ var v = parseInt(obj[k], 10); if(k && v >= 1 && v <= MAX_PHOTO_SLOT) out[k] = v; });
 return out;
 }
 function hasOptionPrices(p){ return !!(p && p.optionPrices && Object.keys(p.optionPrices).length); }
@@ -4130,7 +4131,7 @@ var p = hits[0]; out.product = p;
 if(hits.length > 1) out.notes.push('有 '+hits.length+' 件同名商品，只補第一件（'+(p.is_hidden?'隱藏中':'已上架')+'）');
 var have = parseOptionPhotos(p.option_photos);
 var used = {}; used[1] = true; (parsePhotoSlots(p.photo_slots) || []).forEach(function(n){ used[n] = true; });
-var free = []; for(var sl=2; sl<=13; sl++){ if(!used[sl]) free.push(sl); }
+var free = []; for(var sl=2; sl<=MAX_PHOTO_SLOT; sl++){ if(!used[sl]) free.push(sl); }
 var srcByKey = {}; Object.keys(out.photos).forEach(function(k){ srcByKey[importKey(k)] = out.photos[k]; });
 var skipped = 0, noRoom = 0;
 parseOptionList(p.options).forEach(function(o){
@@ -4142,7 +4143,7 @@ out.adds.push({ opt: o, url: url, slot: free.shift() });
 });
 out.options = out.adds.map(function(a){ return a.opt; });
 if(skipped) out.notes.push(skipped+' 個角色本來就有照片，不會蓋掉');
-if(noRoom) out.notes.push(noRoom+' 個角色因為照片格子滿了（最多 13 張）沒補');
+if(noRoom) out.notes.push(noRoom+' 個角色因為照片格子滿了（最多 '+MAX_PHOTO_SLOT+' 張）沒補');
 if(!out.adds.length && !out.warn.length) out.notes.push('沒有需要補的照片');
 return out;
 }
@@ -4247,8 +4248,8 @@ optionLabel2: '', options2: '', optionPrices: x.options.length ? JSON.stringify(
 }
 var images = [], optPhotos = {}, slot = 2;
 if(x.cover) images.push({ slot: 1, url: x.cover });
-x.options.forEach(function(o){ if(x.photos[o] && slot <= 13){ images.push({ slot: slot, url: x.photos[o] }); optPhotos[o] = slot; slot++; } });
-x.extra.forEach(function(u){ if(u && slot <= 13){ images.push({ slot: slot, url: u }); slot++; } });
+x.options.forEach(function(o){ if(x.photos[o] && slot <= MAX_PHOTO_SLOT){ images.push({ slot: slot, url: x.photos[o] }); optPhotos[o] = slot; slot++; } });
+x.extra.forEach(function(u){ if(u && slot <= MAX_PHOTO_SLOT){ images.push({ slot: slot, url: u }); slot++; } });
 // 照片：系統先把官網圖抓回來，在這裡壓縮（長邊 1200、JPG 80%），再跟平常一樣上傳
 var bad = [];
 for(var k=0;k<images.length;k++){
