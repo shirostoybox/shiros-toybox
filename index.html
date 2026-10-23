@@ -230,6 +230,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .stock--in{ background:rgba(33,132,82,.12); color:#1E7A4C; }
 .stock--live{ background:rgba(176,106,22,.14); color:#A5650F; }
 .stock--preorder{ background:rgba(37,99,235,.12); color:#1D4ED8; }
+.price-drop{ display:flex; align-items:center; gap:2px; width:fit-content; margin:2px 0 0; padding:0 5px 0 3px; border-radius:6px; background:rgba(217,56,30,.07); color:#C2553F; font-family:var(--font-body); font-size:10px; font-weight:600; line-height:16px; letter-spacing:0; }
+.price-drop svg{ width:11px; height:11px; flex:0 0 11px; }
 .stock--live_limited{ background:rgba(226,71,42,.13); color:#C8321C; }
 .stock--live_ended{ background:rgba(125,130,145,.14); color:#7D8291; }
 .stock--sold_out{ background:rgba(125,130,145,.14); color:#7D8291; }
@@ -1136,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-1830';
+var APP_VERSION = '20261023-1900';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1349,7 +1351,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -4062,7 +4064,7 @@ return LIVE_ZONES.length ? LIVE_ZONES[0].id : '';
 }
 // ---------- 📥 批次匯入扭蛋：貼上整理好的清單，按一下全部上架（照片系統自己從網址抓） ----------
 // 扭蛋定價表：日幣 → [不指定, 指定角色]
-var GACHA_PRICES = { 200:[80,110], 300:[110,140], 400:[130,160], 500:[160,180], 600:[185,205], 700:[210,230], 800:[240,260], 1000:[290,310], 1200:[345,365], 1500:[420,440] };
+var GACHA_PRICES = { 200:[80,110], 300:[100,130], 400:[130,160], 500:[160,180], 600:[185,205], 700:[210,230], 800:[240,260], 1000:[290,310], 1200:[345,365], 1500:[420,440] };
 var adminImportOpen = false;
 var adminImportItems = null;
 var IMPORT_SAMPLE = '[\n  {\n    "name": "飛天小女警 PREMIUM DASH 扭蛋",\n    "jpy": 400,\n    "options": ["💗 花花", "🩵 泡泡", "💚 毛毛", "💜 魔人啾啾"],\n    "cover": "https://…/cover.jpg",\n    "photos": { "💗 花花": "https://…/1.jpg", "🩵 泡泡": "https://…/2.jpg" }\n  }\n]';
@@ -5527,7 +5529,7 @@ return '<article class="card">'
 + (p.isPrivate ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">🔒 客訂</span>' : (p.isCustom ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">✨ 客訂</span>' : ''))
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + ((p.options || []).length && !(p.isPrivate && !p.privateAccess) ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
-+ '<div class="card-meta"><span class="price">' + productPriceText(p) + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
++ '<div class="card-meta"><span class="price">' + productPriceText(p) + (p.priceWas > Number(p.price) ? '<span class="price-drop" title="原價 NT$'+p.priceWas+'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 3.5 6 8l2.5-2.5L13.5 11"/><path d="M9.5 11h4V7"/></svg>降價</span>' : '') + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
 + orderBtnHTML
 + '</div></article>';
