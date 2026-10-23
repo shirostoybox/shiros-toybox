@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-2225';
+var APP_VERSION = '20261024-0100';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1915,17 +1915,71 @@ showToast(store ? '已分到「'+store+'」' : '已改成未分配');
 }catch(err){ alert('儲存失敗：' + err.message); }
 renderAdminOrders();
 });
-document.addEventListener('click', async function(e){
+// 管理店家：每家店可以改名、刪除、調順序；改名／刪除時，已經標好這家店的商品一起改
+document.addEventListener('click', function(e){
 var b = e.target && e.target.closest ? e.target.closest('.adm-store-manage') : null;
 if(!b) return;
-var list = buyStoreList();
-var txt = window.prompt('編輯店家清單（用逗號分開，可以改順序、刪掉不用的）\n已經分配好的商品不會被清掉', list.join('，'));
-if(txt === null) return;
-var next = [];
-txt.split(/[,，、\n]/).forEach(function(x){ x = x.trim().slice(0, 20); if(x && next.indexOf(x) === -1) next.push(x); });
-try{ await saveBuyStoreList(next); showToast('已更新店家清單'); renderAdminOrders(); }
-catch(err){ alert('儲存失敗：' + err.message); }
+openStoreManager();
 });
+function openStoreManager(){
+var old = document.getElementById('storeMgr'); if(old) old.remove();
+var wrap = document.createElement('div');
+wrap.id = 'storeMgr';
+wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,18,28,.55);display:flex;align-items:flex-end;justify-content:center;';
+document.body.appendChild(wrap);
+function paint(){
+var list = buyStoreList();
+wrap.innerHTML = '<div style="background:#fff;width:100%;max-width:520px;max-height:80vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px 16px 26px;font-family:var(--font-body);">'
++ '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><b style="font-size:16px;color:var(--text-dark);">📍 管理店家</b><button type="button" data-sm="close" style="border:none;background:none;font-size:20px;color:var(--muted);padding:4px 8px;">✕</button></div>'
++ '<p style="margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.5;">改名或刪除時，已經標好這家店的商品會一起改。</p>'
++ (list.length ? list.map(function(x, i){
+return '<div style="display:flex;align-items:center;gap:6px;padding:9px 0;border-top:1px solid var(--line);">'
++ '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--text-dark);word-break:break-all;">'+escHtml(x)+'</span>'
++ '<button type="button" data-sm="up" data-i="'+i+'" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 8px;font-size:12px;"'+(i===0?' disabled':'')+'>↑</button>'
++ '<button type="button" data-sm="ren" data-i="'+i+'" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;">✏️ 改名</button>'
++ '<button type="button" data-sm="del" data-i="'+i+'" style="border:1px solid #FECACA;background:#FEF2F2;color:#B91C1C;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;">刪除</button>'
++ '</div>';
+}).join('') : '<p style="font-size:13px;color:var(--muted);">還沒有店家</p>')
++ '<button type="button" data-sm="add" style="margin-top:10px;width:100%;border:1.5px dashed var(--line);background:#fff;border-radius:12px;padding:10px;font-size:13px;font-weight:700;color:var(--text-dark);">＋ 新增店家</button>'
++ '</div>';
+}
+paint();
+wrap.addEventListener('click', async function(ev){
+if(ev.target === wrap){ wrap.remove(); renderAdminOrders(); return; }
+var t = ev.target.closest ? ev.target.closest('[data-sm]') : null; if(!t || t.disabled) return;
+var act = t.getAttribute('data-sm'), i = Number(t.getAttribute('data-i')), list = buyStoreList();
+try{
+if(act === 'close'){ wrap.remove(); renderAdminOrders(); return; }
+if(act === 'add'){
+var n = (window.prompt('新店家名稱（最多 20 字）') || '').trim().slice(0, 20);
+if(!n) return; if(list.indexOf(n) !== -1){ alert('已經有這家店了'); return; }
+await saveBuyStoreList(list.concat([n]));
+} else if(act === 'up' && i > 0){
+var tmp = list[i-1]; list[i-1] = list[i]; list[i] = tmp; await saveBuyStoreList(list);
+} else if(act === 'ren'){
+var from = list[i];
+var to = (window.prompt('「'+from+'」改成：', from) || '').trim().slice(0, 20);
+if(!to || to === from) return;
+if(list.indexOf(to) !== -1 && !window.confirm('「'+to+'」已經存在，要把「'+from+'」的商品併過去嗎？')) return;
+var r = await callMemberApi('admin-rename-buy-store', { from: from, to: to });
+var next = []; list.forEach(function(x){ var y = x === from ? to : x; if(next.indexOf(y) === -1) next.push(y); });
+await saveBuyStoreList(next);
+adminProductsCache.forEach(function(p){ if(p.buy_store === from) p.buy_store = to; });
+PRODUCTS.forEach(function(p){ if(p.buyStore === from) p.buyStore = to; });
+showToast('已改名'+(r && r.count ? '，'+r.count+' 件商品一起更新' : ''));
+} else if(act === 'del'){
+var d = list[i];
+if(!window.confirm('刪除「'+d+'」？\n已經標這家店的商品會改回「未分配」。')) return;
+var r2 = await callMemberApi('admin-rename-buy-store', { from: d, to: '' });
+await saveBuyStoreList(list.filter(function(x){ return x !== d; }));
+adminProductsCache.forEach(function(p){ if(p.buy_store === d) p.buy_store = ''; });
+PRODUCTS.forEach(function(p){ if(p.buyStore === d) p.buyStore = ''; });
+showToast('已刪除'+(r2 && r2.count ? '，'+r2.count+' 件改回未分配' : ''));
+}
+paint();
+}catch(err){ alert('失敗：' + err.message); }
+});
+}
 function adminPurchaseProducts(groups){
 var pmap = {}, porder = [];
 groups.forEach(function(g){
@@ -4144,6 +4198,7 @@ function toOptArr(v){ return (Array.isArray(v) ? v : parseOptionList(v || '')).m
 function normalizeGeneralItem(it){
 var out = { general: true, name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, tax: String(it.tax || '').trim(), cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
 out.category = String(it.category || '').trim() || '日本選物';
+out.buyStore = String(it.buyStore || '').trim().slice(0, 20);
 out.luxury = !!it.luxury;
 out.options = toOptArr(it.options);
 out.optionLabel = out.options.length ? (String(it.optionLabel || '').trim() || '款式') : '';
@@ -4234,7 +4289,7 @@ return '<div class="imp-row" data-i="'+i+'">'
 ? '<small>🖼️ 只補照片'+(x.product ? '・要補 '+x.adds.length+' 個角色' : '')+'</small>'
 + (x.adds.length ? '<small>'+escHtml(x.adds.map(function(a){ return a.opt; }).join('、'))+'</small>' : '')
 : x.general
-? '<small>🛍️ '+escHtml(x.category)+(x.luxury ? '・🏷️ 特選商品' : '')+'</small>'
+? '<small>🛍️ '+escHtml(x.category)+(x.luxury ? '・🏷️ 特選商品' : '')+(x.buyStore ? '・📍 '+escHtml(x.buyStore)+'（只有後台看得到）' : '')+'</small>'
 + '<small>日幣原價 '+(x.jpy ? '¥'+fmtNum(x.jpy)+(x.tax ? '（'+escHtml(x.tax)+'）' : '') : '？')+' → '+(x.base ? 'NT$'+x.base : '<b style="color:#B26A00;">台幣之後手動填（會先隱藏）</b>')+'</small>'
 + (x.options.length ? '<small>'+escHtml(x.optionLabel)+'：'+x.options.map(function(o){ return escHtml(o)+(x.optionJpy[o] ? ' ¥'+fmtNum(x.optionJpy[o])+(x.optionPrices[o] ? '→NT$'+x.optionPrices[o] : '') : ''); }).join('、')+'</small>' : '')
 + (x.fx ? '<small>（匯率 '+x.fx.rate+' × 倍數 '+x.fx.mult+' 自動換算）</small>' : '')
@@ -4322,6 +4377,14 @@ await callMemberApi('admin-upload-product-image', up);
 Object.keys(optPhotos).forEach(function(o){ if(bad.indexOf(optPhotos[o]) !== -1) delete optPhotos[o]; });
 if(Object.keys(optPhotos).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(optPhotos) });
 photoFail += bad.length;
+// 後台「在哪買」：只有後台看得到，採購清單可以照店家分
+if(x.buyStore){
+try{
+var bl = buyStoreList();
+if(bl.indexOf(x.buyStore) === -1) await saveBuyStoreList(bl.concat([x.buyStore]));
+await callMemberApi('admin-set-buy-store', { productId: res.productId, store: x.buyStore });
+}catch(eBs){}
+}
 var doneTxt = (x.general && !x.base) ? '✓ 已建立（隱藏中，請補台幣價格）' : (hidden ? '✓ 已建立（隱藏中）' : '✓ 已上架');
 if(st){ st.textContent = bad.length ? doneTxt+'・'+bad.length+' 張照片抓不到，請手動補' : doneTxt; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
 okCount++;
@@ -4526,7 +4589,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
-+ '<p class="adm-prod-meta">'+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p></div>'
++ '<p class="adm-prod-meta">'+(p.buy_store ? '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">📍 '+escHtml(p.buy_store)+'</span>' : '')+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p></div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
