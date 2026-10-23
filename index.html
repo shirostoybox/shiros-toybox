@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-2125';
+var APP_VERSION = '20261023-2135';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4255,6 +4255,7 @@ cat: ci.cat, catLabel: ci.label, isLuxury: x.luxury, isHidden: hidden || !x.base
 optionLabel: x.optionLabel, options: x.options.join(', '),
 optionLabel2: x.optionLabel2, options2: x.options2.join(', '),
 optionPrices: Object.keys(x.optionPrices).length ? JSON.stringify(x.optionPrices) : '',
+optionJpy: Object.keys(x.optionJpy || {}).length ? JSON.stringify(x.optionJpy) : '',
 fxRate: x.jpy && ADMIN_FX ? ADMIN_FX.rate : '', multiplier: x.jpy ? (lastJpyMult() || '') : ''
 }));
 } else {
@@ -4878,8 +4879,18 @@ if(touched){ var pi = jpyPriceInputFor(key); if(pi) pi.value = tw; }
 } else {
 res.textContent = Number(jpy) > 0 ? '請填匯率和倍數' : '';
 }
-// 規格一各選項的日幣 → 台幣
-// （規格選項的日幣欄已移除，選項價格只填台幣）
+// 規格一各選項的日幣 → 台幣（扭蛋沒有這欄）
+var oed = document.querySelector('.admin-opt-editor[data-key="'+key+'"]');
+var oob = oed && oed.querySelector('.admin-optp');
+if(oob && touched && optJpyOn(oed)){
+var jm = {}; try{ jm = JSON.parse(oob.getAttribute('data-jpy') || '{}'); }catch(e){}
+var pm = {}; try{ pm = JSON.parse(oob.getAttribute('data-prices') || '{}'); }catch(e){}
+Object.keys(jm).forEach(function(o){
+var v = jpyCalc(jm[o], rate, mult);
+if(v){ pm[o] = v; var inp = oed.querySelector('.admin-optp-in[data-opt="'+(window.CSS && CSS.escape ? CSS.escape(o) : o)+'"]'); if(inp) inp.value = v; }
+});
+oob.setAttribute('data-prices', JSON.stringify(pm));
+}
 if(touched) box.setAttribute('data-fxdate', todayTW());
 var tb = box.querySelector('.jpy-use-today');
 if(tb && ADMIN_FX && Number(rate) === ADMIN_FX.rate) tb.remove();
@@ -4892,6 +4903,12 @@ var jpy = Number(box.querySelector('.jpy-price').value) || 0;
 var rate = Number(box.querySelector('.jpy-rate').value) || 0;
 var mult = Number(box.querySelector('.jpy-mult').value) || 0;
 var oj = {};
+var oed2 = document.querySelector('.admin-opt-editor[data-key="'+key+'"]');
+var oob2 = oed2 && oed2.querySelector('.admin-optp');
+if(oob2 && optJpyOn(oed2) && oob2.querySelector('.admin-optp-on').checked){
+var allj = {}; try{ allj = JSON.parse(oob2.getAttribute('data-jpy') || '{}'); }catch(e){}
+parseOptionList(options || '').forEach(function(o){ if(Number(allj[o]) > 0) oj[o] = Number(allj[o]); });
+}
 if(mult > 0){ try{ localStorage.setItem('lastJpyMult', String(mult)); }catch(e){} }
 return { jpyPrice: jpy || '', multiplier: mult || '', fxRate: rate || '', fxDate: (jpy || Object.keys(oj).length) ? (box.getAttribute('data-fxdate') || todayTW()) : '', optionJpy: Object.keys(oj).length ? JSON.stringify(oj) : '' };
 }
@@ -4959,16 +4976,25 @@ return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:
 + '</div>';
 }
 // 規格一的「每個選項價格」輸入框：跟著選項清單自動增減，已經填的價格會保留
+// 規格選項的日幣欄：扭蛋不顯示（扭蛋照定價表），其他商品顯示，方便不同入數各自用日幣換算
+function optJpyOn(ed){
+if(!ed) return false;
+var key = String(ed.getAttribute('data-key') || '');
+if(key.indexOf('row-') === 0){ var p = adminFindCachedProduct(key.slice(4)); return !(p && p.cat === 'gacha'); }
+if(key === 'new'){ var c = document.getElementById('npCat'); return !(c && c.value === 'gacha'); }
+return false;
+}
 function renderAdminOptPrices(ed){
 var box = ed.querySelector('.admin-optp'); if(!box) return;
 var list = parseOptionList(ed.querySelector('.admin-opt-group[data-g="1"] .admin-opt-values').value);
 var map = {}; try{ map = JSON.parse(box.getAttribute('data-prices') || '{}'); }catch(e){}
 var listEl = box.querySelector('.admin-optp-list');
 var jmap = {}; try{ jmap = JSON.parse(box.getAttribute('data-jpy') || '{}'); }catch(e){}
+var jOn = optJpyOn(ed);
 listEl.innerHTML = list.length
-? '<div class="admin-optp-row" style="margin-bottom:2px;"><span></span><small style="width:110px;flex:0 0 110px;font-size:11px;font-weight:700;color:var(--muted);">台幣 NT$</small></div>'
-+ list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span><input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="NT$"></div>'; }).join('')
-+ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
+? '<div class="admin-optp-row" style="margin-bottom:2px;"><span></span>'+(jOn ? '<small style="width:96px;flex:0 0 96px;font-size:11px;font-weight:700;color:var(--muted);">日幣 ¥</small>' : '')+'<small style="width:110px;flex:0 0 110px;font-size:11px;font-weight:700;color:var(--muted);">台幣 NT$</small></div>'
++ list.map(function(o){ return '<div class="admin-optp-row"><span>'+escHtml(o)+'</span>'+(jOn ? '<input type="number" min="0" class="gate-input admin-optp-jpy" data-opt="'+escAttr(o)+'" value="'+(jmap[o] || '')+'" placeholder="¥ 日幣">' : '')+'<input type="number" min="0" class="gate-input admin-optp-in" data-opt="'+escAttr(o)+'" value="'+(map[o] || '')+'" placeholder="NT$"></div>'; }).join('')
++ '<p style="margin:4px 0 0;font-size:11.5px;color:var(--muted);">'+(jOn ? '填日幣會用上面的匯率和倍數自動算台幣（改倍數會一起更新），也可以直接填台幣。' : '')+'沒填的選項會用上面的商品價格。商品卡會顯示最低價「起」。</p>'
 : '<p style="margin:0;font-size:11.5px;color:var(--muted);">先在上面填規格一的選項</p>';
 var ins = listEl.querySelectorAll('.admin-optp-in');
 for(var i=0;i<ins.length;i++){
