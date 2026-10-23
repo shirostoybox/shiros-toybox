@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-2015';
+var APP_VERSION = '20261023-2125';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4114,6 +4114,20 @@ out.optionLabel2 = out.options2.length ? (String(it.optionLabel2 || '').trim() |
 out.base = Number(it.price) || 0;
 out.optionPrices = {};
 if(it.optionPrices && typeof it.optionPrices === 'object'){ Object.keys(it.optionPrices).forEach(function(k){ var v = Number(it.optionPrices[k]); if(v > 0 && out.options.indexOf(k) !== -1) out.optionPrices[k] = v; }); }
+// 每個規格的日幣（例如 5入 ¥900／10入 ¥1,750）：匯入時用今天匯率×上次倍數，自動算好每個規格的台幣
+out.optionJpy = {};
+if(it.optionJpy && typeof it.optionJpy === 'object'){ Object.keys(it.optionJpy).forEach(function(k){ var v = Number(it.optionJpy[k]); if(v > 0 && out.options.indexOf(k) !== -1) out.optionJpy[k] = v; }); }
+out.fx = null;
+if(Object.keys(out.optionJpy).length){
+var mult = Number(lastJpyMult()), rate = ADMIN_FX ? ADMIN_FX.rate : 0;
+if(mult > 0 && rate > 0){
+out.fx = { rate: rate, mult: mult };
+Object.keys(out.optionJpy).forEach(function(k){ if(!out.optionPrices[k]) out.optionPrices[k] = jpyCalc(out.optionJpy[k], rate, mult); });
+if(!out.base && out.jpy) out.base = jpyCalc(out.jpy, rate, mult);
+} else {
+out.notes.push('還沒有倍數（請先在任一商品的日幣換算填一次倍數），各規格台幣要手動填');
+}
+}
 if(!out.name) out.warn.push('沒有商品名稱');
 if(!out.cover) out.warn.push('沒有封面照片');
 return out;
@@ -4184,7 +4198,8 @@ return '<div class="imp-row" data-i="'+i+'">'
 : x.general
 ? '<small>🛍️ '+escHtml(x.category)+(x.luxury ? '・🏷️ 特選商品' : '')+'</small>'
 + '<small>日幣原價 '+(x.jpy ? '¥'+fmtNum(x.jpy)+(x.tax ? '（'+escHtml(x.tax)+'）' : '') : '？')+' → '+(x.base ? 'NT$'+x.base : '<b style="color:#B26A00;">台幣之後手動填（會先隱藏）</b>')+'</small>'
-+ (x.options.length ? '<small>'+escHtml(x.optionLabel)+'：'+escHtml(x.options.join('、'))+'</small>' : '')
++ (x.options.length ? '<small>'+escHtml(x.optionLabel)+'：'+x.options.map(function(o){ return escHtml(o)+(x.optionJpy[o] ? ' ¥'+fmtNum(x.optionJpy[o])+(x.optionPrices[o] ? '→NT$'+x.optionPrices[o] : '') : ''); }).join('、')+'</small>' : '')
++ (x.fx ? '<small>（匯率 '+x.fx.rate+' × 倍數 '+x.fx.mult+' 自動換算）</small>' : '')
 + (x.options2.length ? '<small>'+escHtml(x.optionLabel2)+'：'+escHtml(x.options2.join('、'))+'</small>' : '')
 : '<small>🥚 扭蛋・¥'+(x.jpy||'?')+' → '+(x.options.length ? '不指定 NT$'+x.base+'・指定 NT$'+x.pick : 'NT$'+x.base)+'</small>'
 + (x.options.length ? '<small>'+escHtml(x.options.join('、'))+'</small>' : ''))
