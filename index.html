@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-1900';
+var APP_VERSION = '20261023-2015';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4125,7 +4125,7 @@ function gachaSubText(extra){ extra = String(extra || '').trim(); return extra &
 function isPhotoOnlyImport(it){ return String(it.type || '').toLowerCase() === 'photos'; }
 function importKey(t){ return stripJp(String(t || '')).replace(/\s+/g, '').toLowerCase(); }
 function normalizePhotoOnlyItem(it){
-var out = { photoOnly: true, name: String(it.name || '').trim(), photos: it.photos || {}, warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : [], options: [], extra: [], adds: [] };
+var out = { photoOnly: true, replace: !!it.replace, name: String(it.name || '').trim(), photos: it.photos || {}, warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : [], options: [], extra: [], adds: [] };
 var key = importKey(out.name);
 var hits = (adminProductsCache || []).filter(function(p){ return importKey(p.name) === key; });
 if(!hits.length){ out.warn.push('找不到這件商品（名稱可能改過），請手動補照片'); return out; }
@@ -4139,12 +4139,13 @@ var skipped = 0, noRoom = 0;
 parseOptionList(p.options).forEach(function(o){
 var url = srcByKey[importKey(o)];
 if(!url) return;
-if(have[o]){ skipped++; return; }
+if(have[o]){ if(out.replace && have[o] > 1){ out.adds.push({ opt: o, url: url, slot: have[o], swap: true }); } else skipped++; return; }
 if(!free.length){ noRoom++; return; }
 out.adds.push({ opt: o, url: url, slot: free.shift() });
 });
 out.options = out.adds.map(function(a){ return a.opt; });
 if(skipped) out.notes.push(skipped+' 個角色本來就有照片，不會蓋掉');
+if(out.adds.some(function(a){ return a.swap; })) out.notes.push('會換掉 '+out.adds.filter(function(a){ return a.swap; }).length+' 個角色原本的照片（修正對錯的照片）');
 if(noRoom) out.notes.push(noRoom+' 個角色因為照片格子滿了（最多 '+MAX_PHOTO_SLOT+' 張）沒補');
 if(!out.adds.length && !out.warn.length) out.notes.push('沒有需要補的照片');
 return out;
