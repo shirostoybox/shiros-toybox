@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-1525';
+var APP_VERSION = '20261023-1755';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4115,9 +4115,12 @@ if(!out.name) out.warn.push('沒有商品名稱');
 if(!out.cover) out.warn.push('沒有封面照片');
 return out;
 }
+// 扭蛋的規格說明一律帶入這段（清單另外有寫的放在前面，例如「再販」）
+var GACHA_SUB = '附蛋紙 不附蛋殼（指定沒貨改隨機出貨，以不指定價格計算）';
+function gachaSubText(extra){ extra = String(extra || '').trim(); return extra && extra.indexOf(GACHA_SUB) === -1 ? extra + '・' + GACHA_SUB : GACHA_SUB; }
 function normalizeImportItem(it){
 if(isGeneralImport(it)) return normalizeGeneralItem(it);
-var out = { name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
+var out = { name: String(it.name || '').trim(), sub: gachaSubText(it.sub), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
 var opts = (Array.isArray(it.options) ? it.options : parseOptionList(it.options || '')).map(function(x){ return String(x).trim(); }).filter(function(x){ return x && x !== '不指定'; });
 var tbl = gachaPrice(out.jpy);
 out.base = Number(it.price) || (tbl ? tbl[0] : 0);
@@ -4141,6 +4144,7 @@ var nPhotos = (x.cover ? 1 : 0) + x.options.filter(function(o){ return x.photos[
 return '<div class="imp-row" data-i="'+i+'">'
 + (x.cover ? '<img src="'+escAttr(x.cover)+'" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility=\'hidden\';">' : '<span class="imp-noimg">無圖</span>')
 + '<div style="min-width:0;flex:1;"><b>'+escHtml(x.name || '（沒有名稱）')+'</b>'
++ (x.sub ? '<small>📄 '+escHtml(x.sub)+'</small>' : '')
 + (x.general
 ? '<small>🛍️ '+escHtml(x.category)+(x.luxury ? '・🏷️ 特選商品' : '')+'</small>'
 + '<small>日幣原價 '+(x.jpy ? '¥'+fmtNum(x.jpy)+(x.tax ? '（'+escHtml(x.tax)+'）' : '') : '？')+' → '+(x.base ? 'NT$'+x.base : '<b style="color:#B26A00;">台幣之後手動填（會先隱藏）</b>')+'</small>'
