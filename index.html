@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-0230';
+var APP_VERSION = '20261023-1435';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6340,7 +6340,7 @@ return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel'
 + thumb
 + '<div class="my-row-main">'
 + '<div class="my-row-top"><p class="my-row-name">'+escHtml(o.product_name)+'</p><span class="my-row-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
-+ (o.is_test ? '<p style="margin:2px 0 0;font-size:11px;font-weight:700;color:#4F46E5;">🧪 測試單（老闆／小幫手下的單，不算分潤）</p>' : '')
++ (o.is_test ? '<p style="margin:2px 0 0;font-size:11px;font-weight:700;color:#4F46E5;">🧪 測試單（老闆／小幫手/朋友下的單，不算分潤）</p>' : '')
 + '<div class="my-row-mid"><span class="my-row-var">'+escHtml(o.variant || '')+' ×'+o.quantity+'</span><span class="'+statusClass+' my-row-st">'+statusText+'</span></div>'
 + (o.admin_note && o.status !== '缺貨已幫您取消' ? '<p class="my-row-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
 + depositHtml
