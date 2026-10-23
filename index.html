@@ -1136,7 +1136,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261023-1435';
+var APP_VERSION = '20261023-1525';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2650,6 +2650,7 @@ var ADMIN_MEMBER_FILTERS = [
 ['unverified', '⏳ 未綁定', function(m){ return !m.isVerified; }],
 ['nonick', '✏️ 沒填暱稱', function(m){ return m.isVerified && !m.nickname; }],
 ['coupon', '🚚 有免運券', function(m){ return (m.referralCouponBalance || 0) > 0; }],
+['nocoupon', '🈳 已綁定・沒免運券', function(m){ return m.isVerified && !((m.referralCouponBalance || 0) > 0); }],
 ['restricted', '🚫 限制下單', function(m){ return m.orderRestricted; }],
 ['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }]
 ];
