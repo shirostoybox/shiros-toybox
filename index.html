@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261024-1410';
+var APP_VERSION = '20261025-0200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4124,11 +4124,20 @@ var label = window.prompt('把「'+oldLabel+'」改成：\n（這個分類底下
 if(label === null) return;
 label = label.trim();
 if(!label){ alert('分類名稱不能空白'); return; }
-if(label === oldLabel) return;
+// 已經有另一個同名的分類 → 問要不要併在一起
+var mergeInto = '';
+for(var mi=0; mi<adminProductsCache.length; mi++){
+var mp = adminProductsCache[mi];
+if(mp.cat && mp.cat !== cat && (mp.cat_label || catLabelFor(mp.cat)) === label){ mergeInto = mp.cat; break; }
+}
+if(mergeInto){
+var nHere = adminProductsCache.filter(function(x){ return x.cat === cat; }).length;
+if(!window.confirm('已經有另一個「'+label+'」分類了。\n要把這裡的 '+nHere+' 件商品併過去，變成同一個分類嗎？')) return;
+} else if(label === oldLabel) return;
 b.disabled = true;
 try{
-var r = await callMemberApi('admin-rename-category', { cat: cat, label: label, oldLabel: oldLabel });
-showToast('已改成「'+label+'」（'+(r && r.count ? r.count : 0)+' 件商品）');
+var r = await callMemberApi('admin-rename-category', { cat: cat, label: label, oldLabel: oldLabel, mergeInto: mergeInto });
+showToast(r && r.merged ? '已併到「'+label+'」（'+(r.count || 0)+' 件商品）' : '已改成「'+label+'」（'+(r && r.count ? r.count : 0)+' 件商品）');
 await loadAdminProducts();
 refreshShop();
 }catch(err){ b.disabled = false; alert('修改失敗：' + err.message); }
@@ -4214,6 +4223,11 @@ if(it.optionPrices && typeof it.optionPrices === 'object'){ Object.keys(it.optio
 out.optionJpy = {};
 if(it.optionJpy && typeof it.optionJpy === 'object'){ Object.keys(it.optionJpy).forEach(function(k){ var v = Number(it.optionJpy[k]); if(v > 0 && out.options.indexOf(k) !== -1) out.optionJpy[k] = v; }); }
 out.fx = null;
+// 沒有規格的單品：一樣用今天匯率×上次倍數先算好台幣
+if(!Object.keys(out.optionJpy).length && !out.base && out.jpy){
+var m1 = Number(lastJpyMult()), r1 = ADMIN_FX ? ADMIN_FX.rate : 0;
+if(m1 > 0 && r1 > 0){ out.base = jpyCalc(out.jpy, r1, m1); out.fx = { rate: r1, mult: m1 }; }
+}
 if(Object.keys(out.optionJpy).length){
 var mult = Number(lastJpyMult()), rate = ADMIN_FX ? ADMIN_FX.rate : 0;
 if(mult > 0 && rate > 0){
