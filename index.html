@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261024-0100';
+var APP_VERSION = '20261024-0910';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1351,7 +1351,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -4595,6 +4595,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
 + adminOrigWarnHTML(p)
 + adminHideBoxHTML(p)
++ adminPriceDropHTML(p)
 + adminStripJpBtnHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
@@ -4850,6 +4851,28 @@ showToast('已刪除日文 '+ok+' 件'+(fail ? '・失敗 '+fail+' 件' : ''));
 targets.forEach(function(p){ adminProductExpanded[p.id] = adminProductExpanded[p.id]; });
 await loadAdminProducts();
 refreshShop();
+});
+// 「↘降價」標示：只有勾選的商品才在商品卡顯示
+function adminPriceDropHTML(p){
+var on = !!p.show_price_drop;
+return '<div class="adm-pd-box" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;padding:8px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);">'
++ '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-dark);"><input type="checkbox" class="adm-pd-on" data-product-id="'+p.id+'"'+(on?' checked':'')+' style="width:18px;height:18px;"> 商品卡顯示「↘降價」</label>'
++ '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);">原價 NT$<input type="number" min="0" class="gate-input adm-pd-was" data-product-id="'+p.id+'" value="'+(Number(p.price_was) > 0 ? p.price_was : '')+'" placeholder="可不填" style="width:84px;margin:0;padding:6px 8px;font-size:13px;"></label>'
++ '</div>';
+}
+document.addEventListener('change', async function(e){
+var t = e.target; if(!t || !t.classList) return;
+if(!t.classList.contains('adm-pd-on') && !t.classList.contains('adm-pd-was')) return;
+var pid = t.getAttribute('data-product-id');
+var box = t.closest('.adm-pd-box');
+var on = box.querySelector('.adm-pd-on').checked;
+var was = box.querySelector('.adm-pd-was').value;
+try{
+await callMemberApi('admin-set-price-drop', { productId: pid, on: on, priceWas: was });
+adminProductsCache.forEach(function(p){ if(p.id === pid){ p.show_price_drop = on; p.price_was = Number(was) || null; } });
+showToast(on ? '已顯示降價標示' : '已取消降價標示');
+refreshShop();
+}catch(err){ alert('儲存失敗：' + err.message); }
 });
 function adminHideBoxHTML(p){
 var pid = escAttr(p.id);
@@ -5672,7 +5695,7 @@ return '<article class="card">'
 + (p.isPrivate ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">🔒 客訂</span>' : (p.isCustom ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">✨ 客訂</span>' : ''))
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + ((p.options || []).length && !(p.isPrivate && !p.privateAccess) ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
-+ '<div class="card-meta"><span class="price">' + productPriceText(p) + (p.priceWas > Number(p.price) ? '<span class="price-drop" title="原價 NT$'+p.priceWas+'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 3.5 6 8l2.5-2.5L13.5 11"/><path d="M9.5 11h4V7"/></svg>降價</span>' : '') + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
++ '<div class="card-meta"><span class="price">' + productPriceText(p) + (p.priceDrop ? '<span class="price-drop"'+(p.priceWas > Number(p.price) ? ' title="原價 NT$'+p.priceWas+'"' : '')+'><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 3.5 6 8l2.5-2.5L13.5 11"/><path d="M9.5 11h4V7"/></svg>降價</span>' : '') + '</span><span class="stock stock--' + p.stock + '">' + stockLabel + '</span></div>'
 + depositNoteHTML
 + orderBtnHTML
 + '</div></article>';
