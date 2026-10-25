@@ -1138,7 +1138,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-0200';
+var APP_VERSION = '20261025-1215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4320,6 +4320,12 @@ return '<div class="imp-row" data-i="'+i+'">'
 }).join('')
 + (bad ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">'+(adminImportItems.every(function(x){ return x.photoOnly; }) ? '🖼️ 開始補照片（'+adminImportItems.length+' 件）' : '📥 全部上架（'+adminImportItems.length+' 件）')+'</button>');
 }
+// 匯入照片：網址就請系統去抓；清單裡直接夾帶的照片（data:image/…，例如從截圖裁下來的）就直接用
+async function importImageData(url){
+if(/^data:image\//.test(String(url||''))) return url;
+var fr = await callMemberApi('admin-fetch-image', { url: url });
+return fr.dataUrl;
+}
 async function runImport(){
 var btn = document.getElementById('impGo');
 if(!btn || !adminImportItems) return;
@@ -4339,8 +4345,7 @@ var okMap = parseOptionPhotos(x.product.option_photos), nOk = 0;
 for(var a=0;a<x.adds.length;a++){
 if(st) st.textContent = '📷 照片 '+(a+1)+' / '+x.adds.length+'（抓取＋壓縮）…';
 try{
-var fr2 = await callMemberApi('admin-fetch-image', { url: x.adds[a].url });
-var sm2 = await compressImage(dataUrlToBlob(fr2.dataUrl));
+var sm2 = await compressImage(dataUrlToBlob(await importImageData(x.adds[a].url)));
 await callMemberApi('admin-upload-product-image', { productId: x.product.id, imageData: sm2, slot: x.adds[a].slot });
 okMap[x.adds[a].opt] = x.adds[a].slot; nOk++;
 }catch(err2){ photoFail++; }
@@ -4384,8 +4389,7 @@ var bad = [];
 for(var k=0;k<images.length;k++){
 if(st) st.textContent = '📷 照片 '+(k+1)+' / '+images.length+'（抓取＋壓縮）…';
 try{
-var fr = await callMemberApi('admin-fetch-image', { url: images[k].url });
-var small = await compressImage(dataUrlToBlob(fr.dataUrl));
+var small = await compressImage(dataUrlToBlob(await importImageData(images[k].url)));
 var up = { productId: res.productId, imageData: small };
 if(images[k].slot > 1) up.slot = images[k].slot;
 await callMemberApi('admin-upload-product-image', up);
