@@ -1286,7 +1286,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-0210';
+var APP_VERSION = '20261026-0220';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6220,6 +6220,7 @@ else { w = Math.round(w * maxDim / h); h = maxDim; }
 var canvas = document.createElement('canvas');
 canvas.width = w; canvas.height = h;
 var ctx = canvas.getContext('2d');
+ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h); // 透明背景的 PNG 轉成 JPG 時用白底，不會變黑
 ctx.drawImage(img, 0, 0, w, h);
 resolve(canvas.toDataURL('image/jpeg', 0.8));
 };
@@ -7058,12 +7059,72 @@ box.innerHTML = '<div class="vote-admin"><h3>🔧 投票管理（只有後台看
 + (d.characters || []).map(function(c){ return '<div class="vote-admin-row"><div class="vav-wrap">'+voteAvatarHTML(c)+'</div><span><b>'+escHtml(c.name)+'</b>'+(c.byCustomer ? '<br><small>💌 客人許願'+(c.addedBy ? '（'+escHtml(c.addedBy)+'）' : '')+'</small>' : '')+'<br><small>'+(c.rank ? '第 '+c.rank+' 名・' : '')+c.n+' 票</small></span>'
 + '<label>📷 圖片<input type="file" accept="image/*" data-vote-img="'+c.id+'" style="display:none;"></label>'
 + '<button type="button" class="del" data-vote-del="'+c.id+'" data-name="'+escAttr(c.name)+'">刪除</button></div>'; }).join('')
++ '<button type="button" class="btn btn--full" id="voteAdminAuto" style="margin-top:12px;background:#fff;border:1.5px solid #8B5CF6;color:#5B21B6;">🔍 自動找角色圖（維基百科）</button>'
 + '<button type="button" class="btn btn--full" id="voteAdminSnap" style="margin-top:12px;background:linear-gradient(135deg,#FF8FB1,#B79BFF);color:#fff;border:none;">📸 產生排名圖（留存）</button>'
 + '<button type="button" class="btn btn--full" id="voteAdminReset" style="margin-top:8px;background:#fff;border:1.5px solid #DC2626;color:#DC2626;">🔄 全部票數歸零，重新投票</button>'
 + '<p style="margin:6px 0 0;font-size:11.5px;color:var(--muted);">按歸零時會先自動產生一張排名圖存起來，再清掉票；角色名單和圖片會保留</p>'
 + ((d.archives || []).length ? '<p style="margin:14px 0 0;font-size:13px;font-weight:800;color:#5B21B6;">🗂️ 歷次排名圖（點開長按可存到手機）</p><div class="vote-arch">' + d.archives.map(function(a){ var u = SUPABASE_URL + '/storage/v1/object/public/product-images/' + a.image_path; var dt = String(a.created_at || '').slice(0, 10); return '<a href="#" data-arch="'+escAttr(u)+'"><img src="'+escAttr(u)+'" alt="" loading="lazy">'+escHtml(dt)+'</a>'; }).join('') + '</div>' : '')
 + '</div>';
 }catch(e){ box.innerHTML = ''; }
+}
+// 自動找角色圖：用維基百科（英文版有官方角色圖／作品封面）。先用對照表找英文條目，沒有就用中文名搜尋再轉英文條目
+var VOTE_WIKI = {
+'吉伊卡哇':'Chiikawa','布丁狗':'Pompompurin','大耳狗喜拿':'Cinnamoroll','大耳狗':'Cinnamoroll','雙子星':'Little Twin Stars','Hello Kitty':'Hello Kitty','凱蒂貓':'Hello Kitty',
+'帕恰狗':'Pochacco','酷洛米':'Kuromi','哆啦A夢':'Doraemon (character)','鬼滅之刃':'Demon Slayer: Kimetsu no Yaiba','名偵探柯南':'Case Closed','航海王':'One Piece','海賊王':'One Piece',
+'角落生物':'Sumikko Gurashi','角落小夥伴':'Sumikko Gurashi','星之卡比':'Kirby (character)','人魚漢頓':'Hangyodon','美樂蒂':'My Melody','龍貓':'Totoro','蠟筆小新':'Crayon Shin-chan',
+'超級瑪利歐':'Mario','拉拉熊':'Rilakkuma','懶懶熊':'Rilakkuma','排球少年':'Haikyu!!','火影忍者':'Naruto','我的英雄學院':'My Hero Academia','蛋黃哥':'Gudetama','酷企鵝':'Badtz-Maru',
+'進擊的巨人':'Attack on Titan','獵人':'Hunter × Hunter','藍色監獄':'Blue Lock','咒術迴戰':'Jujutsu Kaisen','鏈鋸人':'Chainsaw Man','皮卡丘':'Pikachu','三麗鷗家族':'Sanrio','三麗鷗':'Sanrio',
+'葬送的芙莉蓮':'Frieren','貓福珊迪':'Mofusand','鋼彈':'Gundam','機動戰士鋼彈':'Mobile Suit Gundam','七龍珠':'Dragon Ball','麵包超人':'Anpanman','銀魂':'Gin Tama','間諜家家酒':'Spy × Family',
+'賽馬娘':'Umamusume: Pretty Derby','美少女戰士':'Sailor Moon','初音未來':'Hatsune Miku','櫻桃小丸子':'Chibi Maruko-chan','Nagano熊':'Nagano (illustrator)','寶可夢':'Pokémon','蒙奇奇':'Monchhichi',
+'hololive':'Hololive Production','塔麻歌子':'Tamagotchi','塔麻可吉':'Tamagotchi','Keroro軍曹':'Sgt. Frog','KERORO軍曹':'Sgt. Frog','史努比':'Snoopy','米飛兔':'Miffy','小熊維尼':'Winnie-the-Pooh',
+'米奇':'Mickey Mouse','史迪奇':'Stitch (Lilo & Stitch)','庫洛米':'Kuromi','山姆企鵝':'Tuxedosam','可樂鈴':'Korilakkuma','柴犬':'Shiba Inu','貓咪大戰爭':'The Battle Cats','名探偵柯南':'Case Closed'
+};
+async function wikiJson(host, q){
+var r = await fetch('https://' + host + '/w/api.php?' + q + '&format=json&origin=*');
+if(!r.ok) throw new Error('wiki ' + r.status);
+return r.json();
+}
+function wikiFirstImage(d){
+var pages = d && d.query && d.query.pages; if(!pages) return '';
+var ks = Object.keys(pages);
+for(var i=0;i<ks.length;i++){ var p = pages[ks[i]]; if(p.thumbnail && p.thumbnail.source) return p.thumbnail.source; }
+return '';
+}
+async function findWikiImage(name){
+var title = VOTE_WIKI[name] || VOTE_WIKI[String(name).trim()] || '';
+if(title){
+var u = wikiFirstImage(await wikiJson('en.wikipedia.org', 'action=query&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=800&titles=' + encodeURIComponent(title)));
+if(u) return u;
+}
+// 用中文名搜尋中文維基 → 找對應的英文條目
+var z = await wikiJson('zh.wikipedia.org', 'action=query&generator=search&gsrlimit=1&gsrsearch=' + encodeURIComponent(name) + '&prop=langlinks|pageimages&lllang=en&piprop=thumbnail&pithumbsize=800');
+var pages = z && z.query && z.query.pages, en = '', zu = '';
+if(pages){ var p = pages[Object.keys(pages)[0]]; if(p.langlinks && p.langlinks[0]) en = p.langlinks[0]['*']; if(p.thumbnail) zu = p.thumbnail.source; }
+if(en){ var u2 = wikiFirstImage(await wikiJson('en.wikipedia.org', 'action=query&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=800&titles=' + encodeURIComponent(en))); if(u2) return u2; }
+return zu || '';
+}
+async function autoVoteImages(btn){
+var d = voteAdminData || await callMemberApi('admin-vote-list');
+var todo = (d.characters || []).filter(function(c){ return !c.img; });
+if(!todo.length){ alert('每個角色都已經有圖片了 ♡'); return; }
+if(!window.confirm('要幫 '+todo.length+' 個還沒有圖片的角色，自動從維基百科找圖嗎？\n\n大約要 '+Math.ceil(todo.length*3/60)+' 分鐘，請停在這個畫面。\n找不到的會跳過，之後可以用「📷 圖片」自己補。')) return;
+btn.disabled = true;
+var ok = 0, miss = [];
+for(var i=0;i<todo.length;i++){
+var c = todo[i];
+btn.textContent = '🔍 找圖中… '+(i+1)+' / '+todo.length+'（'+c.name+'）';
+try{
+var url = await findWikiImage(c.name);
+if(!url){ miss.push(c.name); continue; }
+var fr = await callMemberApi('admin-fetch-image', { url: url });
+var sq = await compressImage(dataUrlToBlob(fr.dataUrl), 600);
+await callMemberApi('admin-vote-image', { id: c.id, imageData: sq });
+ok++;
+}catch(e){ miss.push(c.name); }
+}
+btn.disabled = false; btn.textContent = '🔍 自動找角色圖（維基百科）';
+alert('完成！找到 '+ok+' 張'+(miss.length ? '\n\n找不到（請自己用📷補）：\n' + miss.join('、') : '')+'\n\n請看一下每張圖對不對，不對的按「📷 圖片」換掉。');
+loadVotes();
 }
 // 排名長條圖：1080×1350（IG 直式），前 10 名，附角色圖片
 async function buildVoteChart(withCount){
@@ -7146,6 +7207,8 @@ if(!window.confirm('確定刪除「'+del.getAttribute('data-name')+'」？投給
 try{ await callMemberApi('admin-vote-delete', { id: del.getAttribute('data-vote-del') }); showToast('已刪除'); loadVotes(); }catch(err){ alert(err.message); }
 return;
 }
+var au = t.closest('#voteAdminAuto');
+if(au){ autoVoteImages(au); return; }
 var sn = t.closest('#voteAdminSnap');
 if(sn){ sn.disabled = true; sn.textContent = '產生中…'; try{ await snapVoteChart(false); loadVoteAdmin(); }catch(err){ alert('產生失敗：' + err.message); sn.disabled = false; sn.textContent = '📸 產生排名圖（留存）'; } return; }
 if(t.closest('#voteAdminReset')){
