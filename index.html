@@ -1189,7 +1189,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-2015';
+var APP_VERSION = '20261025-2230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7756,8 +7756,9 @@ function roundRectPath(ctx, x, y, w, h, r){
 ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
 }
 // 1200×630 拼圖：上方分類名稱，下面每件商品第一張照片（最多 18 張，超過顯示 +N）
+// LINE 預覽會把左右兩邊各裁掉一些，重要的字和照片都放在中間的安全範圍
 async function buildCatCollage(products, label, subtitle){
-var W = 1200, H = 630, head = 112, pad = 24, gap = 10;
+var W = 1200, H = 630, head = 128, pad = 72, gap = 12;
 var list = sortProductsByPrice(products.slice());
 var n = list.length, cols, rows;
 if(n <= 1){ cols = 1; rows = 1; } else if(n <= 3){ cols = n; rows = 1; } else if(n <= 4){ cols = 4; rows = 1; }
@@ -7767,40 +7768,63 @@ var shown = list.slice(0, extra ? max - 1 : max);
 var imgs = await Promise.all(shown.map(function(p){ return loadCorsImage(p.isPrivate ? CUSTOM_COVER : productImageUrl(p.id)); }));
 var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
 var ctx = cv.getContext('2d');
-ctx.fillStyle = '#171A24'; ctx.fillRect(0, 0, W, H);
+// 背景：奶油色→淡粉漸層＋點點，比純黑溫暖
+var bg = ctx.createLinearGradient(0, 0, W, H);
+bg.addColorStop(0, '#FFF6EC'); bg.addColorStop(0.55, '#FFEFEA'); bg.addColorStop(1, '#FFE3E8');
+ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+ctx.fillStyle = 'rgba(232,85,59,0.07)';
+for(var dy=18; dy<H; dy+=36){ for(var dx=(dy/36)%2 ? 36 : 18; dx<W; dx+=36){ ctx.beginPath(); ctx.arc(dx, dy, 3, 0, Math.PI*2); ctx.fill(); } }
+// 角落柔光圓
+var g1 = ctx.createRadialGradient(W-90, 60, 10, W-90, 60, 260); g1.addColorStop(0, 'rgba(255,190,150,0.55)'); g1.addColorStop(1, 'rgba(255,190,150,0)');
+ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+var g2 = ctx.createRadialGradient(80, H-40, 10, 80, H-40, 280); g2.addColorStop(0, 'rgba(255,170,200,0.45)'); g2.addColorStop(1, 'rgba(255,170,200,0)');
+ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
 var font = '-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
 ctx.textBaseline = 'middle';
-ctx.font = '900 46px ' + font; ctx.fillStyle = '#ffffff';
-ctx.fillText(label, pad, 52);
-ctx.font = '600 24px ' + font; ctx.fillStyle = '#BEC3D2';
-ctx.fillText(subtitle + '・' + n + ' 件商品', pad, 92);
-ctx.font = '900 30px ' + font; ctx.fillStyle = '#2FD8C9'; ctx.textAlign = 'right';
-ctx.fillText('四郎玩具箱', W - pad, 52);
-ctx.font = '600 20px ' + font; ctx.fillStyle = '#BEC3D2';
-ctx.fillText('點進來看看 ♡', W - pad, 92);
+// 標題
+ctx.font = '900 48px ' + font; ctx.fillStyle = '#1B1E27';
+var maxTitle = W - pad*2 - 260, t = label;
+while(ctx.measureText(t).width > maxTitle && t.length > 1) t = t.slice(0, -1);
+if(t !== label) t = t.slice(0, -1) + '…';
+ctx.fillText(t, pad, 54);
+// 副標膠囊
+ctx.font = '700 22px ' + font;
+var subTxt = subtitle + '・' + n + ' 件商品', sw = Math.min(ctx.measureText(subTxt).width + 32, W - pad*2 - 260);
+ctx.fillStyle = '#E8553B'; roundRectPath(ctx, pad, 84, sw, 36, 18); ctx.fill();
+ctx.fillStyle = '#fff'; ctx.save(); ctx.beginPath(); ctx.rect(pad, 84, sw - 14, 36); ctx.clip(); ctx.fillText(subTxt, pad + 16, 103); ctx.restore();
+// 右上品牌
+ctx.textAlign = 'right';
+ctx.fillStyle = '#1B1E27'; roundRectPath(ctx, W - pad - 236, 30, 236, 50, 25); ctx.fill();
+ctx.font = '900 26px ' + font; ctx.fillStyle = '#fff';
+ctx.fillText('🧸 四郎玩具箱', W - pad - 20, 56);
+ctx.font = '700 20px ' + font; ctx.fillStyle = '#B4533F';
+ctx.fillText('點進來看看 ♡', W - pad - 6, 104);
 ctx.textAlign = 'left';
-var areaW = W - pad*2, areaH = H - head - pad;
+var areaW = W - pad*2, areaH = H - head - 28;
 var ts = Math.floor(Math.min((areaW - gap*(cols-1)) / cols, (areaH - gap*(rows-1)) / rows));
-var gridW = ts*cols + gap*(cols-1), x0 = Math.round((W - gridW)/2), y0 = head + Math.round((areaH - (ts*rows + gap*(rows-1)))/2);
+var gridW = ts*cols + gap*(cols-1), x0 = Math.round((W - gridW)/2), y0 = head + 8 + Math.round((areaH - (ts*rows + gap*(rows-1)))/2);
 var used = extra ? max : shown.length;
 for(var i=0;i<max;i++){
 var row = Math.floor(i / cols), lastRowCount = used - (rows - 1)*cols;
 var rowOffset = (row === rows - 1 && lastRowCount > 0 && lastRowCount < cols) ? Math.round((cols - lastRowCount)*(ts+gap)/2) : 0;
 var x = x0 + rowOffset + (i % cols)*(ts+gap), y = y0 + row*(ts+gap);
 if(i < shown.length){
-ctx.save(); roundRectPath(ctx, x, y, ts, ts, 14); ctx.clip();
+ctx.save(); ctx.shadowColor = 'rgba(120,60,40,0.18)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+ctx.fillStyle = '#ffffff'; roundRectPath(ctx, x, y, ts, ts, 16); ctx.fill(); ctx.restore();
+ctx.save(); roundRectPath(ctx, x+4, y+4, ts-8, ts-8, 12); ctx.clip();
 ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, ts, ts);
 var im = imgs[i];
-if(im){ var sc = Math.max(ts / im.width, ts / im.height); var dw = im.width*sc, dh = im.height*sc; ctx.drawImage(im, x + (ts-dw)/2, y + (ts-dh)/2, dw, dh); }
+if(im){ var sc = Math.max((ts-8) / im.width, (ts-8) / im.height); var dw = im.width*sc, dh = im.height*sc; ctx.drawImage(im, x + (ts-dw)/2, y + (ts-dh)/2, dw, dh); }
 ctx.restore();
 } else if(extra && i === max - 1){
-ctx.fillStyle = '#FF5C80'; roundRectPath(ctx, x, y, ts, ts, 14); ctx.fill();
+var gg = ctx.createLinearGradient(x, y, x+ts, y+ts); gg.addColorStop(0, '#FF7A59'); gg.addColorStop(1, '#FF4F7B');
+ctx.fillStyle = gg; roundRectPath(ctx, x, y, ts, ts, 16); ctx.fill();
 ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '900 ' + Math.round(ts*0.26) + 'px ' + font;
 ctx.fillText('+' + extra, x + ts/2, y + ts/2 - ts*0.06); ctx.font = '700 ' + Math.round(ts*0.11) + 'px ' + font;
 ctx.fillText('還有更多', x + ts/2, y + ts/2 + ts*0.2); ctx.textAlign = 'left';
 }
 }
-return cv.toDataURL('image/jpeg', 0.88);
+return cv.toDataURL('image/jpeg', 0.9);
 }
 async function shareCategoryLink(zoneKey, cat, label, products, zone){
 var isLive = zoneKey !== 'regular';
