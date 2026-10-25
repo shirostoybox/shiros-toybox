@@ -1178,7 +1178,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1645';
+var APP_VERSION = '20261025-1715';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2089,6 +2089,7 @@ actions = (needDep ? '<input type="number" min="0" class="admin-deposit-input ad
 + '<button type="button" class="admin-confirm-btn adm-p-btn is-ok" data-order-id="'+o.id+'">確認</button>';
 }
 actions += orderRandomBtnHTML(o, 'adm-p-btn is-rand', '');
+if(o.status === '待確認' && Number(o.quantity) > 1) actions += '<button type="button" class="admin-partial-btn adm-p-btn is-ok" data-order-id="'+o.id+'" data-qty="'+o.quantity+'">部分確認</button>';
 actions += '<button type="button" class="admin-cancel-btn adm-p-btn is-x" data-order-id="'+o.id+'">缺貨</button>';
 var rand = o.orig_variant ? '<span class="adm-p-st is-rand">🔄已改隨機</span>' : '';
 return '<div class="adm-p-row">'
@@ -2313,7 +2314,8 @@ var statusClass = o.status === '已確認' ? 'order-status order-status--confirm
 var confirmBtn = o.status === '待確認'
 ? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">'+(o.deposit_required && !(Number(o.deposit_amount||0) > 0) ? '輸入訂金後確認' : '確認')+'</button>'
 : '<button class="btn btn--full admin-unconfirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px dashed var(--muted);color:var(--muted);font-size:13px;">按錯了，退回待確認</button>';
-var cancelBtn = '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
+var cancelBtn = (o.status === '待確認' && Number(o.quantity) > 1 ? '<button class="btn btn--full admin-partial-btn" data-order-id="'+o.id+'" data-qty="'+o.quantity+'" style="margin-top:8px;background:transparent;border:1.5px dashed var(--ignis);color:var(--ignis-deep);font-weight:700;">🔢 部分確認（喊 '+o.quantity+' 個，先買到幾個先確認）</button>' : '')
++ '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
 var orderZone = o.is_live_limited ? zoneById(o.live_zone_id || 'z_default') : null;
 var liveBadge = (o.is_live_limited
 ? '<span style="display:inline-block;background:var(--volt);color:var(--ink);font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">⚡限時連線'+(orderZone && orderZone.note ? '｜'+escHtml(orderZone.note) : '')+'</span>'
@@ -2547,6 +2549,10 @@ var randUndoBtns = container.querySelectorAll('.admin-random-undo-btn');
 for(var ru=0;ru<randUndoBtns.length;ru++){
 randUndoBtns[ru].addEventListener('click', (function(btn){ return function(){ handleAdminRandomOrder(btn, true); }; })(randUndoBtns[ru]));
 }
+var partialBtns = container.querySelectorAll('.admin-partial-btn');
+for(var pt=0;pt<partialBtns.length;pt++){
+partialBtns[pt].addEventListener('click', (function(btn){ return function(){ handleAdminPartialOrder(btn); }; })(partialBtns[pt]));
+}
 var cancelBtns = container.querySelectorAll('.admin-cancel-btn');
 for(var m=0;m<cancelBtns.length;m++){
 cancelBtns[m].addEventListener('click', (function(btn){ return function(){ handleAdminCancelOrder(btn); }; })(cancelBtns[m]));
@@ -2650,6 +2656,27 @@ btn.disabled = true; btn.textContent = '處理中...';
 try{
 await callMemberApi(undo ? 'admin-order-random-undo' : 'admin-order-random', { orderId: btn.getAttribute('data-order-id') });
 showToast(undo ? '已復原指定' : '已改為隨機出貨');
+await loadAdminGroups();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = old;
+}
+}
+// 部分確認：喊 3 個先買到 1 個 → 這筆變 1 個並確認，剩下 2 個變一筆新的待確認（之後買到再確認、買不到按缺貨）
+async function handleAdminPartialOrder(btn){
+var qty = Number(btn.getAttribute('data-qty')) || 0;
+var ans = window.prompt('客人喊了 '+qty+' 個，這次先買到幾個？（1～'+(qty-1)+'）\n\n買到的會先確認，剩下的留在「待確認」，之後買到再確認，買不到再按缺貨。', '1');
+if(ans === null) return;
+var got = parseInt(ans, 10);
+if(!(got >= 1 && got < qty)){ alert('請輸入 1 到 '+(qty-1)+' 之間的數字'); return; }
+var payload = { orderId: btn.getAttribute('data-order-id'), got: got };
+var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-deposit-input') : null;
+if(depositInput && depositInput.value !== '') payload.depositAmount = depositInput.value;
+var old = btn.textContent;
+btn.disabled = true; btn.textContent = '處理中...';
+try{
+var r = await callMemberApi('admin-order-partial', payload);
+showToast(r && r.confirmed ? '已確認 '+got+' 個，剩 '+(qty-got)+' 個待確認' : '已拆成 '+got+' 個＋'+(qty-got)+' 個（需訂金，請輸入訂金後再確認）');
 await loadAdminGroups();
 }catch(e){
 alert('操作失敗：' + e.message);
