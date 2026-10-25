@@ -246,6 +246,18 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .qk-box{ margin:0 0 12px; padding:14px; border-radius:var(--r-md); border:1.5px solid #FFB9A6; background:#FFF5F1; }
 .qk-box h4{ margin:0 0 4px; font-size:15px; color:var(--text-dark); }
 .qk-photo{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; aspect-ratio:4/3; margin:8px 0 10px; border:1.5px dashed #FFB9A6; border-radius:var(--r-md); background:#fff; color:#D9381E; font-size:14px; font-weight:700; overflow:hidden; position:relative; }
+.pc-wrap{ margin:0 0 10px; }
+.pc-btn{ width:100%; border:1.5px dashed #60A5FA; background:#EFF6FF; color:#1D4ED8; border-radius:var(--r-md); padding:9px 12px; font-size:13px; font-weight:800; font-family:var(--font-body); }
+.pc-btn:disabled{ opacity:.7; }
+.pc-box{ margin-top:8px; padding:10px 12px; background:#fff; border:1.5px solid #BFDBFE; border-radius:var(--r-md); font-size:12.5px; line-height:1.55; }
+.pc-box span, .pc-sum{ display:block; }
+.pc-sum{ color:var(--text-dark); margin-bottom:2px; }
+.pc-line{ color:var(--text-dark); }
+.pc-muted{ color:var(--muted); font-size:11.5px; }
+.pc-muted a{ color:#1D4ED8; }
+.pc-list{ list-style:none; margin:6px 0 0; padding:0; }
+.pc-list li{ display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-top:1px solid #F1F5F9; }
+.pc-list li small{ display:block; color:var(--muted); font-size:11px; }
 .qk-ai{ margin:-2px 0 10px; padding:10px 12px; border-radius:var(--r-md); background:#fff; border:1.5px solid #FFD8CC; font-size:12.5px; line-height:1.5; }
 .qk-ai span{ display:block; }
 .qk-ai-st{ font-weight:800; color:var(--text-dark); }
@@ -1145,7 +1157,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1330';
+var APP_VERSION = '20261025-1400';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4167,6 +4179,7 @@ if(willOpen){ adminOpenCats[memKey] = true; } else { delete adminOpenCats[memKey
 // ---------- ⚡ 快速上架（別錯過）：出國時一張照片＋名稱＋價格就上架，客人按 +1 直接喊單 ----------
 var adminQuickOpen = false;
 var adminQuickShare = true;
+var adminQuickHidden = false;
 var adminQuickFile = null;
 function adminQuickZoneId(){
 if(adminLiveZoneFilter && adminLiveZoneFilter !== '__none__' && zoneById(adminLiveZoneFilter)) return adminLiveZoneFilter;
@@ -4464,7 +4477,9 @@ return '<div class="qk-box">'
 + '<input type="text" class="gate-input" id="qkSub" placeholder="簡短說明（可不填，例如：青森限定）">'
 + adminJpyBoxHTML('quick', null)
 + '<input type="number" class="gate-input" id="qkPrice" placeholder="台幣價格（或用上面日幣換算）">'
++ priceCheckHTML('quick')
 + '<select class="gate-input" id="qkZone">' + LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(z.id===zid?' selected':'')+'>上架到：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+(z.is_open?'':'（未開放）')+'</option>'; }).join('') + '</select>'
++ '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="qkHidden"'+(adminQuickHidden?' checked':'')+' style="width:18px;height:18px;"> 🙈 先隱藏（還沒比價，價格可以先不填）</label>'
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="qkShare"'+(adminQuickShare?' checked':'')+' style="width:18px;height:18px;"> 上架後直接開分享（選群組傳出去）</label>'
 + '<button type="button" class="btn btn--primary btn--full" id="qkSubmit">⚡ 上架到別錯過</button>'
 + '</div></div>';
@@ -4494,6 +4509,7 @@ if(k === 'crop' && adminQuickCrop){ adminQuickFile = adminQuickCrop; qkShowPhoto
 if(k === 'retry' && adminQuickOrig){ qkAiScan(adminQuickOrig); }
 });
 document.getElementById('qkShare').addEventListener('change', function(){ adminQuickShare = this.checked; });
+document.getElementById('qkHidden').addEventListener('change', function(){ adminQuickHidden = this.checked; });
 ['qkName','qkSub'].forEach(function(id){ var el = document.getElementById(id); if(el) el.addEventListener('input', function(){ this.removeAttribute('data-ai'); }); });
 document.getElementById('qkSubmit').addEventListener('click', handleAdminQuickCreate);
 }
@@ -4571,7 +4587,10 @@ bx.style.display = 'block';
 bx.innerHTML = '<span class="qk-ai-st">🤖 自動辨識中…（價格、名稱、裁掉價格牌，約 5～10 秒）</span>';
 try{
 var small = await compressImage(file); // 送給 AI 的用壓縮過的（長邊 1200），比較快
-var r = await callMemberApi('admin-ai-scan', { imageData: small });
+var r = await Promise.race([
+callMemberApi('admin-ai-scan', { imageData: small }),
+new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 60 秒沒回應，請按再試一次或手動填')); }, 60000); })
+]);
 if(seq !== qkAiSeq) return;
 var filled = [];
 var nm = document.getElementById('qkName'), sb = document.getElementById('qkSub');
@@ -4609,27 +4628,69 @@ if(seq !== qkAiSeq) return;
 bx.innerHTML = '<span class="qk-ai-st" style="color:var(--ignis-deep);">🤖 自動辨識沒成功：'+escHtml(e.message)+'</span><span class="qk-ai-note">一樣可以手動填名稱和價格上架</span><span class="qk-ai-btns"><button type="button" data-qk="retry">🔄 再試一次</button></span>';
 }
 }
+// ---------- 🔎 台灣比價（Gemini＋Google 搜尋：蝦皮、momo、PChome、屈臣氏…） ----------
+function priceCheckHTML(key){
+return '<div class="pc-wrap" data-pc="'+escAttr(key)+'"><button type="button" class="pc-btn" data-pc="'+escAttr(key)+'">🔎 查台灣比價</button><div class="pc-box" style="display:none;"></div></div>';
+}
+function priceCheckInputs(key){
+if(key === 'quick') return { name: document.getElementById('qkName'), price: document.getElementById('qkPrice'), jpyBox: document.querySelector('.jpy-box[data-key="quick"]') };
+var id = key.slice(4);
+return { name: document.querySelector('.admin-name-input[data-product-id="'+id+'"]'), price: document.querySelector('.admin-price-input[data-product-id="'+id+'"]'), jpyBox: document.querySelector('.jpy-box[data-key="'+key+'"]') };
+}
+async function runPriceCheck(key, wrap){
+var box = wrap.querySelector('.pc-box'), btn = wrap.querySelector('.pc-btn');
+var f = priceCheckInputs(key);
+var name = f.name ? stripJp(f.name.value).trim() || f.name.value.trim() : '';
+if(!name){ alert('請先填商品名稱'); return; }
+var jpy = f.jpyBox ? Number(f.jpyBox.querySelector('.jpy-price').value) || 0 : 0;
+btn.disabled = true; btn.textContent = '🔎 比價中…（約 10～20 秒，請停在這個畫面）';
+box.style.display = 'block'; box.innerHTML = '<span class="pc-muted">搜尋台灣的蝦皮、momo、PChome、屈臣氏、康是美…</span>';
+try{
+var r = await Promise.race([callMemberApi('admin-price-check', { name: name, jpy: jpy }), new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 90 秒沒回應，請再試一次')); }, 90000); })]);
+var mine = f.price ? Number(f.price.value) || 0 : 0;
+var html = '';
+if(r.summary) html += '<b class="pc-sum">'+escHtml(r.summary)+'</b>';
+if(r.low || r.typical) html += '<span class="pc-line">台灣最低 '+(r.low ? '<b>NT$'+fmtNum(r.low)+'</b>' : '－')+'・常見 '+(r.typical ? '<b>NT$'+fmtNum(r.typical)+'</b>' : '－')+'</span>';
+if(mine && r.low){ var diff = mine - r.low; html += '<span class="pc-line" style="color:'+(diff > 0 ? '#B91C1C' : '#166534')+';font-weight:700;">你的價格 NT$'+fmtNum(mine)+'：'+(diff > 0 ? '比台灣最低貴 '+fmtNum(diff) : diff < 0 ? '比台灣最低便宜 '+fmtNum(-diff) : '跟台灣最低一樣')+'</span>'; }
+if(r.items && r.items.length){
+html += '<ul class="pc-list">' + r.items.slice().sort(function(a, b){ return a.price - b.price; }).map(function(x){ return '<li><span>'+escHtml(x.store)+(x.type ? '<small>'+escHtml(x.type)+(x.note ? '・'+escHtml(x.note) : '')+'</small>' : (x.note ? '<small>'+escHtml(x.note)+'</small>' : ''))+'</span><b>NT$'+fmtNum(x.price)+'</b></li>'; }).join('') + '</ul>';
+} else html += '<span class="pc-muted">台灣找不到同款的售價（可能是日本限定，或名稱要改得更精確再查）</span>';
+if(r.sources && r.sources.length) html += '<span class="pc-muted" style="margin-top:6px;">來源：'+r.sources.map(function(sx){ return '<a href="'+escAttr(sx.url)+'" target="_blank" rel="noopener">'+escHtml(sx.title || '連結')+'</a>'; }).join('、')+'</span>';
+html += '<span class="pc-muted" style="margin-top:4px;">⚠️ AI 搜尋的價格僅供參考，重要的請點來源確認</span>';
+box.innerHTML = html;
+}catch(e){
+box.innerHTML = '<span style="color:var(--ignis-deep);font-weight:700;">比價沒成功：'+escHtml(e.message)+'</span>';
+}
+btn.disabled = false; btn.textContent = '🔎 重新比價';
+}
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('.pc-btn') : null;
+if(!b || b.disabled) return;
+e.preventDefault(); e.stopPropagation();
+runPriceCheck(b.getAttribute('data-pc'), b.parentNode);
+}, true);
 async function handleAdminQuickCreate(){
 var name = document.getElementById('qkName').value.trim();
 var sub = document.getElementById('qkSub').value.trim();
 var price = parseInt(document.getElementById('qkPrice').value);
 var zoneId = document.getElementById('qkZone').value;
 if(!adminQuickFile){ alert('請先拍照或選一張照片'); return; }
-if(!name || !price){ alert('請填寫商品名稱與價格'); return; }
+var hideIt = !!(document.getElementById('qkHidden') || {}).checked;
+if(!name || (!price && !hideIt)){ alert(hideIt ? '請填寫商品名稱' : '請填寫商品名稱與價格（還沒比價可以勾「先隱藏」）'); return; }
 var btn = document.getElementById('qkSubmit');
 btn.disabled = true; btn.textContent = '上架中...';
 try{
 var compressed = await compressImage(adminQuickFile);
 var res = await callMemberApi('admin-create-product', Object.assign({
-name: name, sub: sub, cat: DONTMISS_CAT, catLabel: DONTMISS_LABEL, price: price,
-stockStatus: 'live_limited', qty: null, liveZoneId: zoneId, isLuxury: false
+name: name, sub: sub, cat: DONTMISS_CAT, catLabel: DONTMISS_LABEL, price: price || 0,
+stockStatus: 'live_limited', qty: null, liveZoneId: zoneId, isLuxury: false, isHidden: hideIt
 }, readJpyBox('quick', '')));
 await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: compressed });
 IMAGE_VERSIONS[res.productId] = Date.now();
 adminQuickFile = null; adminQuickOrig = null; adminQuickCrop = null; qkAiSeq++;
 adminQuickOpen = true;
-showToast('已上架到別錯過 ♡');
-var shareIt = adminQuickShare;
+showToast(hideIt ? '🙈 已建立（隱藏中），比價後再公開' : '已上架到別錯過 ♡');
+var shareIt = adminQuickShare && !hideIt;
 await loadAdminProducts();
 var nm = document.getElementById('qkName'); if(nm) nm.focus();
 if(shareIt){
@@ -4752,6 +4813,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+(Number(p.price) > 0 ? p.price : '')+'" placeholder="'+(p.is_hidden ? '台幣價格（隱藏中可以先不填）' : '台幣價格')+'" style="margin-bottom:8px;">'
 + adminJpyBoxHTML('row-'+p.id, p.cost || null)
++ priceCheckHTML('row-'+p.id)
 + adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + adminPrivatePanelHTML(p)
