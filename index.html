@@ -1168,7 +1168,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1430';
+var APP_VERSION = '20261025-1500';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4601,12 +4601,12 @@ var bx = document.getElementById('qkAi');
 if(!bx) return;
 var seq = ++qkAiSeq;
 bx.style.display = 'block';
-bx.innerHTML = '<span class="qk-ai-st">🤖 自動辨識中…（價格、名稱、裁掉價格牌，約 5～10 秒）</span>';
+bx.innerHTML = '<span class="qk-ai-st">🤖 自動辨識中…（價格、名稱、裁掉價格牌，約 5～20 秒，請停在這個畫面）</span>';
 try{
 var small = await compressImage(file); // 送給 AI 的用壓縮過的（長邊 1200），比較快
 var r = await Promise.race([
 callMemberApi('admin-ai-scan', { imageData: small }),
-new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 60 秒沒回應，請按再試一次或手動填')); }, 60000); })
+new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 2 分鐘沒回應，請按再試一次或手動填')); }, 120000); })
 ]);
 if(seq !== qkAiSeq) return;
 var filled = [];
