@@ -1170,7 +1170,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1545';
+var APP_VERSION = '20261025-1600';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6029,6 +6029,9 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫停喊單中</button>';
 } else if(p.isPrivate && !p.privateAccess){
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">私訊詢問</button>';
+} else if(p.cat === DONTMISS_CAT && ((p.options && p.options.length) || (p.options2 && p.options2.length))){
+// 別錯過但有角色／顏色可選：一樣是＋1 按鈕，按下去先跳出選款式（不然會喊到沒有款式的單）
+orderBtnHTML = '<button class="card-order-btn card-order-btn--plus1" data-order="' + p.id + '">＋1 選款式喊單</button>';
 } else if(p.cat === DONTMISS_CAT){
 orderBtnHTML = '<button class="card-order-btn card-order-btn--plus1" data-plus1="' + p.id + '">＋1 喊單</button>';
 } else {
@@ -6786,6 +6789,7 @@ async function quickPlusOne(productId, btn){
 var p = null;
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === productId){ p = PRODUCTS[i]; break; } }
 if(!p || plusBusy[productId]) return;
+if((p.options && p.options.length) || (p.options2 && p.options2.length)){ openOrderModal(p); return; }
 if(myOrderRestricted){ alert('您已失去下單資格，如有疑問請私訊官方LINE了解詳情'); return; }
 plusBusy[productId] = true;
 var btns = document.querySelectorAll('[data-plus1="'+productId+'"]');
