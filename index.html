@@ -255,6 +255,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pc-line{ color:var(--text-dark); }
 .pc-muted{ color:var(--muted); font-size:11.5px; }
 .pc-muted a{ color:#1D4ED8; }
+.pc-links{ display:flex; flex-wrap:wrap; gap:6px; }
+.pc-link{ display:inline-block; padding:7px 11px; border-radius:999px; border:1.5px solid #BFDBFE; background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:12.5px; text-decoration:none; }
 .pc-list{ list-style:none; margin:6px 0 0; padding:0; }
 .pc-list li{ display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-top:1px solid #F1F5F9; }
 .pc-list li small{ display:block; color:var(--muted); font-size:11px; }
@@ -1168,7 +1170,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1530';
+var APP_VERSION = '20261025-1545';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4716,31 +4718,42 @@ if(key === 'quick') return { name: document.getElementById('qkName'), price: doc
 var id = key.slice(4);
 return { name: document.querySelector('.admin-name-input[data-product-id="'+id+'"]'), price: document.querySelector('.admin-price-input[data-product-id="'+id+'"]'), jpyBox: document.querySelector('.jpy-box[data-key="'+key+'"]') };
 }
-async function runPriceCheck(key, wrap){
+// Google 免費額度不含「搜尋」（試過會直接 429），所以改成一鍵打開各平台的搜尋結果，自己看價格，不用額度、馬上有
+var PC_SITES = [
+['🛍️ 蝦皮', 'https://shopee.tw/search?keyword='],
+['🅼 momo', 'https://www.momoshop.com.tw/search/searchShop.jsp?keyword='],
+['🅿️ PChome', 'https://24h.pchome.com.tw/search/?q='],
+['🟣 Yahoo購物', 'https://tw.buy.yahoo.com/search/product?p='],
+['🔴 露天', 'https://www.ruten.com.tw/find/?q='],
+['🔍 Google 比價', 'https://www.google.com/search?tbm=shop&q=']
+];
+function pcKeyword(name){
+// 去掉括號、入數這類太細的字，搜尋比較容易找到
+return String(name || '').replace(/[（(][^）)]*[）)]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function runPriceCheck(key, wrap){
 var box = wrap.querySelector('.pc-box'), btn = wrap.querySelector('.pc-btn');
 var f = priceCheckInputs(key);
-var name = f.name ? stripJp(f.name.value).trim() || f.name.value.trim() : '';
+var name = f.name ? f.name.value.trim() : '';
 if(!name){ alert('請先填商品名稱'); return; }
-var jpy = f.jpyBox ? Number(f.jpyBox.querySelector('.jpy-price').value) || 0 : 0;
-btn.disabled = true; btn.textContent = '🔎 比價中…（約 10～20 秒，請停在這個畫面）';
-box.style.display = 'block'; box.innerHTML = '<span class="pc-muted">搜尋台灣的蝦皮、momo、PChome、屈臣氏、康是美…</span>';
-try{
-var r = await Promise.race([callMemberApi('admin-price-check', { name: name, jpy: jpy }), new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 90 秒沒回應，請再試一次')); }, 90000); })]);
+var kw = pcKeyword(name);
 var mine = f.price ? Number(f.price.value) || 0 : 0;
-var html = '';
-if(r.summary) html += '<b class="pc-sum">'+escHtml(r.summary)+'</b>';
-if(r.low || r.typical) html += '<span class="pc-line">台灣最低 '+(r.low ? '<b>NT$'+fmtNum(r.low)+'</b>' : '－')+'・常見 '+(r.typical ? '<b>NT$'+fmtNum(r.typical)+'</b>' : '－')+'</span>';
-if(mine && r.low){ var diff = mine - r.low; html += '<span class="pc-line" style="color:'+(diff > 0 ? '#B91C1C' : '#166534')+';font-weight:700;">你的價格 NT$'+fmtNum(mine)+'：'+(diff > 0 ? '比台灣最低貴 '+fmtNum(diff) : diff < 0 ? '比台灣最低便宜 '+fmtNum(-diff) : '跟台灣最低一樣')+'</span>'; }
-if(r.items && r.items.length){
-html += '<ul class="pc-list">' + r.items.slice().sort(function(a, b){ return a.price - b.price; }).map(function(x){ return '<li><span>'+escHtml(x.store)+(x.type ? '<small>'+escHtml(x.type)+(x.note ? '・'+escHtml(x.note) : '')+'</small>' : (x.note ? '<small>'+escHtml(x.note)+'</small>' : ''))+'</span><b>NT$'+fmtNum(x.price)+'</b></li>'; }).join('') + '</ul>';
-} else html += '<span class="pc-muted">台灣找不到同款的售價（可能是日本限定，或名稱要改得更精確再查）</span>';
-if(r.sources && r.sources.length) html += '<span class="pc-muted" style="margin-top:6px;">來源：'+r.sources.map(function(sx){ return '<a href="'+escAttr(sx.url)+'" target="_blank" rel="noopener">'+escHtml(sx.title || '連結')+'</a>'; }).join('、')+'</span>';
-html += '<span class="pc-muted" style="margin-top:4px;">⚠️ AI 搜尋的價格僅供參考，重要的請點來源確認</span>';
-box.innerHTML = html;
-}catch(e){
-box.innerHTML = '<span style="color:var(--ignis-deep);font-weight:700;">比價沒成功：'+escHtml(e.message)+'</span>';
-}
-btn.disabled = false; btn.textContent = '🔎 重新比價';
+box.style.display = 'block';
+box.innerHTML = '<span class="pc-line">搜尋：<input type="text" class="gate-input pc-kw" value="'+escAttr(kw)+'" style="margin:4px 0 0;padding:8px 10px;"></span>'
++ '<span class="pc-muted" style="margin:4px 0 6px;">關鍵字可以改短一點（例如只留品牌＋品名）再點下面的平台</span>'
++ '<div class="pc-links">' + PC_SITES.map(function(st, i){ return '<a href="#" class="pc-link" data-i="'+i+'">'+st[0]+'</a>'; }).join('') + '</div>'
++ (mine ? '<span class="pc-muted" style="margin-top:6px;">你目前的價格：<b>NT$'+fmtNum(mine)+'</b></span>' : '');
+box.onclick = function(e){
+var a = e.target.closest ? e.target.closest('.pc-link') : null;
+if(!a) return;
+e.preventDefault();
+var q = (box.querySelector('.pc-kw').value || kw).trim();
+var st = PC_SITES[Number(a.getAttribute('data-i'))];
+var url = st[1] + encodeURIComponent(q);
+try{ if(window.liff && liff.isInClient && liff.isInClient()){ liff.openWindow({ url: url, external: true }); return; } }catch(err){}
+window.open(url, '_blank', 'noopener');
+};
+btn.textContent = '🔎 台灣比價（點平台看價格）';
 }
 document.addEventListener('click', function(e){
 var b = e.target && e.target.closest ? e.target.closest('.pc-btn') : null;
