@@ -979,6 +979,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><span class="count-pill" id="liveCount" style="margin-left:auto;"></span></div>
 <div id="liveZoneHero"></div>
 <div id="liveStatusNote"></div>
+<div class="search-bar" id="liveSearchBar">
+<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+<input type="search" id="liveSearch" placeholder="搜尋商品，例如：寶可夢 髮夾">
+</div>
 <div class="category-tabs" id="liveCategoryTabs"></div>
 <div id="liveCatShare"></div>
 <div class="grid" id="liveGrid"></div>
@@ -1189,7 +1193,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-2230';
+var APP_VERSION = '20261025-2335';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6535,14 +6539,21 @@ grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 }
 function normalizeSearch(s){
-return String(s).toLowerCase().replace(/[\s\-·・]/g, '');
+return String(s).toLowerCase().replace(/[\s\-·・（）()｜|／/,，、]/g, '');
 }
+// 搜尋：可以打好幾個字用空白分開（全部都要有），名稱、說明、分類、款式都會找
+function productMatchesQuery(p, query){
+var terms = String(query || '').trim().split(/\s+/).map(normalizeSearch).filter(Boolean);
+if(!terms.length) return true;
+var hay = normalizeSearch([p.name, p.sub, p.catLabel, (p.options || []).join(' '), (p.options2 || []).join(' ')].join(' '));
+return terms.every(function(t){ return hay.indexOf(t) !== -1; });
+}
+var liveQuery = '';
 function getFilteredShop(){
 var q = normalizeSearch(currentQuery);
 return regularProducts().filter(function(p){
 var catOk = currentCategory==='all' || p.cat===currentCategory;
-var haystack = normalizeSearch(p.name + p.sub);
-return catOk && haystack.indexOf(q) !== -1;
+return catOk && productMatchesQuery(p, currentQuery);
 });
 }
 function renderShop(){
@@ -6606,7 +6617,7 @@ return '<button type="button" class="live-entry '+zoneColorClass(z)+'" data-zone
 }).join('');
 }
 function openLiveZone(zoneId){
-if(currentLiveZoneId !== zoneId){ liveCategory = 'all'; }
+if(currentLiveZoneId !== zoneId){ liveCategory = 'all'; liveQuery = ''; var lsi = document.getElementById('liveSearch'); if(lsi) lsi.value = ''; }
 currentLiveZoneId = zoneId;
 showView('live');
 }
@@ -6631,6 +6642,7 @@ var shareBtn = document.getElementById('zoneShareBtn');
 if(shareBtn && zone){ shareBtn.addEventListener('click', function(){ shareZoneLink(zone); }); }
 }
 var all = (zone && isOpen) ? zoneProducts(zone.id) : [];
+var lsb = document.getElementById('liveSearchBar'); if(lsb) lsb.style.display = (zone && isOpen) ? '' : 'none';
 var cats = {}, catKeys = [];
 for(var i=0;i<all.length;i++){
 var p = all[i];
@@ -6656,10 +6668,10 @@ tabsWrap.style.display = 'none';
 }
 }
 // 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
-var list = sortNewFirst(sortProductsByPrice(all.filter(function(p){ return liveCategory === 'all' || p.cat === liveCategory; })));
+var list = sortNewFirst(sortProductsByPrice(all.filter(function(p){ return (liveCategory === 'all' || p.cat === liveCategory) && productMatchesQuery(p, liveQuery); })));
 // 「別錯過」是出國時邊逛邊上架的，最新上架的排最前面
 if(liveCategory === DONTMISS_CAT){
-list = all.filter(function(p){ return p.cat === DONTMISS_CAT; }).sort(function(a, b){
+list = all.filter(function(p){ return p.cat === DONTMISS_CAT && productMatchesQuery(p, liveQuery); }).sort(function(a, b){
 var ea = a.stock === 'live_limited' ? 0 : 1, eb = b.stock === 'live_limited' ? 0 : 1;
 if(ea !== eb) return ea - eb;
 return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
@@ -6689,7 +6701,7 @@ var emptyEl = document.getElementById('liveEmpty');
 if(emptyEl){
 var msg = '';
 if(!zone || !isOpen) msg = '這個專區目前沒有開放<br>下次出國連線時會在首頁開放，敬請期待 ✈︎';
-else if(list.length === 0) msg = '商品陸續上架中，敬請期待 ✈︎';
+else if(list.length === 0) msg = String(liveQuery).trim() ? '找不到「'+escHtml(String(liveQuery).trim())+'」相關的商品<br>換個關鍵字試試，或按上面的「許願」告訴我們 ♡' : '商品陸續上架中，敬請期待 ✈︎';
 emptyEl.innerHTML = msg ? '<p class="live-empty">'+msg+'</p>' : '';
 }
 }
@@ -7951,6 +7963,8 @@ backBtns[bk].addEventListener('click', (function(b){ return function(){ showView
 }
 var searchInput = document.getElementById('shopSearch');
 if(searchInput){ searchInput.addEventListener('input', function(e){ currentQuery = e.target.value; renderShop(); }); }
+var liveSearchInput = document.getElementById('liveSearch');
+if(liveSearchInput){ liveSearchInput.addEventListener('input', function(e){ liveQuery = e.target.value; renderLive(); }); }
 document.getElementById('nicknameSubmit').addEventListener('click', submitNickname);
 function openCommunityLink(){
 var url = 'https://line.me/ti/g2/6eKephXLnV_w7uW_rM89DwXmkefupLX2B0WZZA?utm_source=invitation&utm_medium=link_copy&utm_campaign=default';
