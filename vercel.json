@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/vote/:v",
+      "destination": "/api/p?vote=1&v=:v"
+    },
+    {
+      "source": "/vote",
+      "destination": "/api/p?vote=1"
+    },
+    {
       "source": "/shop",
       "destination": "/api/shop"
     },
