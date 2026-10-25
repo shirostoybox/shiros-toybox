@@ -272,6 +272,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .qk-var-row .qk-var-jpy{ flex:0 0 80px; }
 .qk-var-del{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid #E5E7EB; background:#fff; color:#9CA3AF; font-size:14px; }
 .qk-reset{ display:block; width:100%; margin-top:8px; padding:10px 12px; border:1.5px dashed #D1D5DB; border-radius:var(--r-md); background:#fff; color:var(--muted); font-size:13px; font-weight:700; font-family:var(--font-body); }
+.qk-dup{ margin:-2px 0 10px; padding:10px 12px; border-radius:var(--r-md); background:#FFFBEB; border:1.5px solid #FCD34D; font-size:12.5px; line-height:1.5; }
+.qk-dup b{ display:block; color:#92400E; margin-bottom:4px; }
+.qk-dup-row{ display:block; padding:4px 0; border-top:1px solid #FDE68A; color:var(--text-dark); font-weight:700; }
+.qk-dup-row small{ display:block; font-weight:500; color:var(--muted); font-size:11.5px; }
 .qk-ai{ margin:-2px 0 10px; padding:10px 12px; border-radius:var(--r-md); background:#fff; border:1.5px solid #FFD8CC; font-size:12.5px; line-height:1.5; }
 .qk-ai span{ display:block; }
 .qk-ai-st{ font-weight:800; color:var(--text-dark); }
@@ -1171,7 +1175,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1615';
+var APP_VERSION = '20261025-1630';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4488,6 +4492,7 @@ return '<div class="qk-box">'
 + '<label class="qk-photo" id="qkPhotoLabel">📷 拍照或選一張照片<input type="file" accept="image/*" id="qkFile" style="display:none;"></label>'
 + '<div id="qkAi" class="qk-ai" style="display:none;"></div>'
 + '<input type="text" class="gate-input" id="qkName" placeholder="商品名稱（例如：ちいかわ 毛巾）">'
++ '<div id="qkDup" style="display:none;"></div>'
 + '<input type="text" class="gate-input" id="qkSub" placeholder="簡短說明（可不填，例如：青森限定）">'
 + adminJpyBoxHTML('quick', null)
 + '<input type="number" class="gate-input" id="qkPrice" placeholder="台幣價格（或用上面日幣換算）">'
@@ -4531,6 +4536,8 @@ var row = d.closest('.qk-var-row'); if(row) row.style.display = 'none';
 document.getElementById('qkShare').addEventListener('change', function(){ adminQuickShare = this.checked; });
 document.getElementById('qkHidden').addEventListener('change', function(){ adminQuickHidden = this.checked; });
 ['qkName','qkSub'].forEach(function(id){ var el = document.getElementById(id); if(el) el.addEventListener('input', function(){ this.removeAttribute('data-ai'); }); });
+var qkDupTimer = null;
+document.getElementById('qkName').addEventListener('input', function(){ clearTimeout(qkDupTimer); qkDupTimer = setTimeout(qkCheckDup, 400); });
 document.getElementById('qkSubmit').addEventListener('click', handleAdminQuickCreate);
 document.getElementById('qkReset').addEventListener('click', function(){ qkReset(true); });
 }
@@ -4666,6 +4673,7 @@ if(vc) qkVariants.push({ name: vs[vi].name, blob: vc.blob, url: URL.createObject
 }
 if(qkVariants.length) filled.push(qkVariants.length+' '+(r.isGacha ? '個角色' : '款'+(r.optionKind || '款式')));
 }
+qkCheckDup();
 var vPrices = qkVariants.map(function(v){ return v.priceJpy; }).filter(function(x){ return x > 0; });
 var vDiff = vPrices.length >= 2 && vPrices.some(function(x){ return x !== vPrices[0]; });
 bx.innerHTML = '<span class="qk-ai-st">✅ 已自動填好：'+escHtml(filled.join('、') || '（沒讀到價格，請手動填）')+'</span>'
@@ -4764,6 +4772,47 @@ if(!b || b.disabled) return;
 e.preventDefault(); e.stopPropagation();
 runPriceCheck(b.getAttribute('data-pc'), b.parentNode);
 }, true);
+// ---------- 🔁 已經上架過了嗎？用名稱比對現有商品（含隱藏中、已結束的） ----------
+function dupNorm(t){ return stripJp(String(t || '')).toLowerCase().replace(/[\s・·,，、.。:：!！?？'"“”「」『』【】\[\]()（）\-_/／~～＋+&＆]/g, '').replace(/[0-9０-９]+(入|枚|個|粒|包|g|ml|mL|入り)/gi, function(m){ return m; }); }
+function dupBigrams(t){ var out = {}; if(t.length === 1){ out[t] = 1; return out; } for(var i=0;i<t.length-1;i++) out[t.substr(i,2)] = 1; return out; }
+function dupScore(a, b){
+a = dupNorm(a); b = dupNorm(b);
+if(!a || !b) return 0;
+if(a === b) return 1;
+if(a.length >= 4 && b.length >= 4 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1)) return 0.9;
+var A = dupBigrams(a), B = dupBigrams(b), inter = 0, na = 0, nb = 0;
+for(var k in A){ na++; if(B[k]) inter++; }
+for(var k2 in B) nb++;
+return na + nb ? 2 * inter / (na + nb) : 0;
+}
+function findSimilarProducts(name, jpy){
+if(!name || !adminProductsCache || !adminProductsCache.length) return [];
+return adminProductsCache.map(function(p){
+var sc = dupScore(name, p.name);
+var pj = p.cost && Number(p.cost.jpyPrice) || 0;
+if(jpy && pj && Number(jpy) === pj) sc += 0.15; // 日幣一樣，更可能是同一件
+return { p: p, score: sc };
+}).filter(function(x){ return x.score >= 0.55; }).sort(function(a, b){ return b.score - a.score; }).slice(0, 3);
+}
+function dupWarnHTML(list){
+if(!list.length) return '';
+return '<div class="qk-dup"><b>🔁 可能已經上架過了</b>'
++ list.map(function(x){
+var p = x.p, z = p.live_zone_id && zoneById(p.live_zone_id);
+var st = p.is_hidden ? '🙈 隱藏中' : (p.stock_status === 'live_ended' ? '已結束' : p.stock_status === 'sold_out' ? '缺貨' : '上架中');
+return '<span class="qk-dup-row">'+(x.score >= 0.85 ? '⚠️ ' : '')+escHtml(p.name)+'<small>'+st+(Number(p.price) > 0 ? '・NT$'+fmtNum(p.price) : '')+(z ? '・'+escHtml(z.name || '')+(z.note ? '｜'+escHtml(z.note) : '') : '')+'</small></span>';
+}).join('')
++ '<span class="qk-ai-note">不是同一件就繼續上架；是同一件可以按下面「🗑️ 清空換下一張」</span></div>';
+}
+function qkCheckDup(){
+var nm = document.getElementById('qkName'), box = document.getElementById('qkDup');
+if(!nm || !box) return [];
+var jb = document.querySelector('.jpy-box[data-key="quick"]');
+var list = findSimilarProducts(nm.value.trim(), jb ? Number(jb.querySelector('.jpy-price').value) || 0 : 0);
+box.innerHTML = dupWarnHTML(list);
+box.style.display = list.length ? 'block' : 'none';
+return list;
+}
 // 清空快速上架：照片、名稱、說明、日幣、台幣、辨識結果、比價都清掉（先隱藏／分享的勾選保留）
 function qkReset(scrollUp){
 qkAiSeq++;
@@ -4774,6 +4823,7 @@ qkShowPhoto(null);
 var jb = document.querySelector('.jpy-box[data-key="quick"]');
 if(jb){ jb.querySelector('.jpy-price').value = ''; jb.removeAttribute('data-touched'); recalcJpyBox(jb); }
 var ai = document.getElementById('qkAi'); if(ai){ ai.style.display = 'none'; ai.innerHTML = ''; }
+var dp = document.getElementById('qkDup'); if(dp){ dp.style.display = 'none'; dp.innerHTML = ''; }
 var pw = document.querySelector('.pc-wrap[data-pc="quick"]');
 if(pw){ var pb = pw.querySelector('.pc-box'); if(pb){ pb.style.display = 'none'; pb.innerHTML = ''; } var pbtn = pw.querySelector('.pc-btn'); if(pbtn) pbtn.textContent = '🔎 查台灣比價'; }
 if(scrollUp){ var lab = document.getElementById('qkPhotoLabel'); if(lab && lab.scrollIntoView) lab.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
@@ -4786,6 +4836,8 @@ var zoneId = document.getElementById('qkZone').value;
 if(!adminQuickFile){ alert('請先拍照或選一張照片'); return; }
 var hideIt = !!(document.getElementById('qkHidden') || {}).checked;
 if(!name || (!price && !hideIt)){ alert(hideIt ? '請填寫商品名稱' : '請填寫商品名稱與價格（還沒比價可以勾「先隱藏」）'); return; }
+var strong = findSimilarProducts(name, 0).filter(function(x){ return x.score >= 0.85; });
+if(strong.length && !window.confirm('這件好像已經上架過了：\n「'+strong[0].p.name+'」\n\n確定還要再上架一次嗎？')) return;
 var btn = document.getElementById('qkSubmit');
 btn.disabled = true; btn.textContent = '上架中...';
 try{
