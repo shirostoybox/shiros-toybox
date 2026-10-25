@@ -1287,7 +1287,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-0240';
+var APP_VERSION = '20261026-0250';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4502,10 +4502,13 @@ return '<div class="imp-row" data-i="'+i+'">'
 var importPhotoErrors = [];
 async function importPhotoWithRetry(url, upPayload){
 var last = null;
-for(var t=0; t<3; t++){
+// 同一張圖固定抓不到時（通常是官網原圖太大，手機壓縮不了），改抓官網的小一號尺寸
+var tries = [url, url, url];
+if(/\/bc\/img\/model\/xl\//.test(url)){ tries = [url, url.replace('/model/xl/', '/model/b/'), url.replace('/model/xl/', '/model/m/'), url]; }
+for(var t=0; t<tries.length; t++){
 try{
-if(t) await new Promise(function(r){ setTimeout(r, 1200 * t); });
-var small = await compressImage(dataUrlToBlob(await importImageData(url)));
+if(t) await new Promise(function(r){ setTimeout(r, 900 * t); });
+var small = await compressImage(dataUrlToBlob(await importImageData(tries[t])));
 await callMemberApi('admin-upload-product-image', Object.assign({ imageData: small }, upPayload));
 return true;
 }catch(e){ last = e; }
@@ -4545,7 +4548,7 @@ okMap[x.adds[a].opt] = x.adds[a].slot; nOk++;
 }catch(err2){ photoFail++; }
 }
 if(nOk) await callMemberApi('admin-import-images', { productId: x.product.id, images: [], optionPhotos: JSON.stringify(okMap) });
-if(st){ st.textContent = '✓ 補了 '+nOk+' 張'+(nOk < x.adds.length ? '・'+(x.adds.length-nOk)+' 張抓不到' : ''); st.style.color = nOk < x.adds.length ? 'var(--ignis-deep)' : '#166534'; }
+if(st){ st.textContent = '✓ 補了 '+nOk+' 張'+(nOk < x.adds.length ? '・'+(x.adds.length-nOk)+' 張抓不到'+(importPhotoErrors.length ? '（原因：'+importPhotoErrors[importPhotoErrors.length-1]+'）' : '') : ''); st.style.color = nOk < x.adds.length ? 'var(--ignis-deep)' : '#166534'; }
 okCount++;
 }catch(e2){ failCount++; if(st){ st.textContent = '✕ 失敗：'+e2.message; st.style.color = 'var(--ignis-deep)'; } }
 continue;
