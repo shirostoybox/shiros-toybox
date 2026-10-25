@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /shop
+Allow: /item/
+Allow: /info
+Sitemap: https://shiros-toybox.vercel.app/sitemap.xml
