@@ -1,6 +1,22 @@
 {
   "rewrites": [
     {
+      "source": "/shop",
+      "destination": "/api/shop"
+    },
+    {
+      "source": "/item/:id",
+      "destination": "/api/shop?id=:id"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/shop?sitemap=1"
+    },
+    {
+      "source": "/info",
+      "destination": "/info.html"
+    },
+    {
       "source": "/group",
       "destination": "/group.html"
     },
