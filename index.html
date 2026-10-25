@@ -1187,7 +1187,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1900';
+var APP_VERSION = '20261025-1915';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4528,7 +4528,7 @@ if(!LIVE_ZONES.length) return '';
 var zid = adminQuickZoneId();
 return '<div class="qk-box">'
 + '<button type="button" id="qkToggle" style="width:100%;display:flex;justify-content:space-between;align-items:center;border:none;background:none;padding:0;font-family:var(--font-body);">'
-+ '<span style="text-align:left;"><span style="display:block;font-size:15px;font-weight:800;color:var(--text-dark);">⚡ 快速上架・🔥別錯過</span><span style="display:block;margin-top:2px;font-size:11.5px;color:var(--muted);">一張照片＋名稱＋價格就上架，客人按 +1 直接喊單</span></span>'
++ '<span style="text-align:left;"><span style="display:block;font-size:15px;font-weight:800;color:var(--text-dark);">⚡ 快速上架・🔥別錯過</span><span style="display:block;margin-top:2px;font-size:11.5px;color:var(--muted);">一張照片＋名稱＋價格就上架</span></span>'
 + '<span style="font-size:13px;color:#D9381E;font-weight:700;">'+(adminQuickOpen ? '收起' : '展開')+'</span></button>'
 + '<div id="qkBody" style="display:'+(adminQuickOpen ? 'block' : 'none')+';margin-top:10px;">'
 + '<label class="qk-photo" id="qkPhotoLabel">📷 拍照或選一張照片<input type="file" accept="image/*" id="qkFile" style="display:none;"></label>'
@@ -6227,11 +6227,6 @@ orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">已
 orderBtnHTML = '<button class="card-order-btn" disabled style="opacity:.45;">暫停喊單中</button>';
 } else if(p.isPrivate && !p.privateAccess){
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">私訊詢問</button>';
-} else if(p.cat === DONTMISS_CAT && ((p.options && p.options.length) || (p.options2 && p.options2.length))){
-// 別錯過但有角色／顏色可選：一樣是＋1 按鈕，按下去先跳出選款式（不然會喊到沒有款式的單）
-orderBtnHTML = '<button class="card-order-btn card-order-btn--plus1" data-order="' + p.id + '">＋1 選款式喊單</button>';
-} else if(p.cat === DONTMISS_CAT){
-orderBtnHTML = '<button class="card-order-btn card-order-btn--plus1" data-plus1="' + p.id + '">＋1 喊單</button>';
 } else {
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
