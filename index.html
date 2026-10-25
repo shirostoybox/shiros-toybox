@@ -1287,7 +1287,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-0230';
+var APP_VERSION = '20261026-0240';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4498,6 +4498,21 @@ return '<div class="imp-row" data-i="'+i+'">'
 + (bad ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">'+(adminImportItems.every(function(x){ return x.photoOnly; }) ? '🖼️ 開始補照片（'+adminImportItems.length+' 件）' : '📥 全部上架（'+adminImportItems.length+' 件）')+'</button>');
 }
 // 匯入照片：網址就請系統去抓；清單裡直接夾帶的照片（data:image/…，例如從截圖裁下來的）就直接用
+// 匯入照片：抓圖＋壓縮＋上傳，失敗自動重試（官網圖片伺服器偶爾會擋太快的連續下載）
+var importPhotoErrors = [];
+async function importPhotoWithRetry(url, upPayload){
+var last = null;
+for(var t=0; t<3; t++){
+try{
+if(t) await new Promise(function(r){ setTimeout(r, 1200 * t); });
+var small = await compressImage(dataUrlToBlob(await importImageData(url)));
+await callMemberApi('admin-upload-product-image', Object.assign({ imageData: small }, upPayload));
+return true;
+}catch(e){ last = e; }
+}
+importPhotoErrors.push((last && last.message) || '未知錯誤');
+throw last || new Error('照片匯入失敗');
+}
 async function importImageData(url){
 if(/^data:image\//.test(String(url||''))) return url;
 var fr = await callMemberApi('admin-fetch-image', { url: url });
@@ -4525,8 +4540,7 @@ var okMap = parseOptionPhotos(x.product.option_photos), nOk = 0;
 for(var a=0;a<x.adds.length;a++){
 if(st) st.textContent = '📷 照片 '+(a+1)+' / '+x.adds.length+'（抓取＋壓縮）…';
 try{
-var sm2 = await compressImage(dataUrlToBlob(await importImageData(x.adds[a].url)));
-await callMemberApi('admin-upload-product-image', { productId: x.product.id, imageData: sm2, slot: x.adds[a].slot });
+await importPhotoWithRetry(x.adds[a].url, { productId: x.product.id, slot: x.adds[a].slot });
 okMap[x.adds[a].opt] = x.adds[a].slot; nOk++;
 }catch(err2){ photoFail++; }
 }
@@ -4569,12 +4583,13 @@ var bad = [];
 for(var k=0;k<images.length;k++){
 if(st) st.textContent = '📷 照片 '+(k+1)+' / '+images.length+'（抓取＋壓縮）…';
 try{
-var small = await compressImage(dataUrlToBlob(await importImageData(images[k].url)));
-var up = { productId: res.productId, imageData: small };
+var up = { productId: res.productId };
 if(images[k].slot > 1) up.slot = images[k].slot;
-await callMemberApi('admin-upload-product-image', up);
+await importPhotoWithRetry(images[k].url, up);
 }catch(err){ bad.push(images[k].slot); }
+await new Promise(function(r){ setTimeout(r, 250); }); // 每張之間稍微停一下，比較不會被官網擋
 }
+var optPhotosAll = Object.assign({}, optPhotos);
 Object.keys(optPhotos).forEach(function(o){ if(bad.indexOf(optPhotos[o]) !== -1) delete optPhotos[o]; });
 if(Object.keys(optPhotos).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(optPhotos) });
 photoFail += bad.length;
@@ -4587,7 +4602,8 @@ await callMemberApi('admin-set-buy-store', { productId: res.productId, store: x.
 }catch(eBs){}
 }
 var doneTxt = (x.general && !x.base) ? '✓ 已建立（隱藏中，請補台幣價格）' : (hidden ? '✓ 已建立（隱藏中）' : '✓ 已上架');
-if(st){ st.textContent = bad.length ? doneTxt+'・'+bad.length+' 張照片抓不到，請手動補' : doneTxt; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
+var badNames = bad.map(function(sl){ if(sl === 1) return '封面'; var on = ''; Object.keys(optPhotosAll || {}).forEach(function(o){ if(optPhotosAll[o] === sl) on = o; }); return on || ('第 '+sl+' 張'); });
+if(st){ st.textContent = bad.length ? doneTxt+'・'+bad.length+' 張照片抓不到（'+badNames.join('、')+'）'+(importPhotoErrors.length ? '｜原因：'+importPhotoErrors[importPhotoErrors.length-1] : '')+'，請手動補' : doneTxt; st.style.color = bad.length ? 'var(--ignis-deep)' : '#166534'; }
 okCount++;
 }catch(e){
 failCount++;
