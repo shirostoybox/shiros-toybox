@@ -271,6 +271,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .qk-var-row .gate-input{ margin:0; flex:1; min-width:0; padding:8px 10px; }
 .qk-var-row .qk-var-jpy{ flex:0 0 80px; }
 .qk-var-del{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid #E5E7EB; background:#fff; color:#9CA3AF; font-size:14px; }
+.qk-reset{ display:block; width:100%; margin-top:8px; padding:10px 12px; border:1.5px dashed #D1D5DB; border-radius:var(--r-md); background:#fff; color:var(--muted); font-size:13px; font-weight:700; font-family:var(--font-body); }
 .qk-ai{ margin:-2px 0 10px; padding:10px 12px; border-radius:var(--r-md); background:#fff; border:1.5px solid #FFD8CC; font-size:12.5px; line-height:1.5; }
 .qk-ai span{ display:block; }
 .qk-ai-st{ font-weight:800; color:var(--text-dark); }
@@ -1170,7 +1171,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1600';
+var APP_VERSION = '20261025-1615';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4495,6 +4496,7 @@ return '<div class="qk-box">'
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="qkHidden"'+(adminQuickHidden?' checked':'')+' style="width:18px;height:18px;"> 🙈 先隱藏（還沒比價，價格可以先不填）</label>'
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 10px;"><input type="checkbox" id="qkShare"'+(adminQuickShare?' checked':'')+' style="width:18px;height:18px;"> 上架後直接開分享（選群組傳出去）</label>'
 + '<button type="button" class="btn btn--primary btn--full" id="qkSubmit">⚡ 上架到別錯過</button>'
++ '<button type="button" class="qk-reset" id="qkReset">🗑️ 不上架這件，清空換下一張</button>'
 + '</div></div>';
 }
 function bindAdminQuickForm(container){
@@ -4530,6 +4532,7 @@ document.getElementById('qkShare').addEventListener('change', function(){ adminQ
 document.getElementById('qkHidden').addEventListener('change', function(){ adminQuickHidden = this.checked; });
 ['qkName','qkSub'].forEach(function(id){ var el = document.getElementById(id); if(el) el.addEventListener('input', function(){ this.removeAttribute('data-ai'); }); });
 document.getElementById('qkSubmit').addEventListener('click', handleAdminQuickCreate);
+document.getElementById('qkReset').addEventListener('click', function(){ qkReset(true); });
 }
 // ---------- 🤖 快速上架自動辨識（Gemini 免費額度，金鑰放在 Supabase，小幫手看不到） ----------
 // 照片上傳後：讀價格牌的税込日幣 → 帶入日幣換算（自動算台幣）、填名稱和推薦文字、把價格牌裁掉（裁不掉的打馬賽克）
@@ -4761,6 +4764,20 @@ if(!b || b.disabled) return;
 e.preventDefault(); e.stopPropagation();
 runPriceCheck(b.getAttribute('data-pc'), b.parentNode);
 }, true);
+// 清空快速上架：照片、名稱、說明、日幣、台幣、辨識結果、比價都清掉（先隱藏／分享的勾選保留）
+function qkReset(scrollUp){
+qkAiSeq++;
+adminQuickFile = null; adminQuickOrig = null; adminQuickCrop = null; qkVariants = []; qkGacha = null;
+var f = document.getElementById('qkFile'); if(f) f.value = '';
+qkShowPhoto(null);
+['qkName','qkSub','qkPrice'].forEach(function(id){ var el = document.getElementById(id); if(el){ el.value = ''; el.removeAttribute('data-ai'); } });
+var jb = document.querySelector('.jpy-box[data-key="quick"]');
+if(jb){ jb.querySelector('.jpy-price').value = ''; jb.removeAttribute('data-touched'); recalcJpyBox(jb); }
+var ai = document.getElementById('qkAi'); if(ai){ ai.style.display = 'none'; ai.innerHTML = ''; }
+var pw = document.querySelector('.pc-wrap[data-pc="quick"]');
+if(pw){ var pb = pw.querySelector('.pc-box'); if(pb){ pb.style.display = 'none'; pb.innerHTML = ''; } var pbtn = pw.querySelector('.pc-btn'); if(pbtn) pbtn.textContent = '🔎 查台灣比價'; }
+if(scrollUp){ var lab = document.getElementById('qkPhotoLabel'); if(lab && lab.scrollIntoView) lab.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
 async function handleAdminQuickCreate(){
 var name = document.getElementById('qkName').value.trim();
 var sub = document.getElementById('qkSub').value.trim();
