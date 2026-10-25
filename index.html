@@ -270,6 +270,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .qk-var-row img{ width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid #eee; flex:none; background:#fff; }
 .qk-var-row .gate-input{ margin:0; flex:1; min-width:0; padding:8px 10px; }
 .qk-var-row.has-price{ align-items:flex-start; }
+.qk-var-on{ width:20px; height:20px; flex:none; margin-top:16px; }
+.qk-var-row.is-off{ opacity:.4; }
 .qk-var-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
 .qk-var-main .gate-input{ width:100%; }
 .qk-var-prices{ display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--muted); }
@@ -1187,7 +1189,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1915';
+var APP_VERSION = '20261025-1945';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4571,10 +4573,9 @@ if(k === 'crop' && adminQuickCrop){ adminQuickFile = adminQuickCrop; qkShowPhoto
 if(k === 'retry' && adminQuickOrig){ qkAiScan(adminQuickOrig); }
 if(k === 'peek' && adminQuickOrig){ qkPeek(adminQuickOrig); }
 });
-document.getElementById('qkAi').addEventListener('click', function(e){
-var d = e.target.closest ? e.target.closest('[data-qkv-del]') : null;
-if(!d) return;
-var row = d.closest('.qk-var-row'); if(row) row.style.display = 'none';
+document.getElementById('qkAi').addEventListener('change', function(e){
+if(!e.target.classList || !e.target.classList.contains('qk-var-on')) return;
+var row = e.target.closest('.qk-var-row'); if(row) row.classList.toggle('is-off', !e.target.checked);
 qkVarRecalc();
 });
 document.getElementById('qkShare').addEventListener('change', function(){ adminQuickShare = this.checked; });
@@ -4666,7 +4667,7 @@ var seq = ++qkAiSeq;
 bx.style.display = 'block';
 bx.innerHTML = '<span class="qk-ai-st">🤖 自動辨識中…（價格、名稱、裁掉價格牌，約 5～20 秒，請停在這個畫面）</span>';
 try{
-var small = await compressImage(file); // 送給 AI 的用壓縮過的（長邊 1200），比較快
+var small = await compressImage(file, 1600); // 送給 AI：長邊 1600，價格牌的小字才讀得清楚
 var r = await Promise.race([
 callMemberApi('admin-ai-scan', { imageData: small }),
 new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 2 分鐘沒回應，請按再試一次或手動填')); }, 120000); })
@@ -4675,6 +4676,15 @@ if(seq !== qkAiSeq) return;
 var filled = [];
 var nm = document.getElementById('qkName'), sb = document.getElementById('qkSub');
 if(nm && r.nameZh && (!nm.value.trim() || nm.getAttribute('data-ai') === '1')){ nm.value = r.nameZh; nm.setAttribute('data-ai', '1'); filled.push('名稱'); }
+// 只要上架主角那一件：價格、裁切都用主角的
+var allVs = (r.variants || []).filter(function(v){ return v.name && v.box; });
+var mainV = allVs.filter(function(v){ return v.main; })[0];
+if(r.suggest === 'single' && mainV){ r.productBox = mainV.box; if(mainV.priceJpy) r.priceJpy = mainV.priceJpy; }
+// AI 沒給整體範圍：用各款範圍合起來
+if(!r.productBox && allVs.length){
+var uv = r.suggest === 'single' && mainV ? [mainV] : allVs;
+r.productBox = [Math.min.apply(null, uv.map(function(v){ return v.box[0]; })), Math.min.apply(null, uv.map(function(v){ return v.box[1]; })), Math.max.apply(null, uv.map(function(v){ return v.box[2]; })), Math.max.apply(null, uv.map(function(v){ return v.box[3]; }))];
+}
 // 扭蛋：用我的扭蛋定價表（不指定／指定角色），規格說明帶入固定那段
 qkGacha = null;
 if(r.isGacha){
@@ -4719,9 +4729,12 @@ for(var vi=0; vi<vs.length; vi++){
 if(bx) bx.innerHTML = '<span class="qk-ai-st">🎨 裁每一款的照片… '+(vi+1)+' / '+vs.length+'</span>';
 var vc = null; try{ vc = await qkMakeCrop(file, vs[vi].box, r.priceBoxes); }catch(eV){}
 if(seq !== qkAiSeq) return;
-if(vc) qkVariants.push({ name: vs[vi].name, blob: vc.blob, url: URL.createObjectURL(vc.blob), priceJpy: vs[vi].priceJpy || null });
+if(vc) qkVariants.push({ name: vs[vi].name, blob: vc.blob, url: URL.createObjectURL(vc.blob), priceJpy: vs[vi].priceJpy || null, on: r.isGacha || r.suggest !== 'single' || !!vs[vi].main });
 }
-if(qkVariants.length) filled.push(qkVariants.length+' '+(r.isGacha ? '個角色' : '款'+(r.optionKind || '款式')));
+// 只勾一款也沒關係（等於單一商品）；全部沒勾就預設全勾
+if(qkVariants.length && !qkVariants.some(function(v){ return v.on; })) qkVariants.forEach(function(v){ v.on = true; });
+var nOn = qkVariants.filter(function(v){ return v.on; }).length;
+if(qkVariants.length) filled.push(r.isGacha ? qkVariants.length+' 個角色' : (nOn >= 2 ? nOn+' 款'+(r.optionKind || '款式') : '主要商品 1 件（照片裡還有 '+(qkVariants.length-1)+' 款可以勾選加入）'));
 }
 qkCheckDup();
 var vPrices = qkVariants.map(function(v){ return v.priceJpy; }).filter(function(x){ return x > 0; });
@@ -4746,7 +4759,7 @@ bx.innerHTML = '<span class="qk-ai-st" style="color:var(--ignis-deep);">🤖 自
 }
 function qkVariantEditorHTML(kind, diffPrice){
 return '<div class="qk-var">'
-+ '<b class="qk-var-h">🎨 照片裡有 '+qkVariants.length+' 款，會變成客人可選的選項（每款照片已對好）</b>'
++ '<b class="qk-var-h">🎨 照片裡有 '+qkVariants.length+' 款：勾選的會上架（勾 2 款以上變成客人可選的選項，只勾 1 款就是單一商品）</b>'
 + '<label class="qk-var-kind">選項名稱<input type="text" class="gate-input" id="qkVarKind" value="'+escAttr(kind)+'"></label>'
 + (qkGacha
 ? '<span class="qk-ai-note" style="color:#166534;font-weight:700;">🥚 扭蛋：選項會是「不指定」＋每個角色'+(qkGacha.base ? '（不指定 NT$'+qkGacha.base+'／指定 NT$'+qkGacha.pick+'）' : '')+'</span>'
@@ -4755,10 +4768,10 @@ return '<div class="qk-var">'
 + (diffPrice && !qkGacha ? '<span class="qk-ai-note" style="color:#B26A00;">💴 每款價格不一樣：每款各自的日幣→台幣在下面，台幣可以直接改；下面的「台幣價格」欄會自動用最便宜那款</span>' : '')
 + qkVariants.map(function(v, i){
 var pr = diffPrice && !qkGacha;
-return '<div class="qk-var-row'+(pr ? ' has-price' : '')+'" data-i="'+i+'"><img src="'+escAttr(v.url)+'" alt="">'
+return '<div class="qk-var-row'+(pr ? ' has-price' : '')+(v.on === false ? ' is-off' : '')+'" data-i="'+i+'"><input type="checkbox" class="qk-var-on"'+(v.on === false ? '' : ' checked')+' aria-label="上架這款"><img src="'+escAttr(v.url)+'" alt="">'
 + '<div class="qk-var-main"><input type="text" class="gate-input qk-var-name" value="'+escAttr(v.name)+'">'
 + (pr ? '<div class="qk-var-prices"><span>¥</span><input type="number" class="gate-input qk-var-jpy" value="'+(v.priceJpy || '')+'" placeholder="日幣"><span>→ NT$</span><input type="number" class="gate-input qk-var-tw" placeholder="台幣"></div>' : '')
-+ '</div><button type="button" class="qk-var-del" data-qkv-del="'+i+'" aria-label="刪除這款">✕</button></div>';
++ '</div></div>';
 }).join('')
 + '</div>';
 }
@@ -4773,7 +4786,8 @@ var rows = document.querySelectorAll('#qkAi .qk-var-row.has-price'), mins = [];
 for(var i=0;i<rows.length;i++){
 var tw = rows[i].querySelector('.qk-var-tw'), jp = rows[i].querySelector('.qk-var-jpy');
 if(!tw.getAttribute('data-manual')){ var v = jpyCalc(jp.value, rate, mult); tw.value = v || ''; }
-if(rows[i].style.display !== 'none' && Number(tw.value) > 0) mins.push(Number(tw.value));
+var ob = rows[i].querySelector('.qk-var-on');
+if(rows[i].style.display !== 'none' && (!ob || ob.checked) && Number(tw.value) > 0) mins.push(Number(tw.value));
 }
 if(mins.length){ var qp = document.getElementById('qkPrice'); if(qp) qp.value = Math.min.apply(null, mins); }
 }
@@ -4783,6 +4797,7 @@ var out = [];
 var rows = document.querySelectorAll('#qkAi .qk-var-row');
 for(var i=0;i<rows.length;i++){
 if(rows[i].style.display === 'none') continue;
+var onBox = rows[i].querySelector('.qk-var-on'); if(onBox && !onBox.checked) continue;
 var v = qkVariants[Number(rows[i].getAttribute('data-i'))];
 var nm = rows[i].querySelector('.qk-var-name').value.replace(/[,，]/g, ' ').trim();
 var jp = rows[i].querySelector('.qk-var-jpy');
@@ -4924,6 +4939,12 @@ try{
 var compressed = await compressImage(adminQuickFile);
 var vars = qkReadVariants();
 var jpyInfo = readJpyBox('quick', '');
+// 只勾 1 款：當成單一商品，封面用那一款裁好的照片、價格用那一款的
+if(vars.length === 1 && !(qkGacha && qkGacha.base)){
+if(adminQuickFile !== adminQuickOrig) compressed = await compressImage(vars[0].blob);
+if(vars[0].jpy){ jpyInfo.jpyPrice = vars[0].jpy; var tw1 = vars[0].tw || jpyCalc(vars[0].jpy, jpyInfo.fxRate, jpyInfo.multiplier); if(tw1) price = tw1; }
+vars = [];
+}
 var optFields = {};
 if(qkGacha && qkGacha.base && vars.length >= 1){
 // 扭蛋：不指定＋每個角色（指定價），跟批次匯入扭蛋一樣
@@ -6062,13 +6083,13 @@ function catLabelFor(cat){
 var map = {beyblade:'戰鬥陀螺', doll:'娃娃玩偶', anpanman:'麵包超人博物館', gacha:'扭蛋'};
 return map[cat] || cat;
 }
-function compressImage(file){
+function compressImage(file, maxDimOpt){
 return new Promise(function(resolve, reject){
 var img = new Image();
 var url = URL.createObjectURL(file);
 img.onload = function(){
 URL.revokeObjectURL(url);
-var maxDim = 1200;
+var maxDim = maxDimOpt || 1200;
 var w = img.width, h = img.height;
 if(w > maxDim || h > maxDim){
 if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
