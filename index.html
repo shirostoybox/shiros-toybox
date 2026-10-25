@@ -1189,7 +1189,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-2000';
+var APP_VERSION = '20261025-2015';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4572,6 +4572,7 @@ if(k === 'orig' && adminQuickOrig){ adminQuickFile = adminQuickOrig; qkShowPhoto
 if(k === 'crop' && adminQuickCrop){ adminQuickFile = adminQuickCrop; qkShowPhoto(adminQuickCrop); qkPaintAiChoice(); }
 if(k === 'retry' && adminQuickOrig){ qkAiScan(adminQuickOrig); }
 if(k === 'peek' && adminQuickOrig){ qkPeek(adminQuickOrig); }
+if(k === 'boxes' && adminQuickOrig){ e.preventDefault(); qkShowBoxes(adminQuickOrig, qkLastScan); }
 });
 document.getElementById('qkAi').addEventListener('change', function(e){
 if(!e.target.classList || !e.target.classList.contains('qk-var-on')) return;
@@ -4595,7 +4596,8 @@ if(qjb) qjb.addEventListener('input', function(e){ if(e.target.classList.contain
 // ---------- 🤖 快速上架自動辨識（Gemini 免費額度，金鑰放在 Supabase，小幫手看不到） ----------
 // 照片上傳後：讀價格牌的税込日幣 → 帶入日幣換算（自動算台幣）、填名稱和推薦文字、把價格牌裁掉（裁不掉的打馬賽克）
 var adminQuickOrig = null, adminQuickCrop = null, qkAiSeq = 0;
-var qkGacha = null; // 扭蛋：{ jpy, base, pick }（base/pick 是 0 代表定價表沒有這個價格）
+var qkGacha = null;
+var qkLastScan = null; // 扭蛋：{ jpy, base, pick }（base/pick 是 0 代表定價表沒有這個價格）
 var qkVariants = []; // [{ name, blob, url, priceJpy }]：一張照片裡同系列不同角色／顏色，每款各裁一張
 function qkShowPhoto(file){
 var lab = document.getElementById('qkPhotoLabel');
@@ -4681,6 +4683,7 @@ callMemberApi('admin-ai-scan', { imageData: small }),
 new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超過 2 分鐘沒回應，請按再試一次或手動填')); }, 120000); })
 ]);
 if(seq !== qkAiSeq) return;
+qkLastScan = r;
 var filled = [];
 var nm = document.getElementById('qkName'), sb = document.getElementById('qkSub');
 if(nm && r.nameZh && (!nm.value.trim() || nm.getAttribute('data-ai') === '1')){ nm.value = r.nameZh; nm.setAttribute('data-ai', '1'); filled.push('名稱'); }
@@ -4750,6 +4753,7 @@ var vDiff = vPrices.length >= 2 && vPrices.some(function(x){ return x !== vPrice
 bx.innerHTML = '<span class="qk-ai-st">✅ 已自動填好：'+escHtml(filled.join('、') || '（沒讀到價格，請手動填）')+'</span>'
 + (r.priceNote ? '<span class="qk-ai-note">🏷️ '+escHtml(r.priceNote)+'</span>' : '')
 + (qkGacha && !qkGacha.base ? '<span class="qk-ai-note" style="color:var(--ignis-deep);font-weight:700;">🥚 扭蛋 ¥'+(qkGacha.jpy || '?')+' 不在扭蛋定價表，請手動填價格（已先勾「先隱藏」）</span>' : '')
++ '<span class="qk-ai-note">🏷️ 找到 '+((r.priceBoxes || []).length)+' 張價格牌'+(r.scanVersion ? '' : '（⚠️ member-api 還是舊版，請重新部署）')+' <a href="#" data-qk="boxes" style="color:#1D4ED8;font-weight:700;">看找到哪些</a></span>'
 + (cropMsg ? '<span class="qk-ai-note">'+escHtml(cropMsg)+'</span>' : (r.productBox ? '' : '<span class="qk-ai-note">沒找到商品位置，照片沒有裁</span>'))
 + '<span class="qk-ai-note" style="color:#B26A00;">⚠️ 請看一下照片、價格、名稱對不對，不對可以直接改</span>'
 + '<span class="qk-ai-btns">'
@@ -4906,6 +4910,19 @@ var list = findSimilarProducts(nm.value.trim(), jb ? Number(jb.querySelector('.j
 box.innerHTML = dupWarnHTML(list);
 box.style.display = list.length ? 'block' : 'none';
 return list;
+}
+// 檢查用：在原圖上畫出 AI 找到的價格牌（紅框）和每款商品（綠框）
+async function qkShowBoxes(file, r){
+if(!r) return;
+var im = await loadImageEl(file);
+var cv = document.createElement('canvas'), W = im.naturalWidth, H = im.naturalHeight, sc = Math.min(1, 1600/Math.max(W, H));
+cv.width = Math.round(W*sc); cv.height = Math.round(H*sc);
+var ctx = cv.getContext('2d'); ctx.drawImage(im, 0, 0, cv.width, cv.height);
+function draw(b, col){ ctx.strokeStyle = col; ctx.lineWidth = Math.max(3, cv.width/250); ctx.strokeRect(b[1]/1000*cv.width, b[0]/1000*cv.height, (b[3]-b[1])/1000*cv.width, (b[2]-b[0])/1000*cv.height); }
+(r.variants || []).forEach(function(v){ if(v.box) draw(v.box, '#16A34A'); });
+(r.priceBoxes || []).forEach(function(b){ draw(b, '#EF4444'); });
+var blob = await canvasToBlob(cv, 0.9);
+qkPeek(blob);
 }
 // 只是看一下原圖（例如忘記價格牌寫多少），不會改掉要上傳的照片；點一下就關掉，可以兩指放大
 function qkPeek(file){
