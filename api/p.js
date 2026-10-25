@@ -155,7 +155,26 @@ async function catPage(req, res) {
   sendPage(res, { title, desc, image, pageUrl, goUrl, heading: label + '｜' + where });
 }
 
+// 角色人氣投票分享頁：/vote/版本
+async function votePage(req, res) {
+  let image = '';
+  try {
+    const coverBase = SUPABASE_URL + '/storage/v1/object/public/product-images/votecover.jpg';
+    const h = await fetch(coverBase + '?check=' + Date.now(), { method: 'HEAD' });
+    if (h.ok) {
+      const tag = String(h.headers.get('etag') || h.headers.get('last-modified') || Date.now()).replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
+      image = coverBase + '?v=' + tag;
+    }
+  } catch (e) { /* 沒有預覽圖就不放 */ }
+  const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
+  const ver = String(req.query.v || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
+  const pageUrl = 'https://' + host + '/vote' + (ver ? '/' + ver : '');
+  const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=vote';
+  sendPage(res, { title: '💗 角色人氣投票｜四郎玩具箱', desc: '每人可以投 3 個角色，來幫你最愛的角色衝第一名 ♡', image, pageUrl, goUrl, heading: '💗 角色人氣投票' });
+}
+
 module.exports = async (req, res) => {
+  if (req.query && req.query.vote) return votePage(req, res);
   if (req.query && req.query.cat) return catPage(req, res);
   if (req.query && req.query.zone) return zonePage(req, res);
   const id = String((req.query && req.query.id) || '').trim();
