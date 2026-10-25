@@ -42,6 +42,7 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .topbar-profile{ display:flex; align-items:center; gap:7px; }
 .topbar-menu-btn{ display:flex; align-items:center; gap:6px; background:none; border:none; padding:2px 0; color:inherit; font:inherit; cursor:pointer; }
 .topbar-menu-btn svg{ opacity:.7; }
+.vote-share-btn{ margin-left:auto; border:2px solid #FFB5CB; background:#fff; color:#D94B79; border-radius:999px; padding:6px 13px; font-weight:900; font-size:13px; font-family:var(--font-body); box-shadow:0 2px 8px rgba(217,75,121,.12); }
 .vote-wrap{ padding:4px 16px 130px; }
 [data-view="vote"]{ background:linear-gradient(180deg,#FFF4F7 0%,#FFF8EF 45%,#F3FBFF 100%); min-height:100vh; }
 [data-view="vote"] .sub-page-header h2{ color:#D94B79; }
@@ -1226,7 +1227,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </section>
 <!-- WISH -->
 <section class="view" data-view="vote">
-<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>角色人氣投票</h2></div>
+<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>角色人氣投票</h2><button type="button" class="vote-share-btn" id="voteShareBtn">🔗 分享</button></div>
 <div class="vote-wrap">
 <div class="vote-hero">
 <p class="vote-hero-t">💗 你最愛哪個角色？</p>
@@ -1286,7 +1287,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-0220';
+var APP_VERSION = '20261026-0230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7126,6 +7127,55 @@ btn.disabled = false; btn.textContent = '🔍 自動找角色圖（維基百科�
 alert('完成！找到 '+ok+' 張'+(miss.length ? '\n\n找不到（請自己用📷補）：\n' + miss.join('、') : '')+'\n\n請看一下每張圖對不對，不對的按「📷 圖片」換掉。');
 loadVotes();
 }
+// 分享投票頁：連結 /vote/版本，LINE 預覽圖是前三名的頒獎台（老闆／小幫手分享時重新產生）
+async function buildVoteCover(){
+var cs = (voteData && voteData.characters) || [];
+var top = cs.filter(function(c){ return c.rank; }).slice(0, 3);
+if(top.length < 3) top = top.concat(cs.filter(function(c){ return !c.rank; }).slice(0, 3 - top.length));
+var W = 1200, H = 630, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+var ctx = cv.getContext('2d'), font = '-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
+var bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#FFE3EC'); bg.addColorStop(0.55, '#FFF3E2'); bg.addColorStop(1, '#E2F5FF');
+ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+ctx.fillStyle = 'rgba(255,143,177,0.14)';
+for(var y=20; y<H; y+=44){ for(var x=(y/44)%2 ? 44 : 22; x<W; x+=44){ ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2); ctx.fill(); } }
+ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+ctx.font = '900 58px ' + font; ctx.fillStyle = '#C2416D'; ctx.fillText('💗 角色人氣投票', W/2, 74);
+ctx.font = '800 26px ' + font; ctx.fillStyle = '#A0627A'; ctx.fillText('每人 3 票・幫你最愛的角色衝第一名！', W/2, 128);
+var imgs = await Promise.all(top.map(function(c){ var u = voteImgUrl(c); return u ? loadCorsImage(u) : Promise.resolve(null); }));
+var order = top.length === 3 ? [1, 0, 2] : top.map(function(_, i){ return i; });
+var slots = top.length === 3 ? [W/2 - 330, W/2, W/2 + 330] : top.length === 2 ? [W/2 - 180, W/2 + 180] : [W/2];
+order.forEach(function(idx, k){
+var c = top[idx]; if(!c) return;
+var big = idx === 0 && top.length === 3, r = big ? 122 : 98, cx = slots[k], cy = big ? 368 : 382;
+ctx.save(); ctx.shadowColor = 'rgba(200,100,140,0.25)'; ctx.shadowBlur = 24; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, r + 10, 0, Math.PI*2); ctx.fill(); ctx.restore();
+ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+if(imgs[idx]){ var im = imgs[idx], sc = Math.max(2*r/im.width, 2*r/im.height); ctx.fillStyle = '#fff'; ctx.fillRect(cx - r, cy - r, 2*r, 2*r); ctx.drawImage(im, cx - im.width*sc/2, cy - im.height*sc/2, im.width*sc, im.height*sc); }
+else { ctx.fillStyle = VOTE_COLORS[Math.abs(c.id) % VOTE_COLORS.length]; ctx.fillRect(cx - r, cy - r, 2*r, 2*r); ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(r*0.9) + 'px ' + font; ctx.fillText(String(c.name).slice(0, 1), cx, cy + 4); }
+ctx.restore();
+if(c.rank){ ctx.font = (big ? 70 : 52) + 'px ' + font; ctx.fillText(c.rank === 1 ? '👑' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : '', cx, cy - r - 18); }
+ctx.font = '900 ' + (big ? 40 : 32) + 'px ' + font; ctx.fillStyle = '#4A3640';
+var nm = String(c.name); while(ctx.measureText(nm).width > 300 && nm.length > 1) nm = nm.slice(0, -1); if(nm !== String(c.name)) nm = nm.slice(0, -1) + '…';
+ctx.fillText(nm, cx, cy + r + 42);
+});
+ctx.fillStyle = '#FF6B9A'; roundRectPath(ctx, W/2 - 170, H - 62, 340, 46, 23); ctx.fill();
+ctx.font = '900 24px ' + font; ctx.fillStyle = '#fff'; ctx.fillText('🧸 四郎玩具箱・點進來投票 ♡', W/2, H - 39);
+return cv.toDataURL('image/jpeg', 0.9);
+}
+async function shareVoteLink(){
+if(!voteData){ try{ voteData = await callMemberApi('get-votes'); }catch(e){} }
+var cs = (voteData && voteData.characters) || [];
+var sig = cs.filter(function(c){ return c.rank && c.rank <= 3; }).map(function(c){ return c.id + ':' + c.rank + ':' + (c.img || 0); }).join(',');
+if(isAdminSelf()){
+try{
+showToast('產生分享預覽圖中…');
+var data = await buildVoteCover();
+await callMemberApi('admin-upload-product-image', { productId: 'votecover', imageData: data });
+sig += '|' + Date.now();
+}catch(e){ showToast('預覽圖產生失敗，先用原本的圖分享'); }
+}
+var url = window.location.origin + '/vote/' + shortHash(sig || 'v').slice(0, 5);
+openShareMenu('角色人氣投票', url, '💗 角色人氣投票｜四郎玩具箱\n每人可以投 3 個角色，來幫你最愛的角色衝第一名！');
+}
 // 排名長條圖：1080×1350（IG 直式），前 10 名，附角色圖片
 async function buildVoteChart(withCount){
 var d = voteAdminData || await callMemberApi('admin-vote-list');
@@ -7207,6 +7257,7 @@ if(!window.confirm('確定刪除「'+del.getAttribute('data-name')+'」？投給
 try{ await callMemberApi('admin-vote-delete', { id: del.getAttribute('data-vote-del') }); showToast('已刪除'); loadVotes(); }catch(err){ alert(err.message); }
 return;
 }
+if(t.closest('#voteShareBtn')){ shareVoteLink(); return; }
 var au = t.closest('#voteAdminAuto');
 if(au){ autoVoteImages(au); return; }
 var sn = t.closest('#voteAdminSnap');
