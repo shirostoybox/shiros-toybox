@@ -1287,7 +1287,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-0300';
+var APP_VERSION = '20261026-0310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4505,10 +4505,10 @@ var last = null;
 // 同一張圖固定抓不到時（通常是官網原圖太大，手機壓縮不了），改抓官網的小一號尺寸
 // 官網伺服器對某幾張圖固定回 504（擋掉伺服器來的下載），改用公開的圖片中繼服務 wsrv.nl 代抓（順便縮小）
 var relay = /^https?:\/\//.test(url) ? 'https://wsrv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, '')) + '&w=1200&output=jpg&q=85' : '';
-var tries = relay ? [url, relay, url, relay] : [url, url, url];
+var tries = relay ? [url, relay] : [url, url];
 for(var t=0; t<tries.length; t++){
 try{
-if(t) await new Promise(function(r){ setTimeout(r, 900 * t); });
+if(t) await new Promise(function(r){ setTimeout(r, 500); });
 var small = await compressImage(dataUrlToBlob(await importImageData(tries[t])));
 await callMemberApi('admin-upload-product-image', Object.assign({ imageData: small }, upPayload));
 return true;
