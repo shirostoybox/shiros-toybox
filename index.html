@@ -284,6 +284,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .qk-peek{ position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.92); display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:auto; touch-action:pinch-zoom; }
 .qk-peek img{ max-width:100%; max-height:88vh; object-fit:contain; }
 .qk-peek span{ color:#fff; font-size:13px; margin-top:10px; opacity:.8; }
+.tag-ph{ display:flex; align-items:center; gap:6px; margin:10px 0 0; padding:8px 10px; border:1.5px dashed #FCD34D; border-radius:var(--r-md); background:#FFFBEB; font-size:13px; font-weight:800; color:#92400E; }
+.tag-ph > span{ flex:1; min-width:0; }
+.tag-ph small{ display:block; font-size:11px; font-weight:500; color:var(--muted); }
+.tag-ph button, .tag-ph label{ flex:none; border:1.5px solid #FCD34D; background:#fff; color:#92400E; border-radius:999px; padding:6px 10px; font-size:12.5px; font-weight:800; font-family:var(--font-body); }
 .qk-ai{ margin:-2px 0 10px; padding:10px 12px; border-radius:var(--r-md); background:#fff; border:1.5px solid #FFD8CC; font-size:12.5px; line-height:1.5; }
 .qk-ai span{ display:block; }
 .qk-ai-st{ font-weight:800; color:var(--text-dark); }
@@ -1183,7 +1187,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1745';
+var APP_VERSION = '20261025-1815';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4322,7 +4326,7 @@ function gachaSubText(extra){ extra = String(extra || '').trim(); return extra &
 function isPhotoOnlyImport(it){ return String(it.type || '').toLowerCase() === 'photos'; }
 function importKey(t){ return stripJp(String(t || '')).replace(/\s+/g, '').toLowerCase(); }
 function normalizePhotoOnlyItem(it){
-var out = { photoOnly: true, replace: !!it.replace, name: String(it.name || '').trim(), photos: it.photos || {}, warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : [], options: [], extra: [], adds: [] };
+var out = { photoOnly: true, tagPhoto: String(it.tagPhoto || ''), replace: !!it.replace, name: String(it.name || '').trim(), photos: it.photos || {}, warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : [], options: [], extra: [], adds: [] };
 var key = importKey(out.name);
 var hits = (adminProductsCache || []).filter(function(p){ return importKey(p.name) === key; });
 if(!hits.length){ out.warn.push('找不到這件商品（名稱可能改過），請手動補照片'); return out; }
@@ -4412,6 +4416,9 @@ var x = adminImportItems[i];
 var st = document.querySelector('.imp-row[data-i="'+i+'"] .imp-st');
 btn.textContent = '上架中… '+(i+1)+' / '+adminImportItems.length;
 if(x.photoOnly){
+if(x.product && x.tagPhoto){
+try{ await callMemberApi('admin-upload-tag-photo', { productId: x.product.id, imageData: x.tagPhoto.indexOf('data:') === 0 ? x.tagPhoto : await importImageData(x.tagPhoto) }); if(!x.adds.length){ if(st){ st.textContent = '✓ 已存價格牌原圖'; st.style.color = '#166534'; } okCount++; continue; } }catch(eTp){}
+}
 if(!x.product || !x.adds.length){ if(st){ st.textContent = x.product ? '－ 不用補' : '－ 跳過（找不到商品）'; st.style.color = 'var(--muted)'; } continue; }
 try{
 var okMap = parseOptionPhotos(x.product.option_photos), nOk = 0;
@@ -4963,6 +4970,11 @@ map[vars[vk].name] = vk+2;
 }
 if(Object.keys(map).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(map) });
 }
+// 有裁過價格牌：把原圖存起來，之後在商品裡按「👀 看原圖」就能看到日本價格
+if(adminQuickOrig && adminQuickFile !== adminQuickOrig){
+btn.textContent = '存價格牌原圖…';
+try{ await uploadTagPhoto(res.productId, adminQuickOrig); }catch(eTag){}
+}
 var store = ((document.getElementById('qkStore') || {}).value || '').trim();
 if(store){
 try{
@@ -5092,6 +5104,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
 + adminOrigWarnHTML(p)
 + adminHideBoxHTML(p)
++ adminTagPhotoHTML(p)
 + adminPriceDropHTML(p)
 + adminStripJpBtnHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
@@ -5372,6 +5385,46 @@ showToast(on ? '已顯示降價標示' : '已取消降價標示');
 refreshShop();
 }catch(err){ alert('儲存失敗：' + err.message); }
 });
+// 🏷️ 價格牌原圖（只有後台看得到）：快速上架會自動存；其他商品可以自己上傳
+function adminTagPhotoHTML(p){
+return '<div class="tag-ph" data-product-id="'+p.id+'"><span>🏷️ 價格牌原圖<small>只有後台看得到</small></span>'
++ '<button type="button" class="tag-ph-view" data-product-id="'+p.id+'">👀 看原圖</button>'
++ '<label class="tag-ph-up">📷 上傳<input type="file" accept="image/*" class="tag-ph-file" data-product-id="'+p.id+'" style="display:none;"></label></div>';
+}
+async function uploadTagPhoto(productId, file){
+var big = await compressImage(file);
+await callMemberApi('admin-upload-tag-photo', { productId: productId, imageData: big });
+}
+async function viewTagPhoto(productId, btn){
+var old = btn ? btn.textContent : '';
+if(btn){ btn.disabled = true; btn.textContent = '讀取中…'; }
+try{
+var r = await callMemberApi('admin-get-tag-photo', { productId: productId });
+if(!r.url){ alert('這件還沒有價格牌原圖。\n\n可以按旁邊「📷 上傳」放一張（只有後台看得到）。'); }
+else {
+var ov = document.createElement('div');
+ov.className = 'qk-peek';
+ov.innerHTML = '<img alt=""><span>點一下關閉</span>';
+ov.querySelector('img').src = r.url;
+ov.addEventListener('click', function(){ ov.remove(); });
+document.body.appendChild(ov);
+}
+}catch(e){ alert('讀取失敗：' + e.message); }
+if(btn){ btn.disabled = false; btn.textContent = old; }
+}
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('.tag-ph-view') : null;
+if(!b) return;
+e.preventDefault(); e.stopPropagation();
+viewTagPhoto(b.getAttribute('data-product-id'), b);
+}, true);
+document.addEventListener('change', function(e){
+var f = e.target;
+if(!f || !f.classList || !f.classList.contains('tag-ph-file') || !f.files || !f.files[0]) return;
+var lab = f.closest('.tag-ph-up'), pid = f.getAttribute('data-product-id');
+if(lab) lab.firstChild.textContent = '上傳中…';
+uploadTagPhoto(pid, f.files[0]).then(function(){ showToast('已存價格牌原圖（只有後台看得到）'); }).catch(function(err){ alert('上傳失敗：' + err.message); }).then(function(){ if(lab) lab.firstChild.textContent = '📷 上傳'; f.value = ''; });
+}, true);
 function adminHideBoxHTML(p){
 var pid = escAttr(p.id);
 if(p.is_hidden){
