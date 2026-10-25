@@ -258,6 +258,17 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pc-list{ list-style:none; margin:6px 0 0; padding:0; }
 .pc-list li{ display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-top:1px solid #F1F5F9; }
 .pc-list li small{ display:block; color:var(--muted); font-size:11px; }
+.qk-var{ margin-top:10px; padding-top:10px; border-top:1px dashed #FFD8CC; }
+.qk-var-h{ display:block; font-size:12.5px; color:var(--text-dark); margin-bottom:6px; }
+.qk-var-kind, .qk-store{ display:block; font-size:12px; font-weight:700; color:var(--muted); margin:6px 0 0; }
+.qk-var-kind input, .qk-store input{ margin:4px 0 0; }
+.qk-var-pri{ display:flex !important; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--text-dark); margin:4px 0 6px; }
+.qk-var-pri input{ width:17px; height:17px; }
+.qk-var-row{ display:flex !important; align-items:center; gap:6px; margin-top:6px; }
+.qk-var-row img{ width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid #eee; flex:none; background:#fff; }
+.qk-var-row .gate-input{ margin:0; flex:1; min-width:0; padding:8px 10px; }
+.qk-var-row .qk-var-jpy{ flex:0 0 80px; }
+.qk-var-del{ flex:none; width:32px; height:32px; border-radius:50%; border:1px solid #E5E7EB; background:#fff; color:#9CA3AF; font-size:14px; }
 .qk-ai{ margin:-2px 0 10px; padding:10px 12px; border-radius:var(--r-md); background:#fff; border:1.5px solid #FFD8CC; font-size:12.5px; line-height:1.5; }
 .qk-ai span{ display:block; }
 .qk-ai-st{ font-weight:800; color:var(--text-dark); }
@@ -1157,7 +1168,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261025-1400';
+var APP_VERSION = '20261025-1430';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4495,7 +4506,7 @@ this.lastElementChild.textContent = adminQuickOpen ? '收起' : '展開';
 var f = document.getElementById('qkFile');
 f.addEventListener('change', function(){
 adminQuickFile = f.files && f.files[0] ? f.files[0] : null;
-adminQuickOrig = adminQuickFile; adminQuickCrop = null;
+adminQuickOrig = adminQuickFile; adminQuickCrop = null; qkVariants = [];
 qkShowPhoto(adminQuickFile);
 if(adminQuickFile) qkAiScan(adminQuickFile);
 else { var bx = document.getElementById('qkAi'); if(bx) bx.style.display = 'none'; }
@@ -4508,6 +4519,11 @@ if(k === 'orig' && adminQuickOrig){ adminQuickFile = adminQuickOrig; qkShowPhoto
 if(k === 'crop' && adminQuickCrop){ adminQuickFile = adminQuickCrop; qkShowPhoto(adminQuickCrop); qkPaintAiChoice(); }
 if(k === 'retry' && adminQuickOrig){ qkAiScan(adminQuickOrig); }
 });
+document.getElementById('qkAi').addEventListener('click', function(e){
+var d = e.target.closest ? e.target.closest('[data-qkv-del]') : null;
+if(!d) return;
+var row = d.closest('.qk-var-row'); if(row) row.style.display = 'none';
+});
 document.getElementById('qkShare').addEventListener('change', function(){ adminQuickShare = this.checked; });
 document.getElementById('qkHidden').addEventListener('change', function(){ adminQuickHidden = this.checked; });
 ['qkName','qkSub'].forEach(function(id){ var el = document.getElementById(id); if(el) el.addEventListener('input', function(){ this.removeAttribute('data-ai'); }); });
@@ -4516,6 +4532,7 @@ document.getElementById('qkSubmit').addEventListener('click', handleAdminQuickCr
 // ---------- 🤖 快速上架自動辨識（Gemini 免費額度，金鑰放在 Supabase，小幫手看不到） ----------
 // 照片上傳後：讀價格牌的税込日幣 → 帶入日幣換算（自動算台幣）、填名稱和推薦文字、把價格牌裁掉（裁不掉的打馬賽克）
 var adminQuickOrig = null, adminQuickCrop = null, qkAiSeq = 0;
+var qkVariants = []; // [{ name, blob, url, priceJpy }]：一張照片裡同系列不同角色／顏色，每款各裁一張
 function qkShowPhoto(file){
 var lab = document.getElementById('qkPhotoLabel');
 if(!lab) return;
@@ -4615,18 +4632,60 @@ adminQuickCrop = cr.blob; adminQuickFile = cr.blob; qkShowPhoto(cr.blob);
 cropMsg = '✂️ 已裁掉價格牌' + (cr.blurred ? '（'+cr.blurred+' 處價格打了馬賽克）' : '');
 }
 }
+// 同系列不同角色／顏色：每款各裁一張照片，變成選項
+qkVariants = [];
+var vs = (r.variants || []).filter(function(v){ return v.name && v.box; });
+if(vs.length >= 2){
+for(var vi=0; vi<vs.length; vi++){
+if(bx) bx.innerHTML = '<span class="qk-ai-st">🎨 裁每一款的照片… '+(vi+1)+' / '+vs.length+'</span>';
+var vc = null; try{ vc = await qkMakeCrop(file, vs[vi].box, r.priceBoxes); }catch(eV){}
+if(seq !== qkAiSeq) return;
+if(vc) qkVariants.push({ name: vs[vi].name, blob: vc.blob, url: URL.createObjectURL(vc.blob), priceJpy: vs[vi].priceJpy || null });
+}
+if(qkVariants.length) filled.push(qkVariants.length+' 款'+(r.optionKind || '款式'));
+}
+var vPrices = qkVariants.map(function(v){ return v.priceJpy; }).filter(function(x){ return x > 0; });
+var vDiff = vPrices.length >= 2 && vPrices.some(function(x){ return x !== vPrices[0]; });
 bx.innerHTML = '<span class="qk-ai-st">✅ 已自動填好：'+escHtml(filled.join('、') || '（沒讀到價格，請手動填）')+'</span>'
 + (r.priceNote ? '<span class="qk-ai-note">🏷️ '+escHtml(r.priceNote)+'</span>' : '')
 + (cropMsg ? '<span class="qk-ai-note">'+escHtml(cropMsg)+'</span>' : (r.productBox ? '' : '<span class="qk-ai-note">沒找到商品位置，照片沒有裁</span>'))
 + '<span class="qk-ai-note" style="color:#B26A00;">⚠️ 請看一下照片、價格、名稱對不對，不對可以直接改</span>'
 + '<span class="qk-ai-btns">'
 + (adminQuickCrop ? '<button type="button" data-qk="crop">✂️ 用裁好的</button><button type="button" data-qk="orig">🖼️ 用原圖</button>' : '')
-+ '<button type="button" data-qk="retry">🔄 重新辨識</button></span>';
++ '<button type="button" data-qk="retry">🔄 重新辨識</button></span>'
++ (qkVariants.length ? qkVariantEditorHTML(r.optionKind || '款式', vDiff) : '')
++ '<label class="qk-store">📍 在哪買（只有後台看得到）<input type="text" class="gate-input" id="qkStore" maxlength="20" value="'+escAttr(r.store || '')+'" placeholder="例如：松本清"></label>';
 qkPaintAiChoice();
 }catch(e){
 if(seq !== qkAiSeq) return;
 bx.innerHTML = '<span class="qk-ai-st" style="color:var(--ignis-deep);">🤖 自動辨識沒成功：'+escHtml(e.message)+'</span><span class="qk-ai-note">一樣可以手動填名稱和價格上架</span><span class="qk-ai-btns"><button type="button" data-qk="retry">🔄 再試一次</button></span>';
 }
+}
+function qkVariantEditorHTML(kind, diffPrice){
+return '<div class="qk-var">'
++ '<b class="qk-var-h">🎨 照片裡有 '+qkVariants.length+' 款，會變成客人可選的選項（每款照片已對好）</b>'
++ '<label class="qk-var-kind">選項名稱<input type="text" class="gate-input" id="qkVarKind" value="'+escAttr(kind)+'"></label>'
++ '<label class="qk-var-pri"><input type="checkbox" id="qkVarPri" checked> 用「第一順位／第二順位」（缺貨改買第二順位）</label>'
++ (diffPrice ? '<span class="qk-ai-note" style="color:#B26A00;">💴 每款價格不一樣，已分開填日幣（會自動換算台幣）</span>' : '')
++ qkVariants.map(function(v, i){
+return '<div class="qk-var-row" data-i="'+i+'"><img src="'+escAttr(v.url)+'" alt=""><input type="text" class="gate-input qk-var-name" value="'+escAttr(v.name)+'">'
++ (diffPrice ? '<input type="number" class="gate-input qk-var-jpy" value="'+(v.priceJpy || '')+'" placeholder="¥">' : '')
++ '<button type="button" class="qk-var-del" data-qkv-del="'+i+'" aria-label="刪除這款">✕</button></div>';
+}).join('')
++ '</div>';
+}
+// 讀選項編輯區：刪掉的款不算，名字空白的不算
+function qkReadVariants(){
+var out = [];
+var rows = document.querySelectorAll('#qkAi .qk-var-row');
+for(var i=0;i<rows.length;i++){
+if(rows[i].style.display === 'none') continue;
+var v = qkVariants[Number(rows[i].getAttribute('data-i'))];
+var nm = rows[i].querySelector('.qk-var-name').value.replace(/[,，]/g, ' ').trim();
+var jp = rows[i].querySelector('.qk-var-jpy');
+if(v && nm && !out.some(function(o){ return o.name === nm; })) out.push({ name: nm, blob: v.blob, jpy: jp ? Number(jp.value) || 0 : 0 });
+}
+return out;
 }
 // ---------- 🔎 台灣比價（Gemini＋Google 搜尋：蝦皮、momo、PChome、屈臣氏…） ----------
 function priceCheckHTML(key){
@@ -4681,13 +4740,54 @@ var btn = document.getElementById('qkSubmit');
 btn.disabled = true; btn.textContent = '上架中...';
 try{
 var compressed = await compressImage(adminQuickFile);
+var vars = qkReadVariants();
+var jpyInfo = readJpyBox('quick', '');
+var optFields = {};
+if(vars.length >= 2){
+var kind = ((document.getElementById('qkVarKind') || {}).value || '款式').trim() || '款式';
+var pri = !!(document.getElementById('qkVarPri') || {}).checked;
+var names = vars.map(function(v){ return v.name; });
+optFields = { optionLabel: pri ? kind+'（第一順位，缺貨則購買第二順位）' : kind, options: names.join(', '),
+optionLabel2: pri ? kind+'（第二順位）' : '', options2: pri ? names.join(', ') : '' };
+// 每款價格不一樣：分開記日幣、用同一個匯率×倍數算台幣，商品價格用最便宜的那款
+var oj = {}, op = {};
+vars.forEach(function(v){ if(v.jpy > 0){ oj[v.name] = v.jpy; var tw = jpyCalc(v.jpy, jpyInfo.fxRate, jpyInfo.multiplier); if(tw) op[v.name] = tw; } });
+var vals = Object.keys(op).map(function(k){ return op[k]; });
+if(vals.length >= 2 && vals.some(function(x){ return x !== vals[0]; })){
+optFields.optionJpy = JSON.stringify(oj); optFields.optionPrices = JSON.stringify(op);
+price = Math.min.apply(null, vals);
+}
+}
+if(vars.length >= 2 && vars.length + 1 > MAX_PHOTO_SLOT){ vars = vars.slice(0, MAX_PHOTO_SLOT - 1); }
 var res = await callMemberApi('admin-create-product', Object.assign({
 name: name, sub: sub, cat: DONTMISS_CAT, catLabel: DONTMISS_LABEL, price: price || 0,
 stockStatus: 'live_limited', qty: null, liveZoneId: zoneId, isLuxury: false, isHidden: hideIt
-}, readJpyBox('quick', '')));
+}, jpyInfo, optFields));
+btn.textContent = '上傳照片中…';
 await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: compressed });
+// 每款各一張照片（第 2 張開始），再把選項對到自己的照片
+if(vars.length >= 2){
+var map = {};
+for(var vk=0; vk<vars.length; vk++){
+btn.textContent = '上傳照片中… '+(vk+2)+' / '+(vars.length+1);
+try{
+var vsm = await compressImage(vars[vk].blob);
+await callMemberApi('admin-upload-product-image', { productId: res.productId, imageData: vsm, slot: vk+2 });
+map[vars[vk].name] = vk+2;
+}catch(eUp){}
+}
+if(Object.keys(map).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(map) });
+}
+var store = ((document.getElementById('qkStore') || {}).value || '').trim();
+if(store){
+try{
+var bl = buyStoreList();
+if(bl.indexOf(store) === -1) await saveBuyStoreList(bl.concat([store]));
+await callMemberApi('admin-set-buy-store', { productId: res.productId, store: store });
+}catch(eBs){}
+}
 IMAGE_VERSIONS[res.productId] = Date.now();
-adminQuickFile = null; adminQuickOrig = null; adminQuickCrop = null; qkAiSeq++;
+adminQuickFile = null; adminQuickOrig = null; adminQuickCrop = null; qkVariants = []; qkAiSeq++;
 adminQuickOpen = true;
 showToast(hideIt ? '🙈 已建立（隱藏中），比價後再公開' : '已上架到別錯過 ♡');
 var shareIt = adminQuickShare && !hideIt;
