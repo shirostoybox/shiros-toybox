@@ -948,8 +948,8 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="gate-overlay" id="nicknameGate">
 <div class="gate-card">
 <p class="gate-eyebrow" id="nicknameEyebrow">需完成個人資料</p>
-<h2>填寫 LINE 社群暱稱</h2>
-<p class="gate-desc">請輸入你在四郎玩具箱社群裡的名字，方便對照訂單 ♡</p>
+<h2 style="font-size:22px;line-height:1.45;">填寫 LINE 社群暱稱<br>完成領取免運券登記 🎁</h2>
+<p class="gate-desc">請輸入你在四郎玩具箱社群裡的名字 ♡</p>
 <input type="text" class="gate-input" id="nicknameInput" placeholder="例如：小花🌸" maxlength="20">
 <button class="btn btn--dark btn--full" id="nicknameSubmit">完成</button>
 <p style="margin:14px 0 0;text-align:center;font-size:12.5px;color:var(--muted);">還沒加入社群？<button type="button" id="joinCommunityBtn" style="border:none;background:none;padding:0;color:#06A046;font-size:12.5px;font-weight:700;font-family:var(--font-body);text-decoration:underline;">點這裡加入 ›</button></p>
@@ -957,12 +957,12 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 </div>
 <div class="gate-overlay" id="verifyGate">
 <div class="gate-card">
-<p class="gate-eyebrow">步驟 2/3・會員綁定</p>
-<h2>傳送綁定碼就完成</h2>
+<p class="gate-eyebrow">步驟 2/3・領取免運券</p>
+<h2>🎁 前往 LINE 領取免運券</h2>
 <p class="gate-desc">按下面的按鈕，到 LINE 按「傳送」就好 ♡</p>
-<a class="btn btn--primary btn--full link-btn" id="verifyGoLine" href="#">前往 LINE 傳送綁定碼</a>
+<a class="btn btn--primary btn--full link-btn" id="verifyGoLine" href="#" style="display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.3;padding-top:12px;padding-bottom:12px;">前往 LINE 領取免運券<small style="font-size:12px;font-weight:600;opacity:.9;letter-spacing:.5px;">領取編號 <span id="verifyCodeText">------</span></small></a>
 <p class="verify-status" id="verifyStatusText" style="margin:10px 0 16px;">傳送後會自動進入下一步⋯</p>
-<div class="verify-code-box" style="padding:10px 14px;"><span style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0;font-family:var(--font-body);white-space:nowrap;">綁定碼</span><span id="verifyCodeText" style="flex:1;font-size:20px;">------</span><button class="copy-btn" id="verifyCodeCopy">複製</button></div>
+
 <button class="btn btn--ghost btn--full" id="verifyRecheck" style="margin-top:10px;color:var(--text-dark);border-color:var(--line);">我已經傳送了</button>
 </div>
 </div>
@@ -1344,7 +1344,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-2340';
+var APP_VERSION = '20261027-0110';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1648,8 +1648,12 @@ history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') +
 if(liff.isLoggedIn()) liff.logout();
 }catch(e){}
 }
+// 傳到官方帳號的訊息：「🎁 領取免運券 482913」（後面的號碼是領取編號，系統靠它認出是誰）
+function verifyMessageText(code){ return '🎁 領取免運券 ' + code; }
 async function initApp(){
 showLoading('連接LINE中...');
+// 新客人中間會切出去加社群、到官方帳號傳訊息，回來時網址可能已經沒有原本的商品，先記下來
+rememberDeepLink();
 rememberFromGroup();
 try{
 await liff.init({ liffId: LIFF_ID });
@@ -1729,7 +1733,7 @@ var verifyPollTimer = null;
 function openVerifyGate(code){
 hideLoading();
 document.getElementById('verifyCodeText').textContent = code;
-document.getElementById('verifyGoLine').href = 'https://line.me/R/oaMessage/' + encodeURIComponent(OA_ID) + '/?' + encodeURIComponent(code);
+document.getElementById('verifyGoLine').href = 'https://line.me/R/oaMessage/' + encodeURIComponent(OA_ID) + '/?' + encodeURIComponent(verifyMessageText(code));
 document.getElementById('verifyGate').classList.add('is-open');
 if(!verifyPollTimer){ verifyPollTimer = setInterval(checkVerifyOnce, 3000); }
 }
@@ -9041,12 +9045,13 @@ window.location.href = url;
 });
 document.getElementById('verifyRecheck').addEventListener('click', async function(){
 await checkVerifyOnce();
-if(document.getElementById('verifyGate').classList.contains('is-open')){ showToast('還沒偵測到，請確認會員綁定碼已送出'); }
+if(document.getElementById('verifyGate').classList.contains('is-open')){ showToast('還沒偵測到，請確認「領取免運券」訊息已送出'); }
 });
-document.getElementById('verifyCodeCopy').addEventListener('click', function(){
-var code = document.getElementById('verifyCodeText').textContent;
+var verifyCopyBtn = document.getElementById('verifyCodeCopy');
+if(verifyCopyBtn) verifyCopyBtn.addEventListener('click', function(){
+var code = verifyMessageText(document.getElementById('verifyCodeText').textContent);
 if(navigator.clipboard && navigator.clipboard.writeText){
-navigator.clipboard.writeText(code).then(function(){ showToast('已複製會員綁定碼'); }).catch(function(){ showToast('複製失敗，請手動選取'); });
+navigator.clipboard.writeText(code).then(function(){ showToast('已複製，貼到官方帳號傳送就好'); }).catch(function(){ showToast('複製失敗，請手動選取'); });
 } else {
 showToast('請手動選取複製');
 }
