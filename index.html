@@ -431,6 +431,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-p-item{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:11px 13px; margin-bottom:8px; }
 .adm-p-top{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
 .adm-p-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.4; }
+.adm-p-thumb{ flex:0 0 auto; width:56px; height:56px; border-radius:10px; object-fit:cover; background:var(--paper); border:1px solid var(--line); cursor:zoom-in; }
+.adm-p-top .adm-p-name{ flex:1; min-width:0; }
+.adm-p-vthumb{ flex:0 0 auto; width:34px; height:34px; border-radius:7px; object-fit:cover; margin-right:8px; border:1px solid var(--line); background:#fff; cursor:zoom-in; }
+.adm-p-var-head span{ flex:1; min-width:0; }
 .adm-p-name span{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); }
 .adm-p-qty{ flex:0 0 auto; font-size:20px; font-weight:800; color:var(--ignis-deep); line-height:1.1; }
 .adm-p-who{ margin:6px 0 0; font-size:12.5px; color:var(--text-dark); line-height:1.6; }
@@ -1293,7 +1297,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-1010';
+var APP_VERSION = '20261026-1500';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2247,13 +2251,13 @@ return '<p class="adm-p-cat">'+catPillHTML(byCat[c][0].catInfo, '<span class="ad
 + byCat[c].map(function(P){
 var multi = P.variants.length > 1 || P.variants[0].variant;
 return '<div class="adm-p-item">'
-+ '<div class="adm-p-top"><p class="adm-p-name">'+escHtml(P.name)+'</p><span class="adm-p-qty">×'+P.qty+'</span></div>'
++ '<div class="adm-p-top">'+(P.productId ? '<img class="adm-p-thumb" src="'+escAttr(productImageUrl(P.productId))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '')+'<p class="adm-p-name">'+escHtml(P.name)+'</p><span class="adm-p-qty">×'+P.qty+'</span></div>'
 + buyStoreSelectHTML(P)
 + P.variants.map(function(V){
 var pendingIds = V.orders.filter(function(o){ return o.status === '待確認' && !orderNeedsDeposit(o); }).map(function(o){ return o.id; });
 var skipDep = V.orders.filter(function(o){ return o.status === '待確認' && orderNeedsDeposit(o); }).length;
 return '<div class="adm-p-var">'
-+ (multi ? '<div class="adm-p-var-head"><span>'+escHtml(V.variant || '（無規格）')+'</span><b>×'+V.qty+'</b></div>' : '')
++ (multi ? (function(){ var vu = V.variant ? orderThumbUrl({ product_id:P.productId, variant:V.variant }) : ''; var cover = productImageUrl(P.productId); return '<div class="adm-p-var-head">'+(vu && vu !== cover ? '<img class="adm-p-vthumb" src="'+escAttr(vu)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '')+'<span>'+escHtml(V.variant || '（無規格）')+'</span><b>×'+V.qty+'</b></div>'; })() : '')
 + V.orders.map(adminPurchaseRowHTML).join('')
 + (pendingIds.length > 1 ? '<button type="button" class="adm-p-all" data-ids="'+pendingIds.join(',')+'" data-skip="'+skipDep+'">✓ 全部確認（'+pendingIds.length+' 筆'+(skipDep ? '，跳過 '+skipDep+' 筆未付訂' : '')+'）</button>' : '')
 + '</div>';
@@ -2279,6 +2283,8 @@ return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">'
 + '<p style="font-size:11.5px;color:var(--muted);margin:14px 0 0;line-height:1.6;">只算還沒結單的喊單（已取消、已結單的不算）。</p>';
 }
 function bindAdminPurchaseList(listEl){
+var thumbs = listEl.querySelectorAll('.adm-p-thumb, .adm-p-vthumb');
+for(var ti=0;ti<thumbs.length;ti++){ thumbs[ti].addEventListener('click', function(){ openLightbox(this.src); }); }
 var sBtns = listEl.querySelectorAll('[data-pstatus]');
 for(var i=0;i<sBtns.length;i++){ sBtns[i].addEventListener('click', function(){ adminPurchaseStatus = this.getAttribute('data-pstatus'); renderAdminOrders(); }); }
 var zBtns = listEl.querySelectorAll('[data-pzone]');
