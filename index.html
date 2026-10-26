@@ -205,6 +205,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .admin-photo-slot::before{ content:'+'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:22px; }
 .admin-photo-slot .admin-extra-thumb{ position:relative; z-index:1; width:52px !important; height:52px !important; max-width:52px; object-fit:cover; }
 .admin-photo-slot .admin-slot-delete-btn{ z-index:2; }
+.admin-cover-badge{ position:absolute; left:50%; bottom:-9px; transform:translateX(-50%); white-space:nowrap; padding:2px 7px; border-radius:999px; background:#E2472A; color:#fff; font-size:10.5px; font-weight:800; line-height:1.4; box-shadow:0 1px 4px rgba(0,0,0,.25); pointer-events:none; }
+.admin-photo-slot .admin-slot-cover-btn{ position:absolute; left:50%; bottom:-9px; transform:translateX(-50%); z-index:2; align-items:center; justify-content:center; white-space:nowrap; padding:2px 7px; border:none; border-radius:999px; background:var(--ink); color:#fff; font-size:10.5px; font-weight:800; line-height:1.4; font-family:var(--font-body); box-shadow:0 1px 4px rgba(0,0,0,.25); }
 .opt-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 14px; }
 .opt-chip{ min-width:52px; padding:9px 14px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:13.5px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
 .opt-chip-price{ display:block; margin-top:2px; font-size:11.5px; font-weight:800; color:var(--ignis-deep); }
@@ -1342,7 +1344,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-2300';
+var APP_VERSION = '20261026-2340';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5806,7 +5808,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<input type="file" accept="image/*" class="gate-input admin-image-input" data-product-id="'+p.id+'" style="margin-bottom:0;flex:1;padding:8px;">'
 + '<button type="button" class="btn btn--dark admin-image-btn" data-product-id="'+p.id+'" style="white-space:nowrap;">上傳圖片</button>'
 + '</div>'
-+ '<p style="font-size:12px;color:var(--muted);margin:12px 0 6px;">更多照片（最多 '+EXTRA_PHOTO_SLOTS.length+' 張，點空格上傳、點縮圖可直接換照片）</p>'
++ '<p style="font-size:12px;color:var(--muted);margin:12px 0 6px;">照片（第一張是封面；更多照片最多 '+EXTRA_PHOTO_SLOTS.length+' 張，點空格上傳、點縮圖換照片、按「設封面」跟封面對調）</p>'
 + adminExtraPhotoSlotsHTML(p)
 + '<button type="button" class="btn btn--full admin-duplicate-product-btn" data-product-id="'+p.id+'" style="margin-top:14px;border:1.5px solid var(--ink);color:var(--ink);font-size:13px;">📋 複製這件商品（改規格用）</button>'
 + '<button type="button" class="btn btn--full admin-delete-product-btn" data-product-id="'+p.id+'" data-name="'+escAttr(p.name)+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);font-size:13px;">刪除這件商品</button>'
@@ -6136,12 +6138,19 @@ function adminExtraPhotoSlotsHTML(p){
 var slots = EXTRA_PHOTO_SLOTS;
 if(p.photo_slots !== undefined) PHOTO_SLOTS[p.id] = parsePhotoSlots(p.photo_slots);
 var toLoad = extraSlotsToLoad(p.id);
-var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+var html = '<div style="display:flex;flex-wrap:wrap;gap:16px 8px;padding-bottom:6px;">'
+// 第一格固定顯示目前的封面（點一下換封面照片）；下面任何一張按「設封面」就跟它對調
++ '<div class="admin-cover-slot" data-product-id="'+p.id+'" style="position:relative;width:52px;height:52px;flex-shrink:0;border:2px solid var(--ink);border-radius:10px;cursor:pointer;background:var(--paper);">'
++ '<img src="'+productImageUrl(p.id)+'" class="admin-cover-slot-img" data-product-id="'+p.id+'" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;display:block;" onerror="this.style.visibility=\'hidden\';">'
++ '<span class="admin-cover-badge">封面</span>'
++ '<input type="file" accept="image/*" class="admin-cover-file-input" data-product-id="'+p.id+'" style="display:none;">'
++ '</div>';
 slots.forEach(function(slotNum){
 var slotUrl = productImageUrl(p.id, slotNum);
 html += '<div class="admin-photo-slot" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="position:relative;width:52px;height:52px;flex-shrink:0;border:1.5px dashed var(--line);border-radius:10px;cursor:pointer;">'
-+ '<img '+(toLoad.indexOf(slotNum)!==-1 ? 'src="'+slotUrl+'" ' : '')+'class="admin-extra-thumb" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;display:block;'+(toLoad.indexOf(slotNum)!==-1 ? '' : 'visibility:hidden;')+'" onload="this.nextElementSibling.style.display=\'flex\';" onerror="this.style.visibility=\'hidden\';">'
++ '<img '+(toLoad.indexOf(slotNum)!==-1 ? 'src="'+slotUrl+'" ' : '')+'class="admin-extra-thumb" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;display:block;'+(toLoad.indexOf(slotNum)!==-1 ? '' : 'visibility:hidden;')+'" onload="var bs=this.parentNode.querySelectorAll(\'.admin-slot-delete-btn,.admin-slot-cover-btn\');for(var bi=0;bi<bs.length;bi++)bs[bi].style.display=\'flex\';" onerror="this.style.visibility=\'hidden\';">'
 + '<button type="button" class="admin-slot-delete-btn" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--ignis-deep);color:#fff;border:none;font-size:11px;line-height:20px;padding:0;">✕</button>'
++ '<button type="button" class="admin-slot-cover-btn" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;">設封面</button>'
 + '<input type="file" accept="image/*" class="admin-slot-file-input" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;">'
 + '</div>';
 });
@@ -6632,7 +6641,7 @@ return function(){ openProductGallery(img.getAttribute('data-product-id'), img.s
 var photoSlots = container.querySelectorAll('.admin-photo-slot');
 for(var ps=0;ps<photoSlots.length;ps++){
 photoSlots[ps].addEventListener('click', function(e){
-if(e.target.classList.contains('admin-slot-delete-btn')) return;
+if(e.target.classList.contains('admin-slot-delete-btn') || e.target.classList.contains('admin-slot-cover-btn')) return;
 var productId = this.getAttribute('data-product-id');
 var slot = this.getAttribute('data-slot');
 var fileInput = container.querySelector('.admin-slot-file-input[data-product-id="'+productId+'"][data-slot="'+slot+'"]');
@@ -6646,6 +6655,33 @@ slotFileInputs[sf].addEventListener('change', function(){ handleAdminSlotUpload(
 var slotDeleteBtns = container.querySelectorAll('.admin-slot-delete-btn');
 for(var sd=0;sd<slotDeleteBtns.length;sd++){
 slotDeleteBtns[sd].addEventListener('click', function(e){ e.stopPropagation(); handleAdminSlotDelete(this); });
+}
+var coverSlots = container.querySelectorAll('.admin-cover-slot');
+for(var cs=0;cs<coverSlots.length;cs++){
+coverSlots[cs].addEventListener('click', function(e){
+if(e.target.classList.contains('admin-cover-file-input')) return;
+var fi = this.querySelector('.admin-cover-file-input'); if(fi) fi.click();
+});
+}
+var coverFileInputs = container.querySelectorAll('.admin-cover-file-input');
+for(var cf=0;cf<coverFileInputs.length;cf++){
+coverFileInputs[cf].addEventListener('change', async function(){
+var productId = this.getAttribute('data-product-id');
+if(!this.files || !this.files[0]) return;
+if(!adminConfirmEditOriginal(productId)){ this.value = ''; return; }
+try{
+var compressed = await compressImage(this.files[0]);
+var coverRes = await callMemberApi('admin-upload-product-image', { productId: productId, imageData: compressed });
+rememberPrivateUpload(productId, 1, coverRes);
+refreshCoverImgs(productId);
+showToast('封面已更新');
+}catch(err){ alert('上傳失敗：' + err.message); }
+this.value = '';
+});
+}
+var slotCoverBtns = container.querySelectorAll('.admin-slot-cover-btn');
+for(var sc=0;sc<slotCoverBtns.length;sc++){
+slotCoverBtns[sc].addEventListener('click', function(e){ e.stopPropagation(); handleAdminSlotMakeCover(this); });
 }
 }
 function setCachedPhotoSlots(productId, slotsText){
@@ -6672,6 +6708,54 @@ alert('上傳失敗：' + e.message);
 }
 input.value = '';
 }
+// 把「更多照片」的某一張設成封面：這張換到封面，原本的封面換到這一格（兩張對調，照片不會不見）
+async function fetchImageBlob(url){
+var r = await fetch(url + (url.indexOf('?') === -1 ? '?' : '&') + 'cb=' + Date.now(), { cache: 'no-store' });
+if(!r.ok) throw new Error('讀不到照片（' + r.status + '）');
+var b = await r.blob();
+if(!/^image\//.test(b.type || 'image/')) throw new Error('不是圖片');
+return b;
+}
+function refreshCoverImgs(productId){
+IMAGE_VERSIONS[productId] = Date.now();
+var els = document.querySelectorAll('.admin-product-thumb[data-product-id="'+productId+'"], .admin-cover-slot-img[data-product-id="'+productId+'"]');
+for(var i=0;i<els.length;i++){ els[i].style.visibility = 'visible'; els[i].src = productImageUrl(productId); }
+}
+async function handleAdminSlotMakeCover(btn){
+var productId = btn.getAttribute('data-product-id');
+var slot = Number(btn.getAttribute('data-slot'));
+var prod = null;
+for(var i=0;i<adminProductsCache.length;i++){ if(adminProductsCache[i].id === productId) prod = adminProductsCache[i]; }
+var used = [];
+if(prod){ var om = parseOptionPhotos(prod.option_photos); Object.keys(om).forEach(function(k){ if(Number(om[k]) === slot) used.push(k); }); }
+var msg = '把這張設為封面嗎？\n原本的封面會換到這一格，兩張對調，不會不見。'
++ (used.length ? '\n\n⚠️ 這一格是「'+used.join('、')+'」的對應照片，對調後這個選項會顯示原本的封面，記得到規格的對應照片重新選。' : '');
+if(!window.confirm(msg)) return;
+if(!adminConfirmEditOriginal(productId)) return;
+var old = btn.textContent;
+btn.disabled = true; btn.textContent = '換中…';
+try{
+var slotBlob = await fetchImageBlob(productImageUrl(productId, slot));
+var coverBlob = null;
+try{ coverBlob = await fetchImageBlob(productImageUrl(productId)); }catch(e0){ coverBlob = null; }
+var newCover = await compressImage(slotBlob);
+var coverRes = await callMemberApi('admin-upload-product-image', { productId: productId, imageData: newCover });
+rememberPrivateUpload(productId, 1, coverRes);
+if(coverBlob){
+var oldCover = await compressImage(coverBlob);
+var upRes = await callMemberApi('admin-upload-product-image', { productId: productId, slot: slot, imageData: oldCover });
+rememberPrivateUpload(productId, slot, upRes);
+if(upRes && upRes.photoSlots !== undefined) setCachedPhotoSlots(productId, upRes.photoSlots);
+}
+refreshCoverImgs(productId);
+var simg = document.querySelector('.admin-photo-slot[data-product-id="'+productId+'"][data-slot="'+slot+'"] .admin-extra-thumb');
+if(simg) simg.src = productImageUrl(productId, slot);
+showToast(coverBlob ? '已設為封面（原本的封面換到這一格）' : '已設為封面');
+}catch(e){
+alert('設封面失敗：' + e.message);
+}
+btn.disabled = false; btn.textContent = old;
+}
 async function handleAdminSlotDelete(btn){
 if(!window.confirm('確定要刪除這張照片嗎？')) return;
 var productId = btn.getAttribute('data-product-id');
@@ -6683,6 +6767,7 @@ showToast('已刪除');
 var img = document.querySelector('.admin-photo-slot[data-product-id="'+productId+'"][data-slot="'+slot+'"] .admin-extra-thumb');
 if(img){ img.style.visibility = 'hidden'; }
 btn.style.display = 'none';
+var cvb = btn.parentNode ? btn.parentNode.querySelector('.admin-slot-cover-btn') : null; if(cvb) cvb.style.display = 'none';
 }catch(e){
 alert('刪除失敗：' + e.message);
 }
@@ -6779,6 +6864,7 @@ thumb.style.visibility = 'visible';
 IMAGE_VERSIONS[productId] = Date.now();
 thumb.src = productImageUrl(productId);
 }
+refreshCoverImgs(productId);
 }catch(e){
 alert('上傳失敗：' + e.message);
 }
