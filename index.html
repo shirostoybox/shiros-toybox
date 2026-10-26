@@ -113,6 +113,12 @@ background:conic-gradient(from 0deg, var(--c1), var(--c2), var(--c1) 60%, var(--
 .vote-admin-row button, .vote-admin-row label{ flex:none; border:1px solid #E5E7EB; background:#fff; border-radius:999px; padding:4px 10px; font-size:12px; font-family:var(--font-body); }
 .vote-admin-row .del{ color:#B91C1C; }
 .vote-admin-row label{ color:#5B21B6; }
+.vote-mem{ margin-top:12px; border-top:1px solid #EDE7FB; padding-top:10px; }
+.vote-mem summary{ font-weight:800; font-size:13.5px; color:#5B21B6; cursor:pointer; }
+.vote-mem-row{ padding:7px 0; border-top:1px dashed #EDE7FB; font-size:13.5px; }
+.vote-mem-row small{ color:var(--muted); }
+.vote-mem-row span{ display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+.vote-mem-row i{ font-style:normal; font-size:12px; font-weight:700; background:#FFF0F5; color:#D94B79; padding:2px 9px; border-radius:999px; }
 .vote-arch{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
 .vote-arch a{ display:block; text-decoration:none; color:var(--muted); font-size:10.5px; text-align:center; }
 .vote-arch img{ width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:10px; border:1px solid #E5E7EB; background:#fff; }
@@ -1287,7 +1293,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261026-0310';
+var APP_VERSION = '20261026-1010';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7077,6 +7083,9 @@ box.innerHTML = '<div class="vote-admin"><h3>🔧 投票管理（只有後台看
 + '<p style="margin:0 0 8px;font-size:12px;color:var(--muted);">目前共 '+(d.characters || []).length+' 個角色・前台只顯示名次，不顯示票數</p>'
 + '<textarea id="voteAdminNames" class="gate-input" placeholder="新增角色：一行一個，或用逗號分開&#10;例如：吉伊卡哇, 小八貓, 兔兔"></textarea>'
 + '<button type="button" class="btn btn--dark btn--full" id="voteAdminAdd" style="margin:6px 0 10px;">＋ 新增角色</button>'
++ ((d.members || []).length ? '<details class="vote-mem" style="margin:0 0 12px;border:1.5px solid #E9D5FF;border-radius:14px;padding:10px 12px;background:#fff;"><summary>👥 會員投票明細（'+d.members.length+' 人）</summary>'
++ '<input type="search" class="gate-input" id="voteMemSearch" placeholder="搜尋暱稱或角色" style="margin:8px 0 6px;">'
++ '<div id="voteMemList">' + d.members.map(function(m){ return '<div class="vote-mem-row" data-q="'+escAttr((m.name+' '+m.lineName+' '+m.picks.join(' ')).toLowerCase())+'"><b>'+escHtml(m.name)+'</b>'+(m.lineName && m.lineName !== m.name ? ' <small>（'+escHtml(m.lineName)+'）</small>' : '')+'<span>'+m.picks.map(function(p){ return '<i>💗 '+escHtml(p)+'</i>'; }).join('')+'</span></div>'; }).join('') + '</div></details>' : '<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);">👥 會員投票明細：'+(d.members ? '還沒有人投票' : '⚠️ member-api 還是舊版，請重新部署')+'</p>')
 + (d.characters || []).map(function(c){ return '<div class="vote-admin-row"><div class="vav-wrap">'+voteAvatarHTML(c)+'</div><span><b>'+escHtml(c.name)+'</b>'+(c.byCustomer ? '<br><small>💌 客人許願'+(c.addedBy ? '（'+escHtml(c.addedBy)+'）' : '')+'</small>' : '')+'<br><small>'+(c.rank ? '第 '+c.rank+' 名・' : '')+c.n+' 票</small></span>'
 + '<label>📷 圖片<input type="file" accept="image/*" data-vote-img="'+c.id+'" style="display:none;"></label>'
 + '<button type="button" class="del" data-vote-del="'+c.id+'" data-name="'+escAttr(c.name)+'">刪除</button></div>'; }).join('')
@@ -7303,6 +7312,11 @@ await callMemberApi('admin-vote-image', { id: f.getAttribute('data-vote-img'), i
 showToast('角色圖片已更新 ♡');
 loadVotes();
 }catch(err){ alert('上傳失敗：' + err.message); if(lab) lab.firstChild.textContent = '📷 圖片'; }
+});
+document.addEventListener('input', function(e){
+if(!e.target || e.target.id !== 'voteMemSearch') return;
+var q = e.target.value.trim().toLowerCase(), rows = document.querySelectorAll('#voteMemList .vote-mem-row');
+for(var i=0;i<rows.length;i++) rows[i].style.display = !q || rows[i].getAttribute('data-q').indexOf(q) !== -1 ? '' : 'none';
 });
 document.addEventListener('keydown', function(e){ if(e.key === 'Enter' && e.target && e.target.id === 'voteAddInput'){ e.preventDefault(); addVoteCharacter(); } });
 
