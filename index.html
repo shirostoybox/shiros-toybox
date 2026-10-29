@@ -1401,7 +1401,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-2010';
+var APP_VERSION = '20261029-2020';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2451,6 +2451,11 @@ var nm = '';
 (adminGroupsCache || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(!nm && o.product_id === pid) nm = o.product_name; }); });
 return nm || (INV.p[pid] && INV.p[pid].nm) || '商品';
 }
+function invOrderRandom(o){
+if(invIsRandom(o.variant)) return true;
+var opts = invProdOptions(o.product_id), parts = invParts(o.variant);
+return !parts.some(function(x){ var xs = invStrip(x); return opts.some(function(op){ return op === x || (xs && invStrip(op) === xs); }); });
+}
 function invUnitMatch(u, variant){
 if(u.l === '' || u.l === String(variant || '')) return true;
 var l = u.l, ls = invStrip(l);
@@ -2482,7 +2487,7 @@ else if(keep.length !== (A.u || []).length){ invQueue({ k:'aset', oid:oid, v:Obj
 });
 function take(o, list, sim){
 var need = Number(o.quantity || 1) - list.length;
-var rnd = invIsRandom(o.variant);
+var rnd = invOrderRandom(o);
 for(var k=0; k<units.length && need>0; k++){
 var u = units[k];
 if(used[u.i] || (sim && sim[u.i])) continue;
@@ -2495,26 +2500,26 @@ list.push(u.i); need--;
 var confirmed = orders.filter(function(o){ return o.status === '已確認'; });
 [false, true].forEach(function(randPass){
 confirmed.forEach(function(o){
-if(invIsRandom(o.variant) !== randPass) return;
+if(invOrderRandom(o) !== randPass) return;
 var list = got[o.id] ? got[o.id].slice() : [];
 var before = list.length;
 take(o, list, null);
 if(list.length !== before){
 got[o.id] = list;
 list.forEach(function(id){ owner[id] = o._nick; });
-invQueue({ k:'aset', oid:o.id, v:{ p:pid, u:list, t:(INV.a[o.id] && INV.a[o.id].t) || Date.now(), nk:o._nick, r:invIsRandom(o.variant) ? 1 : 0 } });
+invQueue({ k:'aset', oid:o.id, v:{ p:pid, u:list, t:(INV.a[o.id] && INV.a[o.id].t) || Date.now(), nk:o._nick, r:invOrderRandom(o) ? 1 : 0 } });
 }
 });
 });
 confirmed.forEach(function(o){
 var list = got[o.id] || [];
-res.order[o.id] = { units:list.map(function(id){ return { pos:uById[id].pos, l:uById[id].u.l }; }), short:Number(o.quantity || 1) - list.length, preview:false, rnd:invIsRandom(o.variant) };
+res.order[o.id] = { units:list.map(function(id){ return { pos:uById[id].pos, l:uById[id].u.l }; }), short:Number(o.quantity || 1) - list.length, preview:false, rnd:invOrderRandom(o) };
 });
 // 3. 待確認的先預覽：照喊單時間，如果現在按確認會輪到哪一顆
 var sim = {};
 orders.filter(function(o){ return o.status === '待確認'; }).forEach(function(o){
 var list = []; take(o, list, sim);
-res.order[o.id] = { units:list.map(function(id){ return { pos:uById[id].pos, l:uById[id].u.l }; }), short:Number(o.quantity || 1) - list.length, preview:true, rnd:invIsRandom(o.variant) };
+res.order[o.id] = { units:list.map(function(id){ return { pos:uById[id].pos, l:uById[id].u.l }; }), short:Number(o.quantity || 1) - list.length, preview:true, rnd:invOrderRandom(o) };
 });
 var left = units.filter(function(u){ return !used[u.i]; });
 var leftBy = {}, leftOrder = [];
@@ -8709,9 +8714,9 @@ return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel'
 }
 // 隨機（不指定）的喊單：老闆記好庫存後，客人這邊會看到抽到哪一款
 function myRandomResultHTML(o){
-if(!o || o.status === '缺貨已幫您取消' || !invIsRandom(o.variant)) return '';
+if(!o || o.status === '缺貨已幫您取消') return '';
 var d = invParse(siteSettings.inventory), A = d.a[o.id];
-if(!A || !d.p[A.p]) return '';
+if(!A || !d.p[A.p] || !(A.r || invIsRandom(o.variant))) return '';
 var labels = (A.u || []).map(function(id){ var u = (d.p[A.p].u || []).filter(function(x){ return x.i === id; })[0]; return u ? (u.l || '') : null; }).filter(function(x){ return x; });
 if(!labels.length) return '';
 return '<p class="my-row-rand">🎲 隨機抽到：'+escHtml(labels.join('、'))+'</p>';
