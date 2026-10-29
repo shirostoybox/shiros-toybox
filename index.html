@@ -889,6 +889,8 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .adm-op.has .adm-op-img{ display:block; }
 .adm-op-up{ border:1px dashed #8B9BB4; background:#F4F7FB; color:#3B4A63; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700; font-family:var(--font-body); }
 .adm-op-up.busy{ opacity:.5; }
+.adm-op-del{ display:none; border:none; background:none; color:var(--muted); font-size:12px; font-weight:700; text-decoration:underline; padding:4px 2px; font-family:var(--font-body); }
+.adm-op.is-new .adm-op-del{ display:inline-block; }
 .adm-op-up .op-chg{ display:none; }
 .adm-op.has .adm-op-up .op-new{ display:none; }
 .adm-op.has .adm-op-up .op-chg{ display:inline; }
@@ -1399,7 +1401,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-1930';
+var APP_VERSION = '20261029-2000';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2324,11 +2326,22 @@ return '';
 // ---------- 📷 客人開出來的照片（扭蛋開出哪一款）：每筆喊單一張，包貨、對貨用 ----------
 // 存在 product-images/op-{訂單編號}.jpg；沒上傳過的圖片讀不到就自動隱藏
 var OPHOTO_V = {}, OPHOTO_PAGE_V = Date.now();
-function orderPhotoUrl(oid){ return SUPABASE_URL + '/storage/v1/object/public/product-images/op-' + oid + '.jpg?v=' + (OPHOTO_V[oid] || OPHOTO_PAGE_V); }
+// 新上傳的存成 op-{單號}-2.jpg（可以刪除）；之前上傳的舊照片 op-{單號}.jpg 只能換、不能刪
+function orderPhotoUrl(oid, old){ return SUPABASE_URL + '/storage/v1/object/public/product-images/op-' + oid + (old ? '' : '-2') + '.jpg?v=' + (OPHOTO_V[oid] || OPHOTO_PAGE_V); }
+function opLoad(img){ var w = img.parentNode; w.classList.add('has'); w.classList.toggle('is-new', !img.getAttribute('data-fb')); }
+function opErr(img){
+var w = img.parentNode;
+if(!img.getAttribute('data-fb')){ img.setAttribute('data-fb', '1'); img.src = orderPhotoUrl(w.getAttribute('data-oid'), true); return; }
+w.classList.remove('has'); w.classList.remove('is-new');
+}
+function opReload(oid){
+var imgs = document.querySelectorAll('.adm-op[data-oid="'+oid+'"] .adm-op-img');
+for(var i=0;i<imgs.length;i++){ imgs[i].removeAttribute('data-fb'); imgs[i].src = orderPhotoUrl(oid); }
+}
 function orderPhotoHTML(o, withBtn){
 return '<span class="adm-op" data-oid="'+escAttr(o.id)+'">'
-+ '<img class="adm-op-img" src="'+escAttr(orderPhotoUrl(o.id))+'" alt="" loading="lazy" onload="this.parentNode.classList.add(\'has\')" onerror="this.parentNode.classList.remove(\'has\')">'
-+ (withBtn ? '<button type="button" class="adm-op-up" data-oid="'+escAttr(o.id)+'"><span class="op-new">📷 開出的照片</span><span class="op-chg">📷 換照片</span></button><input type="file" accept="image/*" class="adm-op-file" data-oid="'+escAttr(o.id)+'" style="display:none;">' : '')
++ '<img class="adm-op-img" src="'+escAttr(orderPhotoUrl(o.id))+'" alt="" onload="opLoad(this)" onerror="opErr(this)">'
++ (withBtn ? '<button type="button" class="adm-op-up" data-oid="'+escAttr(o.id)+'"><span class="op-new">📷 開出的照片</span><span class="op-chg">📷 換照片</span></button><button type="button" class="adm-op-del" data-oid="'+escAttr(o.id)+'">🗑 刪除</button><input type="file" accept="image/*" class="adm-op-file" data-oid="'+escAttr(o.id)+'" style="display:none;">' : '')
 + '</span>';
 }
 document.addEventListener('click', function(e){
@@ -2336,6 +2349,16 @@ var t = e.target;
 if(!t || !t.closest) return;
 var up = t.closest('.adm-op-up');
 if(up){ var fi = up.parentNode.querySelector('.adm-op-file'); if(fi) fi.click(); return; }
+var del = t.closest('.adm-op-del');
+if(del){
+var doid = del.getAttribute('data-oid');
+if(!window.confirm('要刪除這張開出的照片嗎？')) return;
+del.disabled = true;
+callMemberApi('admin-delete-product-image', { productId: 'op-' + doid, slot: 2 }).then(function(){
+OPHOTO_V[doid] = Date.now(); opReload(doid); showToast('已刪除照片');
+}).catch(function(err){ alert('刪除失敗：' + err.message); }).then(function(){ del.disabled = false; });
+return;
+}
 var im = t.closest('.adm-op-img');
 if(im){ openLightbox(im.src); return; }
 var fold = t.closest('.adm-p-fold');
@@ -2362,11 +2385,10 @@ if(!fi.files || !fi.files[0]) return;
 var wrap = fi.parentNode, btn = wrap.querySelector('.adm-op-up');
 if(btn){ btn.disabled = true; btn.classList.add('busy'); }
 try{
-var data = await compressImage(fi.files[0], 1200);
-await callMemberApi('admin-upload-product-image', { productId: 'op-' + oid, imageData: data });
+var data = await compressImage(fi.files[0], 800);
+await callMemberApi('admin-upload-product-image', { productId: 'op-' + oid, slot: 2, imageData: data });
 OPHOTO_V[oid] = Date.now();
-var imgs = document.querySelectorAll('.adm-op[data-oid="'+oid+'"] .adm-op-img');
-for(var i=0;i<imgs.length;i++) imgs[i].src = orderPhotoUrl(oid);
+opReload(oid);
 showToast('已上傳開出的照片');
 }catch(err){ alert('上傳失敗：' + err.message); }
 if(btn){ btn.disabled = false; btn.classList.remove('busy'); }
@@ -2382,7 +2404,10 @@ function saveFolded(){ try{ localStorage.setItem('pFolded', JSON.stringify(admin
 var INV = { p:{}, a:{} }, INV_OPS = [], INV_TIMER = null, INV_SAVING = false, INV_ALLOC = null;
 function invParse(raw){ var d; try{ d = JSON.parse(raw || '{}') || {}; }catch(e){ d = {}; } if(!d.p || typeof d.p !== 'object') d.p = {}; if(!d.a || typeof d.a !== 'object') d.a = {}; return d; }
 function invReload(){ INV = invParse(siteSettings.inventory); INV_OPS.forEach(function(op){ invApply(INV, op); }); }
-function invIsRandom(v){ return /不指定|隨機/.test(String(v || '')); }
+// 喊單的規格會連說明一起存（例如「約2cm・…（指定沒貨改隨機出貨…）・兔兔・不留蛋殼」），所以拆開一段一段比對
+function invParts(v){ return String(v || '').split('・').map(function(x){ return x.trim(); }).filter(Boolean); }
+function invStrip(x){ return String(x || '').replace(/[（(][^）)]*[）)]/g, '').trim(); }
+function invIsRandom(v){ return invParts(v).some(function(x){ return /^(不指定|隨機)/.test(invStrip(x) || x); }); }
 function invApply(d, op){
 if(op.k === 'pset'){ d.p[op.pid] = op.v; }
 else if(op.k === 'pdel'){ delete d.p[op.pid]; Object.keys(d.a).forEach(function(oid){ if(d.a[oid] && d.a[oid].p === op.pid) delete d.a[oid]; }); }
@@ -2426,7 +2451,11 @@ var nm = '';
 (adminGroupsCache || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(!nm && o.product_id === pid) nm = o.product_name; }); });
 return nm || (INV.p[pid] && INV.p[pid].nm) || '商品';
 }
-function invUnitMatch(u, variant){ return u.l === '' || u.l === String(variant || ''); }
+function invUnitMatch(u, variant){
+if(u.l === '' || u.l === String(variant || '')) return true;
+var l = u.l, ls = invStrip(l);
+return invParts(variant).some(function(x){ return x === l || (ls && invStrip(x) === ls); });
+}
 function invAllocate(groups){
 var res = { order:{}, prod:{} };
 var byPid = {};
