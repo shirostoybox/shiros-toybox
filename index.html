@@ -1362,7 +1362,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-1830';
+var APP_VERSION = '20261029-1840';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1960,7 +1960,8 @@ if(!prod) return { key:'__other__', label:'其他', color: colorForCategory('') 
 return { key: prod.cat || '__other__', label: prod.catLabel || catLabelFor(prod.cat) || '其他', color: colorForCategory(prod.cat) };
 }
 function catPillHTML(info, extra){
-return '<span class="adm-cat-pill" style="background:'+info.color.tag+';color:'+info.color.tagText+';">'+escHtml(info.label)+'</span>'+(extra || '');
+info = info || {}; var c = info.color || { tag:'#EEF0F3', tagText:'#5A5F6B' };
+return '<span class="adm-cat-pill" style="background:'+c.tag+';color:'+c.tagText+';">'+escHtml(info.label || '其他')+'</span>'+(extra || '');
 }
 function orderNeedsDeposit(o){ return !!o.deposit_required && !(Number(o.deposit_amount || 0) > 0); }
 function adminGroupKey(g){ return String(g.lineUid || g.nickname || ''); }
@@ -6918,7 +6919,9 @@ function colorForCategory(key){
 key = String(key || '');
 if(key === DONTMISS_CAT) return { tag:'#FFE4DC', tagText:'#D9381E' };
 var idx = CATEGORY_ORDER.indexOf(key);
-if(idx === -1){ registerCategories([{cat:key}]); idx = CATEGORY_ORDER.indexOf(key); }
+if(idx === -1){ try{ registerCategories([{cat:key}]); }catch(e){} idx = CATEGORY_ORDER.indexOf(key); }
+// 找不到分類（例如商品沒有分類、或分類已被刪掉）：用灰色，不要讓畫面出錯
+if(idx < 0) return { tag:'#EEF0F3', tagText:'#5A5F6B' };
 if(idx < ADMIN_CATEGORY_COLORS.length) return ADMIN_CATEGORY_COLORS[idx];
 // 分類超過內建顏色數量時，用色相環平均錯開產生新顏色，一樣不會重複
 var hue = Math.round((idx * 137.508) % 360);
