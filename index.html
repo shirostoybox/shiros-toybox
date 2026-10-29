@@ -1401,7 +1401,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-2020';
+var APP_VERSION = '20261029-2110';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2697,11 +2697,19 @@ var have = {}; order.forEach(function(pid){ have[pid] = true; });
 var more = PRODUCTS.filter(function(p){ return !have[p.id] && String(p.name || '').toLowerCase().indexOf(q) >= 0; }).slice(0, 8);
 if(more.length) extra = '<p class="inv-lab" style="margin-top:14px;">其他商品（點一下開始記庫存）</p>' + more.map(function(p){ return '<button type="button" class="inv-pick" data-pid="'+escAttr(p.id)+'">＋ '+escHtml(p.name)+'</button>'; }).join('');
 }
+var listHTML = (shown.length ? shown.map(invCardHTML).join('') : '<p style="font-size:14px;color:var(--muted);">'+(q ? '找不到「'+escHtml(invQuery.trim())+'」' : '目前沒有要記庫存的商品。')+'</p>') + extra;
+// 搜尋框已經在畫面上：只換下面的列表，不要重畫搜尋框（注音、選字才不會被打斷）
+var oldList = document.getElementById('invList');
+if(oldList && document.getElementById('invSearch')){ oldList.innerHTML = listHTML; return; }
 el.innerHTML = '<div class="inv-intro">買到或扭到一個，就在那件商品按一下，<b>照扭出來的順序</b>記下來。<br>已確認的喊單會<b>依喊單時間</b>自動分配：指定款式的先拿對應的那顆，<b>隨機的依順序拿剩下的</b>，客人的喊單頁也會寫隨機抽到哪一款。</div>'
 + '<input type="text" class="gate-input" id="invSearch" value="'+escAttr(invQuery)+'" placeholder="搜尋商品，也可以找沒人喊單的商品來記庫存" style="margin-bottom:10px;">'
-+ '<div id="invList">' + (shown.length ? shown.map(invCardHTML).join('') : '<p style="font-size:14px;color:var(--muted);">目前沒有要記庫存的商品。</p>') + extra + '</div>';
++ '<div id="invList">' + listHTML + '</div>';
 var si = document.getElementById('invSearch');
-si.addEventListener('input', function(){ invQuery = this.value; clearTimeout(si._t); si._t = setTimeout(function(){ renderAdminInventory(); var n = document.getElementById('invSearch'); if(n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 350); });
+var composing = false;
+function runSearch(){ invQuery = si.value; clearTimeout(si._t); si._t = setTimeout(renderAdminInventory, 300); }
+si.addEventListener('compositionstart', function(){ composing = true; });
+si.addEventListener('compositionend', function(){ composing = false; runSearch(); });
+si.addEventListener('input', function(e){ if(composing || e.isComposing) return; runSearch(); });
 }
 function adminPurchaseRowHTML(o, idx){
 var q = Number(o.quantity || 1);
