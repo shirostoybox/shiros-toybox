@@ -467,7 +467,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-o-cat{ margin:14px 0 2px; display:flex; align-items:center; gap:8px; }
 .adm-cat-pill{ display:inline-block; padding:4px 12px; border-radius:999px; font-size:12.5px; font-weight:800; }
 .adm-cat-n{ font-size:12px; color:var(--muted); font-weight:600; }
-.adm-p-item{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:11px 13px; margin-bottom:8px; }
+.adm-p-item{ --pc:#8B9BB4; background:var(--card); border:1px solid var(--line); border-left:7px solid var(--pc); border-radius:var(--r-md); padding:11px 13px; margin-bottom:16px; box-shadow:0 2px 8px rgba(20,22,30,.06); }
+.adm-p-item .adm-p-top{ background:color-mix(in srgb, var(--pc) 16%, #fff); margin:-11px -13px 4px; padding:11px 13px; border-radius:0 var(--r-md) 0 0; }
+.adm-p-item .adm-p-name{ font-size:15.5px; }
+.adm-p-item .adm-p-var-head{ border-left:4px solid var(--pc); background:color-mix(in srgb, var(--pc) 9%, #fff); }
 .adm-p-top{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
 .adm-p-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.4; }
 .adm-p-thumb{ flex:0 0 auto; width:56px; height:56px; border-radius:10px; object-fit:cover; background:var(--paper); border:1px solid var(--line); cursor:zoom-in; }
@@ -1401,7 +1404,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-2115';
+var APP_VERSION = '20261029-2130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2712,6 +2715,18 @@ si.addEventListener('compositionstart', function(){ composing = true; });
 si.addEventListener('compositionend', function(){ composing = false; runSearch(); });
 si.addEventListener('input', function(e){ if(composing || e.isComposing) return; runSearch(); });
 }
+// 採購清單的規格標題只留「選的款式」，把商品說明、扭蛋固定那段拿掉，比較好找
+function shortVariantLabel(pid, v){
+v = String(v || ''); if(!v) return '';
+var sub = '';
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === pid){ sub = PRODUCTS[i].sub || ''; break; } }
+if(!sub){ for(var j=0;j<adminProductsCache.length;j++){ if(adminProductsCache[j].id === pid){ sub = adminProductsCache[j].sub || ''; break; } } }
+var subParts = invParts(sub);
+// 只拿掉「商品說明」那幾段（扭蛋固定的附蛋紙說明、商品介紹），選的款式一定留著
+var keep = invParts(v).filter(function(x){ return subParts.indexOf(x) === -1 && !/附蛋紙|指定沒貨/.test(x) && !(x.length > 10 && /[，,、]/.test(x)); });
+return keep.length ? keep.join('・') : v;
+}
+var ADM_P_COLORS = ['#F08A8A','#F2B35E','#7CC48A','#6FA8E8','#A88BE0','#E889C0','#5FC2C0','#C2A36B'];
 function adminPurchaseRowHTML(o, idx){
 var q = Number(o.quantity || 1);
 var needDep = orderNeedsDeposit(o);
@@ -2774,6 +2789,7 @@ var byCat = {}, cats = [];
 prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
 cats.forEach(function(c){ byCat[c].sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant'); }); });
 var totalQty = prods.reduce(function(a,P){ return a + P.qty; }, 0);
+var pIdx = 0;
 var list = cats.map(function(c){
 var catQty = byCat[c].reduce(function(a,P){ return a + P.qty; }, 0);
 return '<p class="adm-p-cat">'+catPillHTML(byCat[c][0].catInfo, '<span class="adm-cat-n">'+byCat[c].length+' 樣・'+catQty+' 件</span>')+'</p>'
@@ -2781,7 +2797,8 @@ return '<p class="adm-p-cat">'+catPillHTML(byCat[c][0].catInfo, '<span class="ad
 var multi = P.variants.length > 1 || P.variants[0].variant;
 var pk = (P.productId || '') + '|' + P.name;
 var okQty = 0; P.variants.forEach(function(V){ V.orders.forEach(function(o){ if(o.status === '已確認') okQty += Number(o.quantity || 1); }); });
-return '<div class="adm-p-item'+(adminPurchaseFolded[pk] ? ' is-folded' : '')+'" data-pk="'+escAttr(pk)+'">'
+var pc = ADM_P_COLORS[(pIdx++) % ADM_P_COLORS.length];
+return '<div class="adm-p-item'+(adminPurchaseFolded[pk] ? ' is-folded' : '')+'" data-pk="'+escAttr(pk)+'" style="--pc:'+pc+';">'
 + '<div class="adm-p-top">'+(P.productId ? '<img class="adm-p-thumb" src="'+escAttr(productImageUrl(P.productId))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '')+'<p class="adm-p-name">'+escHtml(P.name)+'<span class="adm-p-foldsum">已確認 '+okQty+'／'+P.qty+' 件</span></p><span class="adm-p-qty">×'+P.qty+'</span></div>'
 + '<button type="button" class="adm-p-fold" data-pk="'+escAttr(pk)+'"><span class="f-close">收起 ▲</span><span class="f-open">展開 ▼</span></button>'
 + '<div class="adm-p-body">'
@@ -2791,7 +2808,7 @@ return '<div class="adm-p-item'+(adminPurchaseFolded[pk] ? ' is-folded' : '')+'"
 var pendingIds = V.orders.filter(function(o){ return o.status === '待確認' && !orderNeedsDeposit(o); }).map(function(o){ return o.id; });
 var skipDep = V.orders.filter(function(o){ return o.status === '待確認' && orderNeedsDeposit(o); }).length;
 return '<div class="adm-p-var">'
-+ (multi ? (function(){ var vu = V.variant ? orderThumbUrl({ product_id:P.productId, variant:V.variant }) : ''; var cover = productImageUrl(P.productId); return '<div class="adm-p-var-head">'+(vu && vu !== cover ? '<img class="adm-p-vthumb" src="'+escAttr(vu)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '')+'<span>'+escHtml(V.variant || '（無規格）')+'</span><b>×'+V.qty+'</b></div>'; })() : '')
++ (multi ? (function(){ var vu = V.variant ? orderThumbUrl({ product_id:P.productId, variant:V.variant }) : ''; var cover = productImageUrl(P.productId); return '<div class="adm-p-var-head">'+(vu && vu !== cover ? '<img class="adm-p-vthumb" src="'+escAttr(vu)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '')+'<span title="'+escAttr(V.variant || '')+'">'+escHtml(shortVariantLabel(P.productId, V.variant) || '（無規格）')+'</span><b>×'+V.qty+'</b></div>'; })() : '')
 + V.orders.map(adminPurchaseRowHTML).join('')
 + (pendingIds.length > 1 ? '<button type="button" class="adm-p-all" data-ids="'+pendingIds.join(',')+'" data-skip="'+skipDep+'">✓ 全部確認（'+pendingIds.length+' 筆'+(skipDep ? '，跳過 '+skipDep+' 筆未付訂' : '')+'）</button>' : '')
 + '</div>';
