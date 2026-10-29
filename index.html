@@ -1401,7 +1401,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-2000';
+var APP_VERSION = '20261029-2010';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2556,24 +2556,29 @@ return '<span class="inv-sum">庫存 '+P.total+'・已分配 '+P.used+'・<b>剩
 }
 function invCardHTML(pid){
 var P = INV.p[pid] || { u:[], n:1 };
-var A = (INV_ALLOC && INV_ALLOC.prod[pid]) || { owner:{}, wantOk:0, wantWait:0 };
+var A = (INV_ALLOC && INV_ALLOC.prod[pid]) || { owner:{} };
+var wOk = 0, wWait = 0;
+(adminGroupsCache || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(o.product_id !== pid) return; if(o.status === '已確認') wOk += Number(o.quantity || 1); else if(o.status === '待確認') wWait += Number(o.quantity || 1); }); });
 var opts = invProdOptions(pid);
+// 自己打過的款式也變成按鈕，下次直接按
+P.u.forEach(function(u){ if(u.l && opts.indexOf(u.l) === -1) opts.push(u.l); });
 var seq = P.u.length
 ? P.u.map(function(u, ix){ var who = A.owner && A.owner[u.i]; return '<button type="button" class="inv-u'+(who ? ' is-used' : '')+'" data-pid="'+escAttr(pid)+'" data-uid="'+u.i+'"><span class="inv-u-n">'+(ix+1)+'</span>'+escHtml(invLabelText(u.l))+(who ? '<small>→ '+escHtml(who)+'</small>' : '')+'</button>'; }).join('')
 : '<p class="inv-empty">還沒有庫存。買到／扭到一個就按一下下面的按鈕，會照順序排好。</p>';
+var hasPlain = P.u.some(function(u){ return !u.l; });
 var addBtns = opts.length
-? opts.map(function(x){ return '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="'+escAttr(x)+'">＋ '+escHtml(x)+'</button>'; }).join('')
+? opts.map(function(x){ return '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="'+escAttr(x)+'">＋ '+escHtml(x)+'</button>'; }).join('') + (hasPlain ? '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="" data-n="1">＋1 個（不分款）</button>' : '')
 : '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="" data-n="1">＋1 個</button><button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="" data-n="5">＋5 個</button>';
 return '<div class="inv-card" data-pid="'+escAttr(pid)+'">'
 + '<div class="inv-head"><img class="inv-thumb" src="'+escAttr(productImageUrl(pid))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
 + '<div class="inv-hd"><p class="inv-name">'+escHtml(invProdName(pid))+'</p>'
-+ '<p class="inv-want">喊單：已確認 '+(A.wantOk || 0)+'・待確認 '+(A.wantWait || 0)+'</p>'
++ '<p class="inv-want">喊單：已確認 '+wOk+'・待確認 '+wWait+'</p>'
 + '<div>'+invSummaryHTML(pid)+'</div></div></div>'
 + '<p class="inv-lab">🎰 買到／扭到的順序（點一下可以刪掉）</p>'
 + '<div class="inv-seq">'+seq+'</div>'
 + '<p class="inv-lab">買到／扭到一個就按一下 👇</p>'
 + '<div class="inv-adds">'+addBtns+'</div>'
-+ '<div class="inv-custom"><input type="text" class="gate-input inv-custom-in" placeholder="其他款式（例如：隱藏版）" style="margin:0;flex:1;"><button type="button" class="btn btn--dark inv-custom-add" data-pid="'+escAttr(pid)+'">加入</button></div>'
++ '<div class="inv-custom"><input type="text" class="gate-input inv-custom-in" placeholder="打款式名稱，例如：酷洛米" style="margin:0;flex:1;"><button type="button" class="btn btn--dark inv-custom-add" data-pid="'+escAttr(pid)+'">加入</button></div>'
 + '<div class="inv-tools">'
 + (P.u.length ? '<button type="button" class="adm-link inv-undo" data-pid="'+escAttr(pid)+'">↩︎ 刪掉最後一個</button>' : '')
 + (P.u.length ? '<button type="button" class="adm-link inv-realloc" data-pid="'+escAttr(pid)+'">🔄 重新依喊單時間分配</button>' : '')
