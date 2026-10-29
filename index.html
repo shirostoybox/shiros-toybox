@@ -1409,7 +1409,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261029-2145';
+var APP_VERSION = '20261029-2240';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2409,9 +2409,11 @@ function saveFolded(){ try{ localStorage.setItem('pFolded', JSON.stringify(admin
 // ---------- 📦 庫存：買到／扭到的順序記在這裡，已確認的喊單依喊單時間自動分配 ----------
 // 存在 site_settings 的 inventory（JSON）：p＝每件商品的庫存（u:[{i:編號,l:款式}]，n:下一個編號），a＝每筆喊單分到哪幾顆
 // 指定款式的先拿對應的那顆；隨機（不指定）的依扭到的順序拿剩下的
-var INV = { p:{}, a:{} }, INV_OPS = [], INV_TIMER = null, INV_SAVING = false, INV_ALLOC = null;
-function invParse(raw){ var d; try{ d = JSON.parse(raw || '{}') || {}; }catch(e){ d = {}; } if(!d.p || typeof d.p !== 'object') d.p = {}; if(!d.a || typeof d.a !== 'object') d.a = {}; return d; }
-function invReload(){ INV = invParse(siteSettings.inventory); INV_OPS.forEach(function(op){ invApply(INV, op); }); }
+// m＝這一版之後才按確認的喊單（只有這些會扣庫存；之前確認的視為已經出好貨，不扣）
+var INV = { p:{}, a:{}, m:{} }, INV_OPS = [], INV_INFLIGHT = [], INV_TIMER = null, INV_SAVING = false, INV_ALLOC = null;
+function invParse(raw){ var d; try{ d = JSON.parse(raw || '{}') || {}; }catch(e){ d = {}; } if(!d.p || typeof d.p !== 'object') d.p = {}; if(!d.a || typeof d.a !== 'object') d.a = {}; if(!d.m || typeof d.m !== 'object') d.m = {}; return d; }
+function invReload(){ INV = invParse(siteSettings.inventory); INV_INFLIGHT.concat(INV_OPS).forEach(function(op){ invApply(INV, op); }); }
+function invMarkConfirmed(oid){ if(oid) invQueue({ k:'mset', oid:String(oid), v:Date.now() }); }
 // 喊單的規格會連說明一起存（例如「約2cm・…（指定沒貨改隨機出貨…）・兔兔・不留蛋殼」），所以拆開一段一段比對
 function invParts(v){ return String(v || '').split('・').map(function(x){ return x.trim(); }).filter(Boolean); }
 function invStrip(x){ return String(x || '').replace(/[（(][^）)]*[）)]/g, '').trim(); }
@@ -2421,17 +2423,20 @@ if(op.k === 'pset'){ d.p[op.pid] = op.v; }
 else if(op.k === 'pdel'){ delete d.p[op.pid]; Object.keys(d.a).forEach(function(oid){ if(d.a[oid] && d.a[oid].p === op.pid) delete d.a[oid]; }); }
 else if(op.k === 'aset'){ d.a[op.oid] = op.v; }
 else if(op.k === 'adel'){ delete d.a[op.oid]; }
+else if(op.k === 'mset'){ d.m[op.oid] = op.v; }
+else if(op.k === 'mdel'){ delete d.m[op.oid]; }
 }
 function invPrune(d){
 var old = Date.now() - 200*86400000;
 Object.keys(d.a).forEach(function(oid){ var A = d.a[oid]; if(!A || !d.p[A.p] || (A.t && A.t < old)) delete d.a[oid]; });
+Object.keys(d.m).forEach(function(oid){ if(!(d.m[oid] > old)) delete d.m[oid]; });
 }
 function invQueue(op){ invApply(INV, op); INV_OPS.push(op); clearTimeout(INV_TIMER); INV_TIMER = setTimeout(invFlush, 700); }
 async function invFlush(){
 if(INV_SAVING){ clearTimeout(INV_TIMER); INV_TIMER = setTimeout(invFlush, 600); return; }
 if(!INV_OPS.length) return;
 INV_SAVING = true;
-var ops = INV_OPS; INV_OPS = [];
+var ops = INV_OPS; INV_OPS = []; INV_INFLIGHT = ops;
 try{
 // 先拿最新的再套上這次的修改，小幫手同時在記也不會互相蓋掉
 var base = null;
@@ -2442,8 +2447,10 @@ invPrune(base);
 var val = JSON.stringify(base);
 await callMemberApi('admin-update-site-setting', { key:'inventory', value: val });
 siteSettings.inventory = val;
+INV_INFLIGHT = [];
 INV = invParse(val); INV_OPS.forEach(function(op){ invApply(INV, op); });
 }catch(e){
+INV_INFLIGHT = [];
 INV_OPS = ops.concat(INV_OPS);
 showToast('庫存還沒存好，等一下會再試：' + e.message);
 clearTimeout(INV_TIMER); INV_TIMER = setTimeout(invFlush, 5000);
@@ -2479,12 +2486,12 @@ var uById = {}; units.forEach(function(u, ix){ uById[u.i] = { u:u, pos:ix+1 }; }
 var orders = (byPid[pid] || []).slice().sort(function(a,b){ return String(a.created_at).localeCompare(String(b.created_at)); });
 var openMap = {}; orders.forEach(function(o){ openMap[o.id] = o; });
 var used = {}, owner = {}, got = {};
-// 1. 已經分配過的：退回待確認／缺貨取消的放回去；那顆被刪掉的拿掉；同一顆被分兩次的留給先分到的
+// 1. 已經分配過的：退回待確認／缺貨取消的放回去；之前（這版以前）確認的不扣庫存；那顆被刪掉的拿掉；同一顆被分兩次的留給先分到的
 Object.keys(INV.a).filter(function(oid){ return INV.a[oid] && INV.a[oid].p === pid; })
 .sort(function(x,y){ return (INV.a[x].t || 0) - (INV.a[y].t || 0); })
 .forEach(function(oid){
 var A = INV.a[oid], o = openMap[oid];
-if(o && o.status !== '已確認'){ invQueue({ k:'adel', oid:oid }); return; }
+if(o && (o.status !== '已確認' || !INV.m[oid])){ invQueue({ k:'adel', oid:oid }); return; }
 var q = o ? Number(o.quantity || 1) : 9999;
 var keep = [];
 (A.u || []).forEach(function(id){ if(keep.length < q && uById[id] && !used[id]){ used[id] = true; keep.push(id); } });
@@ -2493,37 +2500,45 @@ got[oid] = keep.slice();
 if(!keep.length){ invQueue({ k:'adel', oid:oid }); }
 else if(keep.length !== (A.u || []).length){ invQueue({ k:'aset', oid:oid, v:Object.assign({}, A, { u:keep }) }); }
 });
+orders.forEach(function(o){ if(o.status !== '已確認' && INV.m[o.id]) invQueue({ k:'mdel', oid:o.id }); });
+// 指定款式還在等的（待確認＋已確認還沒分滿）：隨機的先不拿這些款式，不夠時才拿
+var need = {};
+orders.forEach(function(o){ if(invOrderRandom(o) || (o.status !== '待確認' && !(o.status === '已確認' && INV.m[o.id]))) return; var n = Number(o.quantity || 1) - ((got[o.id] || []).length); if(n > 0) need[String(o.variant || '')] = (need[String(o.variant || '')] || 0) + n; });
+function wanted(u){ for(var v in need){ if(need[v] > 0 && u.l && invUnitMatch(u, v)) return true; } return false; }
 function take(o, list, sim){
-var need = Number(o.quantity || 1) - list.length;
+var cnt = Number(o.quantity || 1) - list.length;
 var rnd = invOrderRandom(o);
-for(var k=0; k<units.length && need>0; k++){
+for(var pass=0; pass<2 && cnt>0; pass++){
+for(var k=0; k<units.length && cnt>0; k++){
 var u = units[k];
 if(used[u.i] || (sim && sim[u.i])) continue;
 if(!rnd && !invUnitMatch(u, o.variant)) continue;
+if(rnd && pass === 0 && wanted(u)) continue;
 if(sim) sim[u.i] = true; else used[u.i] = true;
-list.push(u.i); need--;
+list.push(u.i); cnt--;
+}
+if(!rnd) break;
 }
 }
-// 2. 已確認、還沒分滿的：先分指定款式的，再分隨機的，都依喊單時間
-var confirmed = orders.filter(function(o){ return o.status === '已確認'; });
-[false, true].forEach(function(randPass){
+// 2. 這版之後按確認的：依按確認的先後拿庫存（之前確認的不扣）
+var confirmed = orders.filter(function(o){ return o.status === '已確認' && INV.m[o.id]; })
+.sort(function(a,b){ return (INV.m[a.id] || 0) - (INV.m[b.id] || 0) || String(a.created_at).localeCompare(String(b.created_at)); });
 confirmed.forEach(function(o){
-if(invOrderRandom(o) !== randPass) return;
 var list = got[o.id] ? got[o.id].slice() : [];
 var before = list.length;
 take(o, list, null);
 if(list.length !== before){
 got[o.id] = list;
 list.forEach(function(id){ owner[id] = o._nick; });
+if(!invOrderRandom(o)) need[String(o.variant || '')] = Math.max(0, (need[String(o.variant || '')] || 0) - (list.length - before));
 invQueue({ k:'aset', oid:o.id, v:{ p:pid, u:list, t:(INV.a[o.id] && INV.a[o.id].t) || Date.now(), nk:o._nick, r:invOrderRandom(o) ? 1 : 0 } });
 }
-});
 });
 confirmed.forEach(function(o){
 var list = got[o.id] || [];
 res.order[o.id] = { units:list.map(function(id){ return { pos:uById[id].pos, l:uById[id].u.l }; }), short:Number(o.quantity || 1) - list.length, preview:false, rnd:invOrderRandom(o) };
 });
-// 3. 待確認的先預覽：照喊單時間，如果現在按確認會輪到哪一顆
+// 3. 待確認的先預覽：照喊單時間，如果依序按確認會輪到哪一顆
 var sim = {};
 orders.filter(function(o){ return o.status === '待確認'; }).forEach(function(o){
 var list = []; take(o, list, sim);
@@ -2550,7 +2565,8 @@ return r.units.length
 ? '<div class="inv-tag is-pre">👉 確認後輪到 '+escHtml(invUnitsText(r.units))+(r.short > 0 ? '　<b>⚠️還差 '+r.short+'</b>' : '')+'</div>'
 : '<div class="inv-tag is-warn">⚠️ 庫存不夠了，確認前先看一下</div>';
 }
-return '<div class="inv-tag is-ok">'+(r.rnd ? '🎲 隨機抽到 ' : '📦 ')+escHtml(invUnitsText(r.units))+(r.short > 0 ? '　<b>⚠️庫存還差 '+r.short+'</b>' : '')+'</div>';
+if(!r.units.length) return '<div class="inv-tag is-warn">⏳ 還沒分到庫存（庫存記好後會自動分配給這筆）</div>';
+return '<div class="inv-tag is-ok">'+(r.rnd ? '🎲 隨機抽到 ' : '📦 ')+escHtml(invUnitsText(r.units))+(r.short > 0 ? '　<b>⚠️還差 '+r.short+' 個</b>' : '')+'</div>';
 }
 function invNoteText(o){
 if(!o || !o.product_id) return '';
@@ -2585,7 +2601,7 @@ var addBtns = opts.length
 return '<div class="inv-card" data-pid="'+escAttr(pid)+'">'
 + '<div class="inv-head"><img class="inv-thumb" data-pid="'+escAttr(pid)+'" src="'+escAttr(productImageUrl(pid))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
 + '<div class="inv-hd"><p class="inv-name">'+escHtml(invProdName(pid))+'</p>'
-+ '<p class="inv-want">喊單：已確認 '+wOk+'・待確認 '+wWait+'</p>'
++ '<p class="inv-want">待確認 '+wWait+' 個在等庫存</p>'
 + '<div>'+invSummaryHTML(pid)+'</div></div></div>'
 + invCatSelectHTML(pid)
 + '<p class="inv-lab">🎰 買到／扭到的順序（點一下可以刪掉）</p>'
@@ -2728,7 +2744,7 @@ var listHTML = (shown.length ? grouped : '<p style="font-size:14px;color:var(--m
 // 搜尋框已經在畫面上：只換下面的列表，不要重畫搜尋框（注音、選字才不會被打斷）
 var oldList = document.getElementById('invList');
 if(oldList && document.getElementById('invSearch')){ oldList.innerHTML = listHTML; return; }
-el.innerHTML = '<div class="inv-intro">買到或扭到一個，就在那件商品按一下，<b>照扭出來的順序</b>記下來。<br>已確認的喊單會<b>依喊單時間</b>自動分配：指定款式的先拿對應的那顆，<b>隨機的依順序拿剩下的</b>，客人的喊單頁也會寫隨機抽到哪一款。</div>'
+el.innerHTML = '<div class="inv-intro">買到或扭到一個，就在那件商品按一下，<b>照扭出來的順序</b>記下來。<br>庫存只給<b>待確認</b>的喊單：每按一筆確認，就扣掉輪到的那一顆（指定款式的拿對應那顆，<b>隨機的依順序拿</b>），客人的喊單頁也會寫隨機抽到哪一款。<br>之前就確認的喊單當作已經出好貨，不會扣庫存。</div>'
 + '<input type="text" class="gate-input" id="invSearch" value="'+escAttr(invQuery)+'" placeholder="搜尋商品，也可以找沒人喊單的商品來記庫存" style="margin-bottom:10px;">'
 + '<div id="invList">' + listHTML + '</div>';
 var si = document.getElementById('invSearch');
@@ -2889,7 +2905,7 @@ if(!ac) return;
 this.disabled = true; this.textContent = '確認中...';
 var fail = 0;
 for(var k=0;k<ids.length;k++){
-try{ await callMemberApi('admin-confirm-order', Object.assign({ orderId: ids[k] }, costPayload(ac))); }catch(e){ fail++; }
+try{ await callMemberApi('admin-confirm-order', Object.assign({ orderId: ids[k] }, costPayload(ac))); invMarkConfirmed(ids[k]); }catch(e){ fail++; }
 }
 showToast(fail ? '完成，有 '+fail+' 筆失敗' : '已確認 '+ids.length+' 筆');
 await loadAdminGroups();
@@ -3515,6 +3531,7 @@ if(dw) payload.depositReceivedBy = dw;
 btn.disabled = true; btn.textContent = '確認中...';
 try{
 await callMemberApi('admin-confirm-order', payload);
+invMarkConfirmed(payload.orderId);
 showToast(c === 'skip' ? '已確認（成本之後補）' : '已確認＋記成本');
 await loadAdminGroups();
 }catch(e){
@@ -3595,6 +3612,7 @@ var old = btn.textContent;
 btn.disabled = true; btn.textContent = '處理中...';
 try{
 var r = await callMemberApi('admin-order-partial', payload);
+if(r && r.confirmed) invMarkConfirmed(payload.orderId);
 showToast(r && r.confirmed ? '已確認 '+got+' 個，剩 '+(qty-got)+' 個待確認' : '已拆成 '+got+' 個＋'+(qty-got)+' 個（需訂金，請輸入訂金後再確認）');
 await loadAdminGroups();
 }catch(e){
