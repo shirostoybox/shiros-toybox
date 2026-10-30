@@ -454,6 +454,9 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .inv-pick{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; font-size:14px; }
 .inv-pick-sel{ border:1.5px dashed #8B9BB4; background:#F4F7FB; color:#3B4A63; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; font-family:var(--font-body); max-width:100%; }
 .inv-pick-sel.is-set{ border-style:solid; border-color:#1D4E89; background:#EEF6FF; color:#1D4E89; }
+.inv-sheet-opts{ display:flex; flex-wrap:wrap; gap:8px; }
+.inv-sheet-opt{ border:1.5px solid var(--line); background:#fff; color:var(--text-dark); border-radius:12px; padding:10px 14px; font-size:14px; font-weight:700; font-family:var(--font-body); }
+.inv-sheet-opt.on{ background:#1D4E89; border-color:#1D4E89; color:#fff; }
 .inv-back{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; background:#FFF6E0; border:1.5px solid #F2C46D; border-radius:12px; padding:10px 12px; margin:0 0 10px; font-size:12.5px; color:#7A4E00; }
 .inv-back b{ color:#5A3800; }
 .inv-back-btn{ margin-left:auto; border:none; background:#5A3800; color:#fff; border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700; font-family:var(--font-body); }
@@ -1433,7 +1436,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1630';
+var APP_VERSION = '20261030-1640';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2586,6 +2589,34 @@ el.classList.toggle('is-set', !!v);
 try{ INV_ALLOC = invAllocate(adminGroupsCache); }catch(er){}
 showToast(v ? '已記：開出 '+v : '已清除');
 });
+// 點庫存的某一顆：跳出款式按鈕直接點選（不用打字），也可以刪掉
+function invUnitSheet(pid, uid){
+var P = INV.p[pid]; if(!P) return;
+var u = P.u.filter(function(x){ return x.i === uid; })[0]; if(!u) return;
+var A = INV_ALLOC && INV_ALLOC.prod[pid], who = A && A.owner[uid];
+var opts = invProdOptions(pid).slice();
+P.u.forEach(function(x){ if(x.l && opts.indexOf(x.l) === -1) opts.push(x.l); });
+var ov = document.createElement('div'); ov.className = 'cm-ov';
+ov.innerHTML = '<div class="cm-box"><p class="cm-title">第 '+(P.u.indexOf(u)+1)+' 顆・'+escHtml(invLabelText(u.l))+(who ? '<small style="display:block;font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px;">已分給 '+escHtml(who)+'</small>' : '')+'</p>'
++ '<p class="inv-lab" style="margin-top:6px;">開出來是哪一款？</p>'
++ '<div class="inv-sheet-opts">'+opts.map(function(x){ return '<button type="button" class="inv-sheet-opt'+(x === u.l ? ' on' : '')+'" data-v="'+escAttr(x)+'">'+escHtml(x)+'</button>'; }).join('')
++ '<button type="button" class="inv-sheet-opt'+(!u.l ? ' on' : '')+'" data-v="">未分款</button></div>'
++ '<div class="inv-custom" style="margin-top:12px;"><input type="text" class="gate-input inv-sheet-in" placeholder="其他款式（打字）" style="margin:0;flex:1;"><button type="button" class="btn btn--dark inv-sheet-ok">改</button></div>'
++ '<div style="display:flex;gap:8px;margin-top:14px;"><button type="button" class="btn btn--full inv-sheet-del" style="flex:1;border:1.5px solid var(--ignis);color:var(--ignis-deep);">🗑 刪掉這一顆</button><button type="button" class="btn btn--full inv-sheet-x" style="flex:1;border:1.5px solid var(--line);">取消</button></div></div>';
+document.body.appendChild(ov);
+function close(){ ov.remove(); }
+function setLabel(v){ invSetUnits(pid, P.u.map(function(x){ return x.i === uid ? Object.assign({}, x, { l:v }) : x; })); close(); invRefreshViews(); showToast('第 '+(P.u.indexOf(u)+1)+' 顆改成：'+invLabelText(v)); }
+ov.addEventListener('click', function(e){
+var t = e.target;
+if(t === ov || t.closest('.inv-sheet-x')){ close(); return; }
+var b = t.closest('.inv-sheet-opt'); if(b){ setLabel(b.getAttribute('data-v') || ''); return; }
+if(t.closest('.inv-sheet-ok')){ var v = ov.querySelector('.inv-sheet-in').value.trim(); if(v) setLabel(v); return; }
+if(t.closest('.inv-sheet-del')){
+if(!window.confirm('確定刪掉這一顆嗎？'+(who ? '\n\n這個已經分給「'+who+'」了，刪掉後會重新分配。' : ''))) return;
+invSetUnits(pid, P.u.filter(function(x){ return x.i !== uid; })); close(); invRefreshViews(); showToast('已刪掉');
+}
+});
+}
 function invTodayCount(P){
 var d = new Date(Date.now() + 8*3600000).toISOString().slice(0,10);
 return (P.u || []).filter(function(u){ return u.t && new Date(u.t + 8*3600000).toISOString().slice(0,10) === d; }).length;
@@ -2840,16 +2871,7 @@ var pid = b.getAttribute('data-pid'), uid = Number(b.getAttribute('data-uid'));
 var P = INV.p[pid]; if(!P) return;
 var A = INV_ALLOC && INV_ALLOC.prod[pid], who = A && A.owner[uid];
 var u = P.u.filter(function(x){ return x.i === uid; })[0]; if(!u) return;
-var nv = window.prompt('第 '+(P.u.indexOf(u)+1)+' 顆「'+invLabelText(u.l)+'」'+(who ? '（已分給 '+who+'）' : '')+'\n\n開出來是哪一款？輸入款式名稱就會改。\n要刪掉這一顆，請輸入「刪除」。', u.l || '');
-if(nv === null) return;
-nv = nv.trim();
-if(nv === '刪除'){
-if(!window.confirm('確定刪掉這一顆嗎？'+(who ? '\n\n這個已經分給「'+who+'」了，刪掉後會重新分配。' : ''))) return;
-invSetUnits(pid, P.u.filter(function(x){ return x.i !== uid; }));
-} else {
-invSetUnits(pid, P.u.map(function(x){ return x.i === uid ? Object.assign({}, x, { l:nv }) : x; }));
-}
-invRefreshViews(); return;
+invUnitSheet(pid, uid); return;
 }
 if((b = t.closest('.inv-undo'))){
 var pid2 = b.getAttribute('data-pid'), P2 = INV.p[pid2]; if(!P2 || !P2.u.length) return;
