@@ -434,6 +434,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pay-method b{ color:#14743A; }
 .adm-float-collapse{ position:fixed; right:14px; bottom:calc(104px + env(safe-area-inset-bottom)); z-index:8000; border:none; background:var(--ink); color:#fff; border-radius:999px; padding:11px 16px; font-size:13.5px; font-weight:700; font-family:var(--font-body); box-shadow:0 4px 14px rgba(20,22,30,.3); }
 .adm-mb.is-friend{ background:#E0E7FF; color:#3730A3; }
+.adm-p-catpill{ display:block; margin:0 0 3px; }
+.adm-p-catpill .adm-cat-pill{ font-size:11px; padding:2px 9px; }
 .adm-p-latest{ display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-top:2px; }
 .adm-sum.is-self{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-k{ background:#FFF1C2; color:#8A5A00; }
@@ -1425,7 +1427,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1510';
+var APP_VERSION = '20261030-1515';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2865,24 +2867,19 @@ var storeChips = adminChip('🏬 全部店家', adminPurchaseStore==='all', 'dat
 + '<button type="button" class="adm-store-manage" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;font-family:var(--font-body);padding:4px;">✏️ 管理店家</button>';
 var storeFiltered = allProds.filter(function(P){ return adminPurchaseStore === 'all' || (adminPurchaseStore === '__none__' ? !P.store : P.store === adminPurchaseStore); });
 var prods = adminPurchaseCat === 'all' ? storeFiltered : storeFiltered.filter(function(P){ return P.catKey === adminPurchaseCat; });
-var byCat = {}, cats = [];
-prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
-// 最新喊單的商品排上面；分類也照最新喊單排
-function pLatest(P){ var t = ''; P.variants.forEach(function(V){ V.orders.forEach(function(o){ if(String(o.created_at || '') > t) t = String(o.created_at || ''); }); }); return t; }
-cats.forEach(function(c){ byCat[c].sort(function(a,b){ return pLatest(b).localeCompare(pLatest(a)); }); });
-cats.sort(function(a,b){ return pLatest(byCat[b][0]).localeCompare(pLatest(byCat[a][0])); });
+// 不分分類：所有商品直接照「最新喊單」從新到舊排一整排（分類標籤放在每件商品上）
+var cats = ['__all__'], byCat = { '__all__': prods.slice().sort(function(a,b){ return pLatestOf(b).localeCompare(pLatestOf(a)); }) };
 var totalQty = prods.reduce(function(a,P){ return a + P.qty; }, 0);
 var pIdx = 0;
 var list = cats.map(function(c){
 var catQty = byCat[c].reduce(function(a,P){ return a + P.qty; }, 0);
-return '<p class="adm-p-cat">'+catPillHTML(byCat[c][0].catInfo, '<span class="adm-cat-n">'+byCat[c].length+' 樣・'+catQty+' 件</span>')+'</p>'
-+ byCat[c].map(function(P){
+return byCat[c].map(function(P){
 var multi = P.variants.length > 1 || P.variants[0].variant;
 var pk = (P.productId || '') + '|' + P.name;
 var okQty = 0; P.variants.forEach(function(V){ V.orders.forEach(function(o){ if(o.status === '已確認') okQty += Number(o.quantity || 1); }); });
 var pc = ADM_P_COLORS[(pIdx++) % ADM_P_COLORS.length];
 return '<div class="adm-p-item'+(adminPurchaseFolded[pk] ? ' is-folded' : '')+'" data-pk="'+escAttr(pk)+'" style="--pc:'+pc+';">'
-+ '<div class="adm-p-top">'+(P.productId ? '<img class="adm-p-thumb" src="'+escAttr(productImageUrl(P.productId))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '')+'<p class="adm-p-name">'+escHtml(P.name)+'<span class="adm-p-latest">最新喊單 '+escHtml(formatDate(pLatestOf(P)))+'</span><span class="adm-p-foldsum">已確認 '+okQty+'／'+P.qty+' 件</span></p><span class="adm-p-qty">×'+P.qty+'</span></div>'
++ '<div class="adm-p-top">'+(P.productId ? '<img class="adm-p-thumb" src="'+escAttr(productImageUrl(P.productId))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '')+'<p class="adm-p-name"><span class="adm-p-catpill">'+catPillHTML(P.catInfo, '')+'</span>'+escHtml(P.name)+'<span class="adm-p-latest">最新喊單 '+escHtml(formatDate(pLatestOf(P)))+'</span><span class="adm-p-foldsum">已確認 '+okQty+'／'+P.qty+' 件</span></p><span class="adm-p-qty">×'+P.qty+'</span></div>'
 + '<button type="button" class="adm-p-fold" data-pk="'+escAttr(pk)+'"><span class="f-close">收起 ▲</span><span class="f-open">展開 ▼</span></button>'
 + '<div class="adm-p-body">'
 + (P.productId ? '<div class="inv-bar">'+invSummaryHTML(P.productId)+'<button type="button" class="inv-open" data-pid="'+escAttr(P.productId)+'">📦 記庫存</button></div>' : '')
