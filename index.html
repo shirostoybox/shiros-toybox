@@ -1427,7 +1427,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1515';
+var APP_VERSION = '20261030-1525';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2049,8 +2049,8 @@ var data;
 try{
 var lrs = await Promise.all([ callMemberApi('admin-list-order-groups'), callMemberApi('get-site-settings').catch(function(){ return null; }) ]);
 data = lrs[0];
-if(lrs[1] && lrs[1].settings) siteSettings.inventory = lrs[1].settings.inventory;
-invReload();
+if(lrs[1] && lrs[1].settings){ siteSettings.inventory = lrs[1].settings.inventory; siteSettings.order_photos = lrs[1].settings.order_photos; }
+invReload(); opReloadMap();
 if(data.zones) LIVE_ZONES = data.zones;
 }catch(e){
 if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+e.message+'</p>'; }
@@ -2376,17 +2376,40 @@ return '';
 // ---------- 📷 客人開出來的照片（扭蛋開出哪一款）：每筆喊單一張，包貨、對貨用 ----------
 // 存在 product-images/op-{訂單編號}.jpg；沒上傳過的圖片讀不到就自動隱藏
 var OPHOTO_V = {}, OPHOTO_PAGE_V = Date.now();
-// 新上傳的存成 op-{單號}-2.jpg（可以刪除）；之前上傳的舊照片 op-{單號}.jpg 只能換、不能刪
-function orderPhotoUrl(oid, old){ return SUPABASE_URL + '/storage/v1/object/public/product-images/op-' + oid + (old ? '' : '-2') + '.jpg?v=' + (OPHOTO_V[oid] || OPHOTO_PAGE_V); }
+// 開出的照片：每次上傳都用新的檔名 op-{單號}-{時間}-2.jpg，並把「哪一筆有照片」記在 site_settings 的 order_photos。
+// 這樣不用去試網址（試到沒有的網址，CDN 會把「沒有」記住好幾分鐘，剛上傳的照片就一直出不來）
+var OP_MAP = {}, OP_LOCAL = {};
+function opParse(raw){ var d; try{ d = JSON.parse(raw || '{}') || {}; }catch(e){ d = {}; } return (d && typeof d === 'object') ? d : {}; }
+function opReloadMap(){ OP_MAP = opParse(siteSettings.order_photos); }
+function opPublic(path){ return SUPABASE_URL + '/storage/v1/object/public/product-images/' + path; }
+function orderPhotoUrl(oid, old){
+if(OP_LOCAL[oid]) return OP_LOCAL[oid];
+if(OP_MAP[oid]) return opPublic('op-' + oid + '-' + OP_MAP[oid] + '-2.jpg');
+// 舊的照片（這版以前上傳的）：先試 op-{單號}-2.jpg，再試 op-{單號}.jpg
+return opPublic('op-' + oid + (old ? '' : '-2') + '.jpg?v=' + (OPHOTO_V[oid] || OPHOTO_PAGE_V));
+}
 function opLoad(img){ var w = img.parentNode; w.classList.add('has'); w.classList.toggle('is-new', !img.getAttribute('data-fb')); }
 function opErr(img){
-var w = img.parentNode;
-if(!img.getAttribute('data-fb')){ img.setAttribute('data-fb', '1'); img.src = orderPhotoUrl(w.getAttribute('data-oid'), true); return; }
+var w = img.parentNode, oid = w.getAttribute('data-oid');
+if(!img.getAttribute('data-fb') && !OP_MAP[oid] && !OP_LOCAL[oid]){ img.setAttribute('data-fb', '1'); img.src = orderPhotoUrl(oid, true); return; }
 w.classList.remove('has'); w.classList.remove('is-new');
 }
 function opReload(oid){
 var imgs = document.querySelectorAll('.adm-op[data-oid="'+oid+'"] .adm-op-img');
-for(var i=0;i<imgs.length;i++){ imgs[i].removeAttribute('data-fb'); imgs[i].src = orderPhotoUrl(oid); }
+for(var i=0;i<imgs.length;i++){
+imgs[i].removeAttribute('data-fb');
+if(!OP_MAP[oid] && !OP_LOCAL[oid]){ imgs[i].parentNode.classList.remove('has'); imgs[i].parentNode.classList.remove('is-new'); imgs[i].setAttribute('data-fb','1'); imgs[i].removeAttribute('src'); continue; }
+imgs[i].src = orderPhotoUrl(oid);
+}
+}
+// 存 order_photos：先拿最新的再改，小幫手同時上傳也不會互相蓋掉
+async function opSave(oid, ts){
+var base = OP_MAP;
+try{ var sd = await callMemberApi('get-site-settings'); base = opParse(sd.settings && sd.settings.order_photos); }catch(e){}
+if(ts) base[oid] = ts; else delete base[oid];
+var val = JSON.stringify(base);
+await callMemberApi('admin-update-site-setting', { key:'order_photos', value: val });
+siteSettings.order_photos = val; OP_MAP = base;
 }
 function orderPhotoHTML(o, withBtn){
 return '<span class="adm-op" data-oid="'+escAttr(o.id)+'">'
@@ -2404,7 +2427,11 @@ if(del){
 var doid = del.getAttribute('data-oid');
 if(!window.confirm('要刪除這張開出的照片嗎？')) return;
 del.disabled = true;
-callMemberApi('admin-delete-product-image', { productId: 'op-' + doid, slot: 2 }).then(function(){
+var dts = OP_MAP[doid];
+callMemberApi('admin-delete-product-image', { productId: 'op-' + doid + (dts ? '-' + dts : ''), slot: 2 }).then(function(){
+delete OP_LOCAL[doid];
+return dts ? opSave(doid, null) : null;
+}).then(function(){
 OPHOTO_V[doid] = Date.now(); opReload(doid); showToast('已刪除照片');
 }).catch(function(err){ alert('刪除失敗：' + err.message); }).then(function(){ del.disabled = false; });
 return;
@@ -2436,9 +2463,13 @@ var wrap = fi.parentNode, btn = wrap.querySelector('.adm-op-up');
 if(btn){ btn.disabled = true; btn.classList.add('busy'); }
 try{
 var data = await compressImage(fi.files[0], 800);
-await callMemberApi('admin-upload-product-image', { productId: 'op-' + oid, slot: 2, imageData: data });
-OPHOTO_V[oid] = Date.now();
+var ts = Date.now(), oldTs = OP_MAP[oid];
+await callMemberApi('admin-upload-product-image', { productId: 'op-' + oid + '-' + ts, slot: 2, imageData: data });
+// 先用手機上的照片直接顯示，不用等網路
+OP_LOCAL[oid] = data;
 opReload(oid);
+await opSave(oid, ts);
+if(oldTs) callMemberApi('admin-delete-product-image', { productId: 'op-' + oid + '-' + oldTs, slot: 2 }).catch(function(){});
 showToast('已上傳開出的照片');
 }catch(err){ alert('上傳失敗：' + err.message); }
 if(btn){ btn.disabled = false; btn.classList.remove('busy'); }
@@ -2750,8 +2781,8 @@ try{
 var rs = await Promise.all([ callMemberApi('admin-list-order-groups'), callMemberApi('get-site-settings').catch(function(){ return null; }), callMemberApi('admin-list-products').catch(function(){ return null; }) ]);
 adminGroupsCache = rs[0].groups || [];
 if(rs[2] && rs[2].products) adminProductsCache = rs[2].products;
-if(rs[1] && rs[1].settings) siteSettings.inventory = rs[1].settings.inventory;
-invReload();
+if(rs[1] && rs[1].settings){ siteSettings.inventory = rs[1].settings.inventory; siteSettings.order_photos = rs[1].settings.order_photos; }
+invReload(); opReloadMap();
 }catch(e){ el.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+escHtml(e.message)+'</p>'; return; }
 renderAdminInventory();
 }
