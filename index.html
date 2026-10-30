@@ -451,7 +451,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .inv-left{ display:flex; flex-wrap:wrap; gap:4px; }
 .inv-left i{ font-style:normal; font-size:11.5px; font-weight:700; background:#fff; border:1px solid var(--line); border-radius:999px; padding:1px 8px; color:var(--text-dark); }
 .inv-open{ margin-left:auto; border:1.5px solid var(--ink); background:#fff; color:var(--ink); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700; font-family:var(--font-body); }
-.inv-pick{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; font-size:14px; }
+.op-pick{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; font-size:14px; }
 .inv-pick-sel{ border:1.5px dashed #8B9BB4; background:#F4F7FB; color:#3B4A63; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; font-family:var(--font-body); max-width:100%; }
 .inv-pick-sel.is-set{ border-style:solid; border-color:#1D4E89; background:#EEF6FF; color:#1D4E89; }
 .inv-sheet-opts{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -1436,7 +1436,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1640';
+var APP_VERSION = '20261030-1650';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2575,7 +2575,7 @@ html += '<select class="inv-pick-sel'+(v ? ' is-set' : '')+'" data-oid="'+escAtt
 + (v && opts.indexOf(v) === -1 ? '<option value="'+escAttr(v)+'" selected>'+escHtml(v)+'</option>' : '')
 + '</select>';
 }
-return '<div class="inv-pick">🎲 '+html+'</div>';
+return '<div class="op-pick">🎲 '+html+'</div>';
 }
 document.addEventListener('change', function(e){
 var el = e.target;
@@ -2897,7 +2897,7 @@ return;
 if((b = t.closest('.inv-thumb'))){ var tp = b.getAttribute('data-pid'); try{ openProductGallery(tp, b.src); }catch(ge){ openLightbox(b.src); } return; }
 if((b = t.closest('.inv-back-btn'))){ invBackfill(); return; }
 if((b = t.closest('.inv-open'))){ invOpenModal(b.getAttribute('data-pid')); return; }
-if((b = t.closest('.inv-pick'))){ var pk = b.getAttribute('data-pid'); invPinned[pk] = true; renderAdminInventory(); return; }
+if((b = t.closest('button.inv-pick'))){ var pk = b.getAttribute('data-pid'); invPinned[pk] = true; renderAdminInventory(); return; }
 });
 function invOpenModal(pid){
 var ov = document.createElement('div');
