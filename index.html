@@ -426,6 +426,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-catsel span{ white-space:nowrap; }
 .adm-catsel select{ margin:0; flex:1; }
 .inv-cat-h{ margin:18px 0 8px; }
+.inv-catpill{ margin:14px 0 -6px 10px; position:relative; z-index:1; }
+.inv-catpill .adm-cat-pill{ font-size:11px; padding:2px 9px; }
 .inv-card .adm-catsel{ margin:10px 0 0; }
 .pay-method{ background:#EAF8EE; border:1.5px solid #9ED9AE; border-radius:16px; padding:14px 16px; margin:0 0 18px; }
 .pay-method p{ margin:0 0 6px; font-size:13.5px; line-height:1.75; color:var(--text-dark); }
@@ -1436,7 +1438,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1650';
+var APP_VERSION = '20261030-1700';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2936,8 +2938,10 @@ Object.keys(invPinned).forEach(function(pid){ if(!want[pid]){ want[pid] = { name
 var q = invQuery.trim().toLowerCase();
 var shown = order.filter(function(pid){ return !q || String(want[pid].name || '').toLowerCase().indexOf(q) >= 0; });
 // 有庫存但不夠分的排前面，再來是還沒記庫存的，最後是夠分的
-function rank(pid){ var P = INV_ALLOC.prod[pid]; if(!P) return 1; return (P.wantOk + P.wantWait > P.total) ? 0 : 2; }
-shown.sort(function(a,b){ return rank(a) - rank(b) || String(want[a].name).localeCompare(String(want[b].name), 'zh-Hant'); });
+// 剩最多庫存的排最上面（剩一樣多時，總庫存多的在前）；還沒記庫存的放最後
+function leftOf(pid){ var P = INV_ALLOC.prod[pid]; return P ? P.left : -1; }
+function totalOf(pid){ var P = INV_ALLOC.prod[pid]; return P ? P.total : -1; }
+shown.sort(function(a,b){ return leftOf(b) - leftOf(a) || totalOf(b) - totalOf(a) || String(want[a].name).localeCompare(String(want[b].name), 'zh-Hant'); });
 var extra = '';
 if(q){
 var have = {}; order.forEach(function(pid){ have[pid] = true; });
@@ -2948,7 +2952,8 @@ if(more.length) extra = '<p class="inv-lab" style="margin-top:14px;">其他商�
 var gmap = {}, gorder = [];
 shown.forEach(function(pid){ var ci = invCatInfo(pid); if(!gmap[ci.key]){ gmap[ci.key] = { info:ci, list:[] }; gorder.push(ci.key); } gmap[ci.key].list.push(pid); });
 gorder.sort(function(a,b){ if(a === DONTMISS_CAT) return -1; if(b === DONTMISS_CAT) return 1; if(a === '__other__') return 1; if(b === '__other__') return -1; return String(gmap[a].info.label).localeCompare(String(gmap[b].info.label), 'zh-Hant'); });
-var grouped = gorder.map(function(k){ var g = gmap[k]; return '<p class="inv-cat-h">'+catPillHTML(g.info, '<span class="adm-cat-n">'+g.list.length+' 樣</span>')+'</p>' + g.list.map(invCardHTML).join(''); }).join('');
+// 不分分類分組，直接照庫存多寡排；分類標籤放在每張卡片上
+var grouped = shown.map(function(pid){ return '<div class="inv-catpill">'+catPillHTML(invCatInfo(pid), '')+'</div>' + invCardHTML(pid); }).join('');
 var listHTML = (shown.length ? grouped : '<p style="font-size:14px;color:var(--muted);">'+(q ? '找不到「'+escHtml(invQuery.trim())+'」' : '目前沒有要記庫存的商品。')+'</p>') + extra;
 // 搜尋框已經在畫面上：只換下面的列表，不要重畫搜尋框（注音、選字才不會被打斷）
 var oldList = document.getElementById('invList');
