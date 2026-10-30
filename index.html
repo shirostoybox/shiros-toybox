@@ -451,6 +451,9 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .inv-left{ display:flex; flex-wrap:wrap; gap:4px; }
 .inv-left i{ font-style:normal; font-size:11.5px; font-weight:700; background:#fff; border:1px solid var(--line); border-radius:999px; padding:1px 8px; color:var(--text-dark); }
 .inv-open{ margin-left:auto; border:1.5px solid var(--ink); background:#fff; color:var(--ink); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700; font-family:var(--font-body); }
+.inv-pick{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; font-size:14px; }
+.inv-pick-sel{ border:1.5px dashed #8B9BB4; background:#F4F7FB; color:#3B4A63; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; font-family:var(--font-body); max-width:100%; }
+.inv-pick-sel.is-set{ border-style:solid; border-color:#1D4E89; background:#EEF6FF; color:#1D4E89; }
 .inv-back{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; background:#FFF6E0; border:1.5px solid #F2C46D; border-radius:12px; padding:10px 12px; margin:0 0 10px; font-size:12.5px; color:#7A4E00; }
 .inv-back b{ color:#5A3800; }
 .inv-back-btn{ margin-left:auto; border:none; background:#5A3800; color:#fff; border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700; font-family:var(--font-body); }
@@ -1430,7 +1433,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1605';
+var APP_VERSION = '20261030-1630';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2486,8 +2489,8 @@ function saveFolded(){ try{ localStorage.setItem('pFolded', JSON.stringify(admin
 // 存在 site_settings 的 inventory（JSON）：p＝每件商品的庫存（u:[{i:編號,l:款式}]，n:下一個編號），a＝每筆喊單分到哪幾顆
 // 指定款式的先拿對應的那顆；隨機（不指定）的依扭到的順序拿剩下的
 // m＝這一版之後才按確認的喊單（只有這些會扣庫存；之前確認的視為已經出好貨，不扣）
-var INV = { p:{}, a:{}, m:{} }, INV_OPS = [], INV_INFLIGHT = [], INV_TIMER = null, INV_SAVING = false, INV_ALLOC = null;
-function invParse(raw){ var d; try{ d = JSON.parse(raw || '{}') || {}; }catch(e){ d = {}; } if(!d.p || typeof d.p !== 'object') d.p = {}; if(!d.a || typeof d.a !== 'object') d.a = {}; if(!d.m || typeof d.m !== 'object') d.m = {}; return d; }
+var INV = { p:{}, a:{}, m:{}, o:{} }, INV_OPS = [], INV_INFLIGHT = [], INV_TIMER = null, INV_SAVING = false, INV_ALLOC = null;
+function invParse(raw){ var d; try{ d = JSON.parse(raw || '{}') || {}; }catch(e){ d = {}; } if(!d.p || typeof d.p !== 'object') d.p = {}; if(!d.a || typeof d.a !== 'object') d.a = {}; if(!d.m || typeof d.m !== 'object') d.m = {}; if(!d.o || typeof d.o !== 'object') d.o = {}; return d; }
 function invReload(){ INV = invParse(siteSettings.inventory); INV_INFLIGHT.concat(INV_OPS).forEach(function(op){ invApply(INV, op); }); }
 function invMarkConfirmed(oid){ if(oid) invQueue({ k:'mset', oid:String(oid), v:Date.now() }); }
 // 一邊買一邊按確認：庫存裡沒有可以分給這筆的，就自動「入庫」買到的數量（款式＝客人指定的那款；隨機的記成「未分款」）
@@ -2510,8 +2513,9 @@ var P0 = INV.p[pid] || { u:[] };
 var used = {}; if(A && A.owner) Object.keys(A.owner).forEach(function(k){ used[k] = true; });
 free[pid] = P0.u.filter(function(u){ return !used[u.i]; }).map(function(u){ return u.l; });
 }
-var rnd = invOrderRandom(o), label = invOrderLabel(o), mine = [];
+var rnd = invOrderRandom(o), label0 = invOrderLabel(o), mine = [], picks = INV.o[o.id] || [];
 for(var k=0;k<n;k++){
+var label = picks[k] || label0;
 var idx = -1;
 for(var j=0;j<free[pid].length;j++){ var l = free[pid][j]; if(rnd || l === '' || l === label || (label && invStrip(l) === invStrip(label))){ idx = j; break; } }
 if(idx >= 0 && !forceNew){ free[pid].splice(idx, 1); continue; }
@@ -2546,6 +2550,42 @@ invAutoStock(list.map(function(o){ return [o, Number(o.quantity || 1)]; }), true
 showToast('已補進庫存 '+qty+' 個');
 renderAdminInventory();
 }
+// 開出哪一款：每筆喊單直接點選（取代拍照）。有分到庫存的，那一顆的款式也一起改
+function invPickOptions(o){
+var opts = invProdOptions(o.product_id).slice();
+var P = INV.p[o.product_id];
+if(P) P.u.forEach(function(u){ if(u.l && opts.indexOf(u.l) === -1) opts.push(u.l); });
+if(opts.indexOf('不指定') === -1) opts.push('不指定');
+return opts;
+}
+function invPickHTML(o){
+if(!o || !o.product_id || o.status === '缺貨已幫您取消') return '';
+var q = Math.min(Number(o.quantity || 1), 10), cur = INV.o[o.id] || [];
+var A = INV.a[o.id], P = INV.p[o.product_id];
+if(A && P){ A.u.forEach(function(id, k){ var u = P.u.filter(function(x){ return x.i === id; })[0]; if(u && u.l && !cur[k]) cur[k] = u.l; }); }
+var opts = invPickOptions(o), html = '';
+for(var k=0;k<q;k++){
+var v = cur[k] || '';
+html += '<select class="inv-pick-sel'+(v ? ' is-set' : '')+'" data-oid="'+escAttr(o.id)+'" data-k="'+k+'">'
++ '<option value="">'+(q > 1 ? '第'+(k+1)+'個 開出哪一款？' : '開出哪一款？')+'</option>'
++ opts.map(function(x){ return '<option value="'+escAttr(x)+'"'+(x === v ? ' selected' : '')+'>'+escHtml(x)+'</option>'; }).join('')
++ (v && opts.indexOf(v) === -1 ? '<option value="'+escAttr(v)+'" selected>'+escHtml(v)+'</option>' : '')
++ '</select>';
+}
+return '<div class="inv-pick">🎲 '+html+'</div>';
+}
+document.addEventListener('change', function(e){
+var el = e.target;
+if(!el || !el.classList || !el.classList.contains('inv-pick-sel')) return;
+var oid = el.getAttribute('data-oid'), k = Number(el.getAttribute('data-k')), v = el.value;
+var cur = (INV.o[oid] || []).slice(); cur[k] = v; for(var i=0;i<cur.length;i++) if(cur[i] === undefined) cur[i] = '';
+invQueue({ k:'oset', oid:oid, v:cur });
+var A = INV.a[oid], o = findAdminOrder(oid), pid = (A && A.p) || (o && o.product_id), P = pid && INV.p[pid];
+if(A && P && A.u[k] != null){ var uid = A.u[k]; invSetUnits(pid, P.u.map(function(x){ return x.i === uid ? Object.assign({}, x, { l:v }) : x; })); }
+el.classList.toggle('is-set', !!v);
+try{ INV_ALLOC = invAllocate(adminGroupsCache); }catch(er){}
+showToast(v ? '已記：開出 '+v : '已清除');
+});
 function invTodayCount(P){
 var d = new Date(Date.now() + 8*3600000).toISOString().slice(0,10);
 return (P.u || []).filter(function(u){ return u.t && new Date(u.t + 8*3600000).toISOString().slice(0,10) === d; }).length;
@@ -2561,11 +2601,13 @@ else if(op.k === 'aset'){ d.a[op.oid] = op.v; }
 else if(op.k === 'adel'){ delete d.a[op.oid]; }
 else if(op.k === 'mset'){ d.m[op.oid] = op.v; }
 else if(op.k === 'mdel'){ delete d.m[op.oid]; }
+else if(op.k === 'oset'){ if(op.v && op.v.some(function(x){ return x; })) d.o[op.oid] = op.v; else delete d.o[op.oid]; }
 }
 function invPrune(d){
 var old = Date.now() - 200*86400000;
 Object.keys(d.a).forEach(function(oid){ var A = d.a[oid]; if(!A || !d.p[A.p] || (A.t && A.t < old)) delete d.a[oid]; });
 Object.keys(d.m).forEach(function(oid){ if(!(d.m[oid] > old)) delete d.m[oid]; });
+if(Object.keys(d.o).length > 800){ Object.keys(d.o).slice(0, Object.keys(d.o).length - 800).forEach(function(oid){ delete d.o[oid]; }); }
 }
 function invQueue(op){ invApply(INV, op); INV_OPS.push(op); clearTimeout(INV_TIMER); INV_TIMER = setTimeout(invFlush, 700); }
 async function invFlush(){
@@ -2943,7 +2985,7 @@ return '<div class="adm-p-row">'
 + '<span class="adm-p-time">'+formatDate(o.created_at)+'</span></div>'
 + invTagHTML(o)
 + '<div class="adm-p-acts">'+actions+'</div>'
-+ '<div class="adm-op-row">'+orderPhotoHTML(o, true)+'</div>'
++ invPickHTML(o)
 + '</div>';
 }
 function pLatestOf(P){ var t = ''; P.variants.forEach(function(V){ V.orders.forEach(function(o){ if(String(o.created_at || '') > t) t = String(o.created_at || ''); }); }); return t; }
@@ -3220,7 +3262,7 @@ return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'"
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
 + (o.admin_note ? '<p class="adm-rand-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
 + invTagHTML(o)
-+ '<div class="adm-op-row">'+orderPhotoHTML(o, true)+'</div>'
++ invPickHTML(o)
 + depositInputHtml
 + '<button type="button" class="admin-test-toggle" data-order-id="'+o.id+'" data-test="'+(o.is_test?'0':'1')+'" style="display:block;margin:6px 0 0;background:none;border:none;padding:2px 0;color:#4F46E5;font-size:12px;font-weight:700;text-decoration:underline;font-family:var(--font-body);">'+(o.is_test ? '🧪 這筆不是測試，改成正式單（列入分潤）' : '🧪 標記為測試單（不算分潤）')+'</button>'
 + (o.status === '待確認' ? '<button type="button" class="adm-go-purchase">要確認、改隨機、缺貨，請到「🛒 採購清單」›</button>' : '')
@@ -9010,8 +9052,9 @@ return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel'
 function myRandomResultHTML(o){
 if(!o || o.status === '缺貨已幫您取消') return '';
 var d = invParse(siteSettings.inventory), A = d.a[o.id];
+if((!A || !d.p[A.p]) && d.o[o.id] && invIsRandom(o.variant)){ var ol = d.o[o.id].filter(function(x){ return x && x !== '不指定'; }); return ol.length ? '<p class="my-row-rand">🎲 隨機抽到：'+escHtml(ol.join('、'))+'</p>' : ''; }
 if(!A || !d.p[A.p] || !(A.r || invIsRandom(o.variant))) return '';
-var labels = (A.u || []).map(function(id){ var u = (d.p[A.p].u || []).filter(function(x){ return x.i === id; })[0]; return u ? (u.l || '') : null; }).filter(function(x){ return x; });
+var labels = (A.u || []).map(function(id){ var u = (d.p[A.p].u || []).filter(function(x){ return x.i === id; })[0]; return u ? (u.l || '') : null; }).filter(function(x){ return x && x !== '不指定'; });
 if(!labels.length) return '';
 return '<p class="my-row-rand">🎲 隨機抽到：'+escHtml(labels.join('、'))+'</p>';
 }
