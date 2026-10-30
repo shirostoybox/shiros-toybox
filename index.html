@@ -1427,7 +1427,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1525';
+var APP_VERSION = '20261030-1530';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1983,7 +1983,7 @@ showToast('沒有權限');
 }
 async function renderAdminShell(){
 var el = document.getElementById('adminView');
-el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>後台</h2></div>'
+el.innerHTML = '<div class="sub-page-header"><button class="back-btn" data-back="home">‹ 返回</button><h2>後台</h2><span style="margin-left:auto;font-size:11px;color:var(--muted);">版本 '+APP_VERSION+'</span></div>'
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 12px;">'
 + '<button type="button" class="cat-tab active admin-tab-btn" data-tab="orders">訂單</button>'
 + '<button type="button" class="cat-tab admin-tab-btn" data-tab="products">商品</button>'
