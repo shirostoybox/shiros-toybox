@@ -1423,7 +1423,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1445';
+var APP_VERSION = '20261030-1450';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2073,7 +2073,7 @@ var viewToggle = '<div class="adm-seg">'
 + '</div>';
 // 自己人（老闆／小幫手／測試單，不算分潤）排最上面，其他照原本順序
 var groups = adminGroupsCache.map(function(g, i){ return { g:g, i:i, t:isSelfGroup(g) ? 0 : 1 }; })
-.sort(function(a,b){ return a.t - b.t || a.i - b.i; }).map(function(x){ return x.g; });
+.sort(function(a,b){ return a.t - b.t || String(groupLatest(b.g)).localeCompare(String(groupLatest(a.g))) || a.i - b.i; }).map(function(x){ return x.g; });
 var body = '';
 if(groups.length === 0){
 body = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
@@ -2864,7 +2864,10 @@ var storeFiltered = allProds.filter(function(P){ return adminPurchaseStore === '
 var prods = adminPurchaseCat === 'all' ? storeFiltered : storeFiltered.filter(function(P){ return P.catKey === adminPurchaseCat; });
 var byCat = {}, cats = [];
 prods.forEach(function(P){ if(!byCat[P.cat]){ byCat[P.cat] = []; cats.push(P.cat); } byCat[P.cat].push(P); });
-cats.forEach(function(c){ byCat[c].sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant'); }); });
+// 最新喊單的商品排上面；分類也照最新喊單排
+function pLatest(P){ var t = ''; P.variants.forEach(function(V){ V.orders.forEach(function(o){ if(String(o.created_at || '') > t) t = String(o.created_at || ''); }); }); return t; }
+cats.forEach(function(c){ byCat[c].sort(function(a,b){ return pLatest(b).localeCompare(pLatest(a)); }); });
+cats.sort(function(a,b){ return pLatest(byCat[b][0]).localeCompare(pLatest(byCat[a][0])); });
 var totalQty = prods.reduce(function(a,P){ return a + P.qty; }, 0);
 var pIdx = 0;
 var list = cats.map(function(c){
@@ -3240,6 +3243,13 @@ return '<div class="calc-bar'+(keys.length ? ' is-on' : '')+'" data-g="'+escAttr
 + (keys.length ? '<span class="cb-sum">🧮 已選 '+keys.length+' 項<b>NT$'+fmtNum(sum)+'</b></span><button type="button" class="cb-copy">複製</button><button type="button" class="cb-clear">清除</button>' : '')
 + '</div>';
 }
+// 這位客人最近一次喊單的時間（客人訂單：最新喊單的排上面）
+function groupLatest(g){
+var t = '';
+(g.openOrders || []).forEach(function(o){ if(String(o.created_at || '') > t) t = String(o.created_at || ''); });
+if(!t) (g.settlements || []).forEach(function(st){ var x = String(st.created_at || st.cycle_deadline || ''); if(x > t) t = x; });
+return t;
+}
 function isSelfGroup(g){
 var os = (g.openOrders || []).concat(g.settlements || []);
 return os.length > 0 && os.every(function(o){ return !!o.is_test; });
@@ -3276,10 +3286,11 @@ var restrictBtnHtml = (!g.orderRestricted && cnt.overdue)
 : '';
 // 客人的喊單依商品分類分組（例如：扭蛋、美妝），到店裡比較好找
 var openCatMap = {}, openCats = [];
-g.openOrders.forEach(function(o){ var ci = orderCatInfo(o); if(!openCatMap[ci.key]){ openCatMap[ci.key] = { info:ci, list:[] }; openCats.push(ci.key); } openCatMap[ci.key].list.push(o); });
+var openSorted = (g.openOrders || []).slice().sort(function(a,b){ return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
+openSorted.forEach(function(o){ var ci = orderCatInfo(o); if(!openCatMap[ci.key]){ openCatMap[ci.key] = { info:ci, list:[] }; openCats.push(ci.key); } openCatMap[ci.key].list.push(o); });
 var openHtml = openCats.length > 1
 ? openCats.map(function(k){ var c = openCatMap[k]; return '<p class="adm-o-cat">'+catPillHTML(c.info, '<span class="adm-cat-n">'+c.list.length+' 筆</span>')+'</p>' + c.list.map(adminOpenOrderRowHTML).join(''); }).join('')
-: g.openOrders.map(adminOpenOrderRowHTML).join('');
+: openSorted.map(adminOpenOrderRowHTML).join('');
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
 ? '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
 : '';
