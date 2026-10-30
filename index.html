@@ -1421,7 +1421,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-0030';
+var APP_VERSION = '20261030-1425';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3073,7 +3073,7 @@ var suggestedDeposit = total ? Math.round(total/2) : 0;
 var depChip = calcChipHTML(calcGKey, o.id+'-dep', suggestedDeposit, o.product_name+' 訂金', 'NT$'+suggestedDeposit);
 var depositLabel = o.deposit_required
 ? (depositPaidAmt > 0 ? '💰客人已付金額（訂金應收 '+depChip+'，一次付清填 NT$'+total+'）' : '💰收到訂金後，在這裡輸入金額（應收 '+depChip+'，一次付清填 NT$'+total+'）')
-: '💳 客人預付／一次付清的金額（沒有就留空，一次付清填 NT$'+total+'）';
+: '💳 客人預付／一次付清的金額（沒有就留空；收一半訂金 '+depChip+'，一次付清填 NT$'+total+'）';
 // 所有訂單都可以記錄客人先付的錢：需要訂金的訂單一定要填；其他訂單是客人想先付清才填
 var depositInputHtml = '<div style="margin-top:8px;"><div style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;line-height:1.9;">'+depositLabel+'</div>'
 + '<div style="display:flex;gap:6px;"><input type="number" min="0" step="1" class="gate-input admin-deposit-input" data-order-id="'+o.id+'" data-required="'+(o.deposit_required?'1':'0')+'" value="'+(o.deposit_amount ? o.deposit_amount : '')+'" placeholder="'+(o.deposit_required ? '尚未收到訂金' : '未預付')+'" style="margin-bottom:0;flex:1;">'
