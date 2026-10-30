@@ -433,6 +433,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pay-method .pay-method-t{ font-size:15px; font-weight:800; color:#14743A; margin-bottom:8px; }
 .pay-method b{ color:#14743A; }
 .adm-float-collapse{ position:fixed; right:14px; bottom:calc(104px + env(safe-area-inset-bottom)); z-index:8000; border:none; background:var(--ink); color:#fff; border-radius:999px; padding:11px 16px; font-size:13.5px; font-weight:700; font-family:var(--font-body); box-shadow:0 4px 14px rgba(20,22,30,.3); }
+.adm-mb.is-friend{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-self{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-k{ background:#FFF1C2; color:#8A5A00; }
 .inv-tag{ margin:6px 0 2px; padding:6px 10px; border-radius:10px; font-size:12.5px; font-weight:700; line-height:1.5; }
@@ -1423,7 +1424,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1450';
+var APP_VERSION = '20261030-1505';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3251,8 +3252,9 @@ if(!t) (g.settlements || []).forEach(function(st){ var x = String(st.created_at 
 return t;
 }
 function isSelfGroup(g){
+// 只要有任何一筆是測試單（老闆／小幫手下的單會自動標），就當自己人
 var os = (g.openOrders || []).concat(g.settlements || []);
-return os.length > 0 && os.every(function(o){ return !!o.is_test; });
+return os.some(function(o){ return !!o.is_test; });
 }
 function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
@@ -3767,7 +3769,8 @@ var ADMIN_MEMBER_FILTERS = [
 ['coupon', '🚚 有免運券', function(m){ return (m.referralCouponBalance || 0) > 0; }],
 ['nocoupon', '🈳 已綁定・沒免運券', function(m){ return m.isVerified && !((m.referralCouponBalance || 0) > 0); }],
 ['restricted', '🚫 限制下單', function(m){ return m.orderRestricted; }],
-['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }]
+['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }],
+['friend', '🧪 朋友', function(m){ return !!m.isFriend; }]
 ];
 async function loadAdminMembers(){
 var listEl = document.getElementById('adminTabContent');
@@ -3803,6 +3806,7 @@ if(m.isVerified && !m.nickname) out += '<span class="adm-mb is-warn">✏️ 沒�
 if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</span>';
 if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 小幫手</span>';
 if(m.staffRole === 'owner') out += '<span class="adm-mb is-staff">👑 老闆</span>';
+if(m.isFriend) out += '<span class="adm-mb is-friend">🧪 朋友・不算分潤</span>';
 return out;
 }
 function renderAdminMemberList(){
@@ -3895,6 +3899,7 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '</div>'
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
 + restrictToggleBtn
++ (m.staffRole ? '' : '<button type="button" class="btn btn--full admin-member-friend-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-friend="'+(m.isFriend ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';color:'+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';">'+(m.isFriend ? '取消朋友（之後的單算分潤）' : '🧪 設為朋友（不算分潤）')+'</button>')
 + (adminRole === 'owner'
 ? (m.staffRole === 'helper'
 ? '<button type="button" class="btn btn--full admin-member-profit-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-allow="'+(m.profitAccess ? '0' : '1')+'" style="margin-top:8px;border:1.5px solid '+(m.profitAccess ? 'var(--muted)' : '#1E7A4C')+';color:'+(m.profitAccess ? 'var(--muted)' : '#1E7A4C')+';">'+(m.profitAccess ? '💰 取消分潤權限（目前看得到）' : '💰 開放分潤權限（一起看分潤）')+'</button>'
@@ -3926,6 +3931,23 @@ saveBtns[i].addEventListener('click', function(){ handleAdminSaveMemberBalance(t
 var restrictBtns = container.querySelectorAll('.admin-member-restrict-btn');
 for(var r=0;r<restrictBtns.length;r++){
 restrictBtns[r].addEventListener('click', function(){ handleAdminMemberRestrict(this); });
+}
+var friendBtns = container.querySelectorAll('.admin-member-friend-btn');
+for(var fr=0; fr<friendBtns.length; fr++){
+friendBtns[fr].addEventListener('click', async function(){
+var b = this, toFriend = b.getAttribute('data-friend') === '1';
+var msg = toFriend
+? '確定要把這位設為朋友嗎？\n\n・之後他下的單都會自動標成「測試單」，不算分潤\n・他現在還沒結單的喊單也會一起改成測試單\n・已經結單的不會動\n・客人那邊看不到這個設定'
+: '確定要取消朋友嗎？\n\n・之後他下的單會算分潤\n・他現在還沒結單的喊單也會一起改回正式單';
+if(!window.confirm(msg)) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-set-friend', { lineUid: b.getAttribute('data-line-uid'), isFriend: toFriend });
+showToast((toFriend ? '已設為朋友' : '已取消朋友') + (r && r.changed ? '，改了 '+r.changed+' 筆喊單' : ''));
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){ alert('操作失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); b.disabled = false; }
+});
 }
 var staffBtns = container.querySelectorAll('.admin-member-staff-btn');
 for(var sf=0; sf<staffBtns.length; sf++){
