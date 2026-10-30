@@ -1438,7 +1438,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1700';
+var APP_VERSION = '20261030-1710';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5543,10 +5543,13 @@ if(p.stock === 'sold_out' || p.stock === 'live_ended') return false;
 var t = Date.parse(p.createdAt);
 return !isNaN(t) && (Date.now() - t) < NEW_PRODUCT_HOURS * 3600 * 1000;
 }
+// 排序：後台勾了「↘降價」的排最前面 → 新上架 → 其他（買不到的本來就在後面）
+function isDropFirst(p){ return !!p.priceDrop && p.stock !== 'live_ended' && p.stock !== 'sold_out'; }
 function sortNewFirst(list){
-var fresh = list.filter(isNewProduct).sort(function(a, b){ return String(b.createdAt).localeCompare(String(a.createdAt)); });
-var rest = list.filter(function(p){ return !isNewProduct(p); });
-return fresh.concat(rest);
+var drop = list.filter(isDropFirst);
+var fresh = list.filter(function(p){ return !isDropFirst(p) && isNewProduct(p); }).sort(function(a, b){ return String(b.createdAt).localeCompare(String(a.createdAt)); });
+var rest = list.filter(function(p){ return !isDropFirst(p) && !isNewProduct(p); });
+return drop.concat(fresh, rest);
 }
 function sortProductsByPrice(list){
 var groups = {}, order = [];
@@ -8233,6 +8236,8 @@ if(liveCategory === DONTMISS_CAT){
 list = all.filter(function(p){ return p.cat === DONTMISS_CAT && productMatchesQuery(p, liveQuery); }).sort(function(a, b){
 var ea = a.stock === 'live_limited' ? 0 : 1, eb = b.stock === 'live_limited' ? 0 : 1;
 if(ea !== eb) return ea - eb;
+var da = isDropFirst(a) ? 0 : 1, db = isDropFirst(b) ? 0 : 1;
+if(da !== db) return da - db;
 return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
 });
 }
