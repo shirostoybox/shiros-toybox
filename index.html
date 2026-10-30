@@ -433,6 +433,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pay-method .pay-method-t{ font-size:15px; font-weight:800; color:#14743A; margin-bottom:8px; }
 .pay-method b{ color:#14743A; }
 .adm-float-collapse{ position:fixed; right:14px; bottom:calc(104px + env(safe-area-inset-bottom)); z-index:8000; border:none; background:var(--ink); color:#fff; border-radius:999px; padding:11px 16px; font-size:13.5px; font-weight:700; font-family:var(--font-body); box-shadow:0 4px 14px rgba(20,22,30,.3); }
+.adm-sum.is-self{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-k{ background:#FFF1C2; color:#8A5A00; }
 .inv-tag{ margin:6px 0 2px; padding:6px 10px; border-radius:10px; font-size:12.5px; font-weight:700; line-height:1.5; }
 .inv-tag.is-ok{ background:#EEF6FF; color:#1D4E89; }
@@ -1422,7 +1423,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1430';
+var APP_VERSION = '20261030-1445';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2070,7 +2071,9 @@ var viewToggle = '<div class="adm-seg">'
 + '<button type="button" class="adm-seg-btn'+(adminOrdersView==='customers'?' on':'')+'" data-view="customers">👥 客人訂單</button>'
 + '<button type="button" class="adm-seg-btn'+(adminOrdersView==='purchase'?' on':'')+'" data-view="purchase">🛒 採購清單</button>'
 + '</div>';
-var groups = adminGroupsCache;
+// 自己人（老闆／小幫手／測試單，不算分潤）排最上面，其他照原本順序
+var groups = adminGroupsCache.map(function(g, i){ return { g:g, i:i, t:isSelfGroup(g) ? 0 : 1 }; })
+.sort(function(a,b){ return a.t - b.t || a.i - b.i; }).map(function(x){ return x.g; });
 var body = '';
 if(groups.length === 0){
 body = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
@@ -3237,11 +3240,16 @@ return '<div class="calc-bar'+(keys.length ? ' is-on' : '')+'" data-g="'+escAttr
 + (keys.length ? '<span class="cb-sum">🧮 已選 '+keys.length+' 項<b>NT$'+fmtNum(sum)+'</b></span><button type="button" class="cb-copy">複製</button><button type="button" class="cb-clear">清除</button>' : '')
 + '</div>';
 }
+function isSelfGroup(g){
+var os = (g.openOrders || []).concat(g.settlements || []);
+return os.length > 0 && os.every(function(o){ return !!o.is_test; });
+}
 function adminGroupHTML(g){
 var color = colorForCustomer(g.lineUid || g.nickname || '');
 var cnt = adminGroupCounts(g);
 var key = adminGroupKey(g);
 var sum = [];
+if(isSelfGroup(g)) sum.push('<span class="adm-sum is-self">🧪自己人</span>');
 if(cnt.overdue) sum.push('<span class="adm-sum is-over">⛔逾期</span>');
 if(cnt.pending) sum.push('<span class="adm-sum is-wait">待確認 '+cnt.pending+'</span>');
 if(cnt.confirmed) sum.push('<span class="adm-sum is-ok">已確認 '+cnt.confirmed+'｜$'+fmtNum(cnt.okAmt)+(cnt.okPaid > 0 ? '（已付$'+fmtNum(cnt.okPaid)+'）' : '')+'</span>');
