@@ -456,6 +456,14 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .op-pick{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; font-size:14px; }
 .inv-pick-sel{ border:1.5px dashed #8B9BB4; background:#F4F7FB; color:#3B4A63; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; font-family:var(--font-body); max-width:100%; }
 .inv-pick-sel.is-set{ border-style:solid; border-color:#1D4E89; background:#EEF6FF; color:#1D4E89; }
+.inv-card{ position:relative; }
+.inv-fold{ position:absolute; top:10px; right:10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:999px; padding:4px 12px; font-size:12px; font-weight:700; font-family:var(--font-body); z-index:1; }
+.inv-fold .f-open{ display:none; }
+.inv-card.is-folded .inv-fold .f-open{ display:inline; }
+.inv-card.is-folded .inv-fold .f-close{ display:none; }
+.inv-card.is-folded .inv-body{ display:none; }
+.inv-card.is-folded .inv-head{ cursor:pointer; }
+.inv-card .inv-name{ padding-right:74px; }
 .inv-sheet-opts{ display:flex; flex-wrap:wrap; gap:8px; }
 .inv-sheet-opt{ border:1.5px solid var(--line); background:#fff; color:var(--text-dark); border-radius:12px; padding:10px 14px; font-size:14px; font-weight:700; font-family:var(--font-body); }
 .inv-sheet-opt.on{ background:#1D4E89; border-color:#1D4E89; color:#fff; }
@@ -1438,7 +1446,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-1710';
+var APP_VERSION = '20261030-2200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2810,11 +2818,15 @@ var hasPlain = P.u.some(function(u){ return !u.l; });
 var addBtns = opts.length
 ? opts.map(function(x){ return '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="'+escAttr(x)+'">＋ '+escHtml(x)+'</button>'; }).join('') + (hasPlain ? '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="" data-n="1">＋1 個（不分款）</button>' : '')
 : '<button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="" data-n="1">＋1 個</button><button type="button" class="inv-add" data-pid="'+escAttr(pid)+'" data-l="" data-n="5">＋5 個</button>';
-return '<div class="inv-card" data-pid="'+escAttr(pid)+'">'
+// 收起來時只剩圖片＋文字（名稱、待確認、庫存）；在對話框裡（記庫存）一律展開
+var folded = !invNoFold && invFoldedOf(pid);
+return '<div class="inv-card'+(folded ? ' is-folded' : '')+'" data-pid="'+escAttr(pid)+'">'
++ (invNoFold ? '' : '<button type="button" class="inv-fold" data-pid="'+escAttr(pid)+'"><span class="f-close">收起 ▲</span><span class="f-open">展開 ▼</span></button>')
 + '<div class="inv-head"><img class="inv-thumb" data-pid="'+escAttr(pid)+'" src="'+escAttr(productImageUrl(pid))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
 + '<div class="inv-hd"><p class="inv-name">'+escHtml(invProdName(pid))+'</p>'
 + '<p class="inv-want">待確認 '+wWait+' 個在等庫存</p>'
 + '<div>'+invSummaryHTML(pid)+'</div></div></div>'
++ '<div class="inv-body">'
 + invCatSelectHTML(pid)
 + '<p class="inv-lab">🎰 買到／扭到的順序（點一下可以改款式或刪掉）</p>'
 + '<div class="inv-seq">'+seq+'</div>'
@@ -2825,13 +2837,34 @@ return '<div class="inv-card" data-pid="'+escAttr(pid)+'">'
 + (P.u.length ? '<button type="button" class="adm-link inv-undo" data-pid="'+escAttr(pid)+'">↩︎ 刪掉最後一個</button>' : '')
 + (P.u.length ? '<button type="button" class="adm-link inv-realloc" data-pid="'+escAttr(pid)+'">🔄 重新依喊單時間分配</button>' : '')
 + (P.u.length ? '<button type="button" class="adm-link inv-clear" data-pid="'+escAttr(pid)+'" style="color:var(--ignis-deep);">🗑 清空這件的庫存</button>' : '')
-+ '</div></div>';
++ '</div></div></div>';
 }
 function invProdObj(pid){
 for(var j=0;j<adminProductsCache.length;j++){ if(adminProductsCache[j].id === pid) return adminProductsCache[j]; }
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === pid){ var p = PRODUCTS[i]; return { id:p.id, cat:p.cat, cat_label:p.catLabel }; } }
 return null;
 }
+// 庫存卡片收起／展開（記在這支手機；預設收起，只看圖片和數量）
+var invNoFold = false, invOpen = {};
+try{ invOpen = JSON.parse(localStorage.getItem('invOpen') || '{}') || {}; }catch(e){ invOpen = {}; }
+function invFoldedOf(pid){ return !invOpen[pid]; }
+function invSaveOpen(){ try{ localStorage.setItem('invOpen', JSON.stringify(invOpen)); }catch(e){} }
+document.addEventListener('click', function(e){
+var t = e.target; if(!t || !t.closest) return;
+var f = t.closest('.inv-fold') || (t.closest('.inv-card.is-folded .inv-head') && !t.closest('.inv-thumb') ? t.closest('.inv-card') : null);
+if(f){
+var card = f.classList.contains('inv-card') ? f : f.closest('.inv-card'); var pid = card.getAttribute('data-pid');
+if(invOpen[pid]) delete invOpen[pid]; else invOpen[pid] = 1;
+invSaveOpen(); card.classList.toggle('is-folded', !invOpen[pid]); return;
+}
+var all = t.closest('[data-invfold]');
+if(all){
+var close = all.getAttribute('data-invfold') === '1';
+var cards = document.querySelectorAll('#invList .inv-card[data-pid]');
+for(var i=0;i<cards.length;i++){ var k = cards[i].getAttribute('data-pid'); if(close) delete invOpen[k]; else invOpen[k] = 1; cards[i].classList.toggle('is-folded', close); }
+invSaveOpen();
+}
+});
 function invCatSelectHTML(pid){ var p = invProdObj(pid); return p ? adminCatSelectHTML(p) : ''; }
 function invCatInfo(pid){
 var p = invProdObj(pid);
@@ -2843,7 +2876,7 @@ try{ INV_ALLOC = invAllocate(adminGroupsCache); }catch(e){}
 var cards = document.querySelectorAll('.inv-card[data-pid]');
 for(var i=0;i<cards.length;i++){
 var pid = cards[i].getAttribute('data-pid');
-var tmp = document.createElement('div'); tmp.innerHTML = invCardHTML(pid);
+var tmp = document.createElement('div'); invNoFold = !!cards[i].closest('.cm-ov'); tmp.innerHTML = invCardHTML(pid); invNoFold = false;
 cards[i].parentNode.replaceChild(tmp.firstChild, cards[i]);
 }
 }
@@ -2904,7 +2937,8 @@ if((b = t.closest('button.inv-pick'))){ var pk = b.getAttribute('data-pid'); inv
 function invOpenModal(pid){
 var ov = document.createElement('div');
 ov.className = 'cm-ov';
-ov.innerHTML = '<div class="cm-box">'+invCardHTML(pid)+'<button type="button" class="btn btn--primary btn--full inv-done" style="margin-top:14px;">完成</button></div>';
+invNoFold = true; var mcard = invCardHTML(pid); invNoFold = false;
+ov.innerHTML = '<div class="cm-box">'+mcard+'<button type="button" class="btn btn--primary btn--full inv-done" style="margin-top:14px;">完成</button></div>';
 document.body.appendChild(ov);
 function close(){ ov.remove(); try{ if(document.querySelector('.adm-seg')) renderAdminOrders(); }catch(e){} }
 ov.addEventListener('click', function(e){ if(e.target === ov || (e.target.closest && e.target.closest('.inv-done'))) close(); });
@@ -2961,6 +2995,7 @@ if(oldList && document.getElementById('invSearch')){ oldList.innerHTML = listHTM
 el.innerHTML = '<div class="inv-intro">買到或扭到一個，就在那件商品按一下，<b>照扭出來的順序</b>記下來。<br>庫存只給<b>待確認</b>的喊單：每按一筆確認，就扣掉輪到的那一顆（指定款式的拿對應那顆，<b>隨機的依順序拿</b>），客人的喊單頁也會寫隨機抽到哪一款。<br>之前就確認的喊單當作已經出好貨，不會扣庫存。</div>'
 + (function(){ var ol = invOldConfirmed(); if(!ol.length) return ''; var q = ol.reduce(function(a,o){ return a + Number(o.quantity || 1); }, 0); return '<div class="inv-back"><span>之前按確認、還沒算進庫存的：<b>'+ol.length+' 筆・'+q+' 個</b></span><button type="button" class="inv-back-btn">＋ 一次補進庫存</button></div>'; })()
 + '<input type="text" class="gate-input" id="invSearch" value="'+escAttr(invQuery)+'" placeholder="搜尋商品，也可以找沒人喊單的商品來記庫存" style="margin-bottom:10px;">'
++ '<div style="display:flex;gap:14px;justify-content:flex-end;margin:0 0 6px;"><button type="button" class="adm-link" data-invfold="1">全部收起 ▲</button><button type="button" class="adm-link" data-invfold="0">全部展開 ▼</button></div>'
 + '<div id="invList">' + listHTML + '</div>';
 var si = document.getElementById('invSearch');
 var composing = false;
