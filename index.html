@@ -439,6 +439,13 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-p-catpill{ display:block; margin:0 0 3px; }
 .adm-p-catpill .adm-cat-pill{ font-size:11px; padding:2px 9px; }
 .adm-p-latest{ display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-top:2px; }
+.adm-bulk{ margin-top:14px; background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:12px 14px; }
+.adm-bulk-t{ font-size:14px; font-weight:700; color:var(--text-dark); margin-bottom:8px; }
+.adm-bulk-t b{ color:#1E7A3C; font-size:16px; }
+.adm-bulk-btn{ display:block; width:100%; margin:6px 0 0; border:1.5px solid var(--ink); background:var(--ink); color:#fff; border-radius:12px; padding:11px; font-size:14px; font-weight:700; font-family:var(--font-body); }
+.adm-bulk-btn.is-undo{ background:#fff; color:var(--ink); }
+.adm-bulk-btn:disabled{ opacity:.6; }
+.adm-bulk-n{ margin:8px 0 0; font-size:12px; color:var(--muted); line-height:1.6; }
 .adm-sum.is-self{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-k{ background:#FFF1C2; color:#8A5A00; }
 .inv-tag{ margin:6px 0 2px; padding:6px 10px; border-radius:10px; font-size:12.5px; font-weight:700; line-height:1.5; }
@@ -1288,7 +1295,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-list">
 <div class="qa-item"><p class="qa-q">Q：怎麼結單？</p><p class="qa-a">A：到「喊單」頁，看到「結單倒數」卡片後按「前往結單」，選擇寄送方式、填寫收件資料、選擇要使用的優惠券，送出後就完成結單 ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：喊單後多久要結單？</p><p class="qa-a">A：自第一筆喊單起算，<b>3天內（第3天24:00前）</b>要完成結單。<br>這3天內喊的商品可以一起結單、只付一次運費。<br>例如：10/1喊第一件 → 10/3 24:00前要結單，10/1～10/3喊的商品都可以一起結。</p></div>
-<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？</p><p class="qa-a">A：送出結單後，<b>3天內（第3天24:00前）</b>要完成匯款。「喊單」頁會顯示付款倒數，提醒您付款期限。</p></div>
+<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？</p><p class="qa-a">A：送出結單後，<b>3天內（第3天24:00前）</b>要完成轉帳。「喊單」頁會顯示付款倒數，提醒您付款期限。</p></div>
 <div class="qa-item"><p class="qa-q">Q：運費怎麼算？</p><p class="qa-a">A：依寄送方式收取，付款時一併支付：<br>・7-11／全家：NT$60<br>・黑貓宅急便：NT$130<br>每筆結單各自計算運費，不與前後訂單合併計算或寄送。</p></div>
 <div class="qa-item"><p class="qa-q">Q：結單後又想買其他商品怎麼辦？</p><p class="qa-a">A：結單後再喊的商品，會重新開始新的3天週期，成為「下一筆新訂單」，運費另外計算。</p></div>
 <div class="qa-item"><p class="qa-q">Q：「待確認」的商品可以結單嗎？</p><p class="qa-a">A：不行喔。商品要變成「已確認」才能結單；同一組裡還有「待確認」的商品時，暫時無法送出結單，也可以先按「移除」拿掉該商品再結單。</p></div>
@@ -1302,7 +1309,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-item"><p class="qa-q">Q：為什麼喊單後顯示「待確認」？</p><p class="qa-a">A：限時連線商品依喊單順序於當地採購，成功購買後將更新為「已確認」。<b>若數量不足，未購得的訂單將顯示「缺貨已幫您取消」，已付訂金將全額退還</b> ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：限時連線商品要付訂金嗎？</p><p class="qa-a">A：同一件限時連線商品，喊單金額合計<b>滿NT$1,000（含）</b>，需要支付金額一半的訂金，已付的訂金會從應付總額中扣除。</p></div>
 <div class="qa-item"><p class="qa-q">Q：限時連線期間，現貨／預購還能喊單嗎？</p><p class="qa-a">A：可以。限時連線跟現貨／預購是分開的，互不影響。<br>如果店家連線忙碌，可能會暫停現貨／預購喊單，首頁和商品頁會顯示公告；暫停期間，已喊單的現貨／預購<b>結單倒數也會一起暫停</b>，恢復後重新倒數3天。</p></div>
-<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？運費怎麼算？</p><p class="qa-a">A：跟現貨／預購一樣，送出結單後<b>3天內（第3天24:00前）</b>要完成匯款。<br>運費：7-11／全家 NT$60、黑貓宅急便 NT$130，每個專區的結單各自計算。</p></div>
+<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？運費怎麼算？</p><p class="qa-a">A：跟現貨／預購一樣，送出結單後<b>3天內（第3天24:00前）</b>要完成轉帳。<br>運費：7-11／全家 NT$60、黑貓宅急便 NT$130，每個專區的結單各自計算。</p></div>
 </div>
 </div>
 <h3 style="margin:26px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚠️ 注意事項（兩種都適用）</h3>
@@ -1446,7 +1453,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261030-2200';
+var APP_VERSION = '20261031-1535';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3903,7 +3910,7 @@ btn.disabled = false; btn.textContent = '缺貨已幫您取消';
 }
 }
 async function handleAdminMarkPaid(btn){
-if(!window.confirm('確定這筆已經收到匯款了嗎？這會把底下所有商品標記為已付款、計入累積消費。')) return;
+if(!window.confirm('確定這筆已經收到轉帳了嗎？這會把底下所有商品標記為已付款、計入累積消費。')) return;
 btn.disabled = true; btn.textContent = '處理中...';
 var settlementId = btn.getAttribute('data-settlement-id');
 try{
@@ -4562,7 +4569,7 @@ html += adminNewProductFormHTML(allProducts, isLiveMode);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">'+(isLiveMode ? '目前沒有限時連線商品。' : '目前沒有商品。')+'</p>';
 } else {
-html += '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + '</div>';
+html += adminBulkHideHTML(products) + '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + '</div>';
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
@@ -4866,7 +4873,7 @@ rows.push({ kind:'dep', id:o.id, nick: o.nickname || (s && s.nickname) || '客�
 if(s.status !== '已付款') return;
 var amt = (s.total != null && s.total !== '') ? Number(s.total) : (pfSettlementIncome(s) - (Number(s.deposit_deducted) || 0));
 if(!(amt > 0)) return;
-rows.push({ kind:'set', id:s.id, nick: s.nickname || '客人', label: '結單匯款' + (s.order_no ? ' ' + s.order_no : ''), amt: amt, who: settleWho(s), explicit: !!s.received_by });
+rows.push({ kind:'set', id:s.id, nick: s.nickname || '客人', label: '結單轉帳' + (s.order_no ? ' ' + s.order_no : ''), amt: amt, who: settleWho(s), explicit: !!s.received_by });
 });
 return rows;
 }
@@ -7015,6 +7022,54 @@ showToast(hide ? '已隱藏' : '已公開上架 ♡');
 await loadAdminProducts();
 refreshShop();
 }catch(err){ b.disabled = false; alert('設定失敗：' + err.message); }
+});
+// 一次全部隱藏（例如要暫停大家喊單），之後再一件一件公開想賣的；也可以把剛剛一次隱藏的全部恢復
+var ADM_BULK_PIDS = [];
+function adminBulkHideHTML(products){
+var vis = products.filter(function(p){ return !p.is_hidden; });
+var last = []; try{ last = JSON.parse(localStorage.getItem('bulkHidden') || '[]') || []; }catch(e){}
+var stillHidden = last.filter(function(id){ return products.some(function(p){ return p.id === id && p.is_hidden; }); });
+ADM_BULK_PIDS = vis.map(function(p){ return p.id; });
+return '<div class="adm-bulk">'
++ '<div class="adm-bulk-t">👀 目前公開 <b>'+vis.length+'</b> 件・隱藏 '+(products.length - vis.length)+' 件</div>'
++ (vis.length ? '<button type="button" class="adm-bulk-btn" id="admBulkHide">🙈 這個分頁全部隱藏</button>' : '')
++ (stillHidden.length ? '<button type="button" class="adm-bulk-btn is-undo" id="admBulkUndo" data-ids="'+escAttr(stillHidden.join(','))+'">↩︎ 把剛剛一次隱藏的 '+stillHidden.length+' 件全部恢復公開</button>' : '')
++ '<p class="adm-bulk-n">全部隱藏後，再到下面想賣的商品按「公開上架」就好。已經喊的單不受影響。</p></div>';
+}
+async function adminBulkRun(ids, hide, btn){
+var done = 0, fail = 0, i = 0;
+var old = btn.textContent; btn.disabled = true;
+async function worker(){
+while(i < ids.length){
+var id = ids[i++];
+try{ await callMemberApi('admin-set-product-hidden', { productId: id, hidden: hide }); }catch(e){ fail++; }
+done++; btn.textContent = '處理中… '+done+'／'+ids.length;
+}
+}
+await Promise.all([worker(), worker(), worker(), worker()]);
+btn.disabled = false; btn.textContent = old;
+return fail;
+}
+document.addEventListener('click', async function(e){
+var t = e.target; if(!t || !t.closest) return;
+var b = t.closest('#admBulkHide');
+if(b){
+var ids = ADM_BULK_PIDS.slice(); if(!ids.length) return;
+if(!window.confirm('要把這個分頁公開中的 '+ids.length+' 件商品全部隱藏嗎？\n\n・客人會看不到、也不能喊單\n・已經喊的單不受影響\n・之後可以按「全部恢復公開」一次復原，或一件一件公開')) return;
+try{ localStorage.setItem('bulkHidden', JSON.stringify(ids)); }catch(er){}
+var f = await adminBulkRun(ids, true, b);
+showToast(f ? '完成，有 '+f+' 件失敗' : '已全部隱藏 '+ids.length+' 件');
+await loadAdminProducts(); refreshShop(); return;
+}
+var u = t.closest('#admBulkUndo');
+if(u){
+var uids = (u.getAttribute('data-ids') || '').split(',').filter(Boolean);
+if(!window.confirm('把剛剛一次隱藏的 '+uids.length+' 件全部恢復公開嗎？\n\n（沒有價格的商品會公開失敗，要先填價格）')) return;
+var f2 = await adminBulkRun(uids, false, u);
+try{ localStorage.removeItem('bulkHidden'); }catch(er){}
+showToast(f2 ? '完成，有 '+f2+' 件失敗（可能沒有價格）' : '已全部恢復公開');
+await loadAdminProducts(); refreshShop();
+}
 });
 function adminExtraPhotoSlotsHTML(p){
 var slots = EXTRA_PHOTO_SLOTS;
@@ -9229,9 +9284,10 @@ return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 var day = pc.dayNumber;
 var deadline = new Date(pc.deadline);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
-var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・還可累積2天內的喊單一起結算';
+// 限時連線：專區關閉後就不能再喊單了，第1天只提醒3天內結單；現貨／預購還能繼續喊，維持原本的說法
+var cls = 'cycle-banner--day1', icon = '📦', mainText = (group && group !== 'regular') ? '第1天・連線已結束，請在3天內完成結單' : '第1天・還可累積2天內的喊單一起結算';
 var warningHTML = '';
-var subText = '結單期限：'+deadlineStr+'前・共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>建議提早完成結單，才有充裕時間完成匯款';
+var subText = '結單期限：'+deadlineStr+'前・共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>建議提早完成結單，才有充裕的時間完成轉帳';
 if(day === 2){
 cls = 'cycle-banner--day2'; icon = '⏰';
 mainText = '第2天・明天是最後一天！';
@@ -9266,7 +9322,7 @@ var day = daysSinceDate(anchor);
 var deadline = new Date(anchor);
 deadline.setDate(deadline.getDate() + 2);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
-var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・請盡快完成匯款';
+var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・請盡快完成轉帳';
 var warningHTML = '';
 var subText = '付款期限：'+deadlineStr+'前・'+(s.order_no||'此筆訂單')+'・應付NT$'+s.total;
 if(day === 2){
