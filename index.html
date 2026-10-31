@@ -435,6 +435,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pay-method .pay-method-t{ font-size:15px; font-weight:800; color:#14743A; margin-bottom:8px; }
 .pay-method b{ color:#14743A; }
 .adm-float-collapse{ position:fixed; right:14px; bottom:calc(104px + env(safe-area-inset-bottom)); z-index:8000; border:none; background:var(--ink); color:#fff; border-radius:999px; padding:11px 16px; font-size:13.5px; font-weight:700; font-family:var(--font-body); box-shadow:0 4px 14px rgba(20,22,30,.3); }
+.admin-settle-freeship{ margin-left:6px; border:1.5px solid #0E7490; background:#ECFEFF; color:#0E7490; border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:700; font-family:var(--font-body); }
 .adm-mb.is-freeship{ background:#CFFAFE; color:#0E7490; }
 .settle-freeship{ margin:4px 0 10px; padding:10px 12px; background:#ECFEFF; border-radius:12px; font-size:13.5px; color:#0E7490; }
 .adm-mb.is-friend{ background:#E0E7FF; color:#3730A3; }
@@ -503,6 +504,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .inv-pick{ display:block; width:100%; text-align:left; border:1.5px dashed var(--line); background:#fff; border-radius:12px; padding:10px 12px; margin:0 0 8px; font-size:13px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
 .cm-inv{ margin:10px 0 0; padding:9px 11px; background:#F3F0FF; color:#4B3BA8; border-radius:12px; font-size:13px; font-weight:700; line-height:1.6; }
 .my-row-rand{ margin:4px 0 0; font-size:12.5px; font-weight:700; color:#1D4E89; background:#EEF6FF; display:inline-block; padding:3px 10px; border-radius:999px; }
+.adm-sum.is-paid{ background:#DCFCE7; color:#166534; }
 .adm-sum.is-dep{ background:#FEF3C7; color:#92400E; }
 .adm-sum.is-pay{ background:#E0E7FF; color:#3730A3; }
 .adm-sum.is-over{ background:#1B1E27; color:#fff; }
@@ -1130,6 +1132,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="settle-total-row"><span>運費</span><span id="settleShipFee">NT$0</span></div>
 <div class="settle-total-row" id="settleDiscountRow" style="display:none;"><span>優惠折抵</span><span id="settleDiscount" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row" id="settleDepositRow" style="display:none;"><span>💰已付訂金／預付</span><span id="settleDeposit" style="color:var(--ignis-deep);">-NT$0</span></div>
+<div class="settle-total-row" id="settleCreditRow" style="display:none;"><span>↪ 缺貨退款扣抵</span><span id="settleCredit" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
 </div>
 <p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
@@ -1455,7 +1458,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261031-1700';
+var APP_VERSION = '20261101-0220';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2060,13 +2063,14 @@ return '<span class="adm-cat-pill" style="background:'+c.tag+';color:'+c.tagText
 function orderNeedsDeposit(o){ return !!o.deposit_required && !(Number(o.deposit_amount || 0) > 0); }
 function adminGroupKey(g){ return String(g.lineUid || g.nickname || ''); }
 function adminGroupCounts(g){
-var c = { pending:0, confirmed:0, deposit:0, unpaid:0, overdue:false, okAmt:0, okPaid:0 };
+var c = { pending:0, confirmed:0, deposit:0, unpaid:0, overdue:false, okAmt:0, okPaid:0, pendPaid:0, pendAmt:0, credit:0 };
 (g.openOrders || []).forEach(function(o){
-if(o.status === '待確認') c.pending++;
+if(o.status === '待確認'){ c.pending++; c.pendPaid += Number(o.deposit_amount || 0); c.pendAmt += Number(o.price || 0) * Number(o.quantity || 1); }
 if(o.status === '已確認'){ c.confirmed++; c.okAmt += Number(o.price || 0) * Number(o.quantity || 1); c.okPaid += Number(o.deposit_amount || 0); }
 if(orderNeedsDeposit(o)) c.deposit++;
 });
 (g.settlements || []).forEach(function(st){ if(st.status !== '已付款') c.unpaid++; });
+(g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at) c.credit += Number(o.deposit_amount || 0); });
 var gc = g.cycle || {};
 Object.keys(gc).forEach(function(k){ if(gc[k] && !gc[k].paused && gc[k].hasPending && gc[k].dayNumber >= 4) c.overdue = true; });
 return c;
@@ -3344,8 +3348,10 @@ var total = o.price ? (o.price * o.quantity) : null;
 var paid = Number(o.deposit_amount || 0);
 var needRefund = paid > 0 && !o.refunded_at;
 var refundHtml = paid > 0
-? (needRefund
-? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#B45309;">💸 客人已付 NT$'+paid+'・待退款</p><button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="margin-top:6px;padding:7px 14px;font-size:12.5px;">✓ 已退款</button>'
+? (o.credited_to
+? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">↪ 已付 NT$'+paid+' 已扣抵在結單 '+escHtml(o.credited_to)+'（不用退款）</p>'
+: needRefund
+? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#B45309;">💸 客人已付 NT$'+paid+'・客人下次結單會自動扣抵</p><p style="margin:2px 0 0;font-size:11.5px;color:var(--muted);">不會再結單的話，退款後按「已退款」</p><button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="margin-top:6px;padding:7px 14px;font-size:12.5px;">✓ 已退款</button>'
 : '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">✓ 已退款 NT$'+paid+'（'+formatDate(o.refunded_at)+'）</p><button type="button" class="admin-refund-undo" data-order-id="'+o.id+'" style="background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px 0;">按錯了，改回待退款</button>')
 : '';
 return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;'+(needRefund ? '' : 'opacity:.55;')+'">'
@@ -3368,7 +3374,7 @@ var list = adminPendingRefunds(groups);
 if(!list.length) return '';
 var sum = list.reduce(function(a, x){ return a + Number(x.o.deposit_amount || 0); }, 0);
 return '<details open style="margin:0 0 12px;padding:10px 12px;border-radius:var(--r-md);background:#FFF7E6;border:1.5px solid #F5C66B;">'
-+ '<summary style="cursor:pointer;font-size:14px;font-weight:800;color:#92400E;">💸 待退款 '+list.length+' 筆・共 NT$'+sum+'</summary>'
++ '<summary style="cursor:pointer;font-size:14px;font-weight:800;color:#92400E;">💸 待退款／待扣抵 '+list.length+' 筆・共 NT$'+sum+'</summary>'
 + list.map(function(x){
 var o = x.o;
 return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px dashed #F5C66B;margin-top:8px;">'
@@ -3376,7 +3382,7 @@ return '<div style="display:flex;justify-content:space-between;align-items:cente
 + '<br><span style="color:var(--muted);">'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(o.variant)+'）' : '')+' #'+escHtml(o.order_no || '')+'</span></div>'
 + '<button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="flex-shrink:0;padding:7px 12px;font-size:12px;">✓ 已退款</button></div>';
 }).join('')
-+ '<p style="margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">系統不會自動退錢，請用 LINE Pay／轉帳退給客人後再按「已退款」，客人那邊會顯示已退款。</p>'
++ '<p style="margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">客人下次結單時，這些錢會<b>自動扣抵</b>應付總額，不用另外退。客人不會再結單的話，請用 LINE 轉帳退給客人後再按「已退款」。</p>'
 + '</details>';
 }
 document.addEventListener('click', async function(e){
@@ -3390,6 +3396,17 @@ await callMemberApi('admin-mark-refunded', { orderId: b.getAttribute('data-order
 showToast(undo ? '已改回待退款' : '已標記退款');
 await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('失敗：' + err.message); }
+});
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-settle-freeship') : null;
+if(!b) return;
+if(!window.confirm('把這筆結單改成免運嗎？\n\n・運費 NT$'+b.getAttribute('data-fee')+' 改成 0，應付總額會跟著變少\n・這筆如果用了免運券，會把券還給客人\n・客人那邊的應付金額也會更新')) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-settlement-free-shipping', { settlementId: b.getAttribute('data-settlement-id') });
+showToast('已改成免運，應付 NT$'+r.total+(r.couponReturned ? '，免運券已還給客人' : ''));
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('改免運失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
 function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
@@ -3416,9 +3433,10 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + itemLines
 + '<div class="settle-totals" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
-+ '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
++ '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+((!isPaid && Number(s.shipping_fee) > 0) ? ' <button type="button" class="admin-settle-freeship" data-settlement-id="'+s.id+'" data-fee="'+s.shipping_fee+'">🚚 改成免運</button>' : '')+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
-+ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
++ ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
++ (s.credit_deducted > 0 ? '<div class="settle-total-row"><span>↪ 缺貨退款扣抵</span><span>-NT$'+s.credit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
@@ -3482,7 +3500,11 @@ var sum = [];
 if(isSelfGroup(g)) sum.push('<span class="adm-sum is-self">🧪自己人</span>');
 if(cnt.overdue) sum.push('<span class="adm-sum is-over">⛔逾期</span>');
 if(cnt.pending) sum.push('<span class="adm-sum is-wait">待確認 '+cnt.pending+'</span>');
-if(cnt.confirmed) sum.push('<span class="adm-sum is-ok">已確認 '+cnt.confirmed+'｜$'+fmtNum(cnt.okAmt)+(cnt.okPaid > 0 ? '（已付$'+fmtNum(cnt.okPaid)+'）' : '')+'</span>');
+if(cnt.confirmed) sum.push('<span class="adm-sum is-ok">已確認 '+cnt.confirmed+'</span>');
+if(cnt.pending + cnt.confirmed > 0){
+var allPaid = cnt.okPaid + cnt.pendPaid + cnt.credit;
+sum.push('<span class="adm-sum is-paid">合計 $'+fmtNum(cnt.okAmt + cnt.pendAmt)+(allPaid > 0 ? '｜已付 $'+fmtNum(allPaid) : '')+'</span>');
+}
 if(cnt.okAmt - cnt.okPaid >= 1000) sum.push('<span class="adm-sum is-k">💸滿千・可提醒付款</span>');
 if(cnt.deposit) sum.push('<span class="adm-sum is-dep">💰未付訂 '+cnt.deposit+'</span>');
 if(cnt.unpaid) sum.push('<span class="adm-sum is-pay">待付款 '+cnt.unpaid+'</span>');
@@ -9080,6 +9102,7 @@ redeemable: data.redeemable || 0,
 couponBalance: data.couponBalance || 0,
 referralCouponBalance: data.referralCouponBalance || 0,
 freeShipping: !!data.freeShipping,
+creditItems: data.creditItems || [],
 canRedeem: !!data.canRedeem,
 luxuryCumulativeSpend: data.luxuryCumulativeSpend || 0,
 luxuryRedeemable: data.luxuryRedeemable || 0,
@@ -9168,9 +9191,11 @@ statusText = '已付訂・已確認';
 }
 var depositHtml = '';
 if(depositAmount > 0 && o.status === '缺貨已幫您取消'){
-depositHtml = o.refunded_at
+depositHtml = o.credited_to
+? '<p class="my-row-dep is-paid">↪ 已付的 NT$'+depositAmount+' 已扣抵在結單 '+escHtml(o.credited_to)+' 的應付金額 ♡</p>'
+: o.refunded_at
 ? '<p class="my-row-dep is-paid">💸已退款 NT$'+depositAmount+'（'+formatDate(o.refunded_at)+'）</p>'
-: '<p class="my-row-dep is-paid">💰您已付的 NT$'+depositAmount+' 會全額退還給您 ♡</p>';
+: '<p class="my-row-dep is-paid">💰您已付的 NT$'+depositAmount+' 會在下次結單時自動扣抵，不用另外付這筆 ♡<br><span style="font-weight:500;">（沒有要結單的話，會全額退還給您）</span></p>';
 } else if(depositAmount > 0){
 depositHtml = '<p class="my-row-dep is-paid">'+(paidFull ? '💳已付清 NT$' : (o.deposit_required ? '💰已付訂金 NT$' : '💳已預付 NT$'))+depositAmount+'</p>';
 } else if(o.deposit_required && o.status === '待確認' && total){
@@ -9425,7 +9450,11 @@ var payable = subtotal + shipFee;
 var overflow = rewardRaw > generalSub || luxuryRaw > luxurySub || discount > payable;
 if(discount > payable) discount = payable;
 var depositTotal = pcCalc._confirmedDeposit != null ? pcCalc._confirmedDeposit : 0;
-var total = Math.max(0, payable - discount - depositTotal);
+var creditRoom = Math.max(0, payable - discount - depositTotal), creditTotal = 0;
+(myBalance.creditItems || []).forEach(function(a){ a = Number(a) || 0; if(a > 0 && a <= creditRoom){ creditRoom -= a; creditTotal += a; } });
+var total = Math.max(0, payable - discount - depositTotal - creditTotal);
+var creditRow = document.getElementById('settleCreditRow');
+if(creditRow){ creditRow.style.display = creditTotal > 0 ? 'flex' : 'none'; document.getElementById('settleCredit').textContent = '-NT$'+creditTotal; }
 document.getElementById('settleSubtotal').textContent = 'NT$'+subtotal;
 document.getElementById('settleShipFee').textContent = 'NT$'+shipFee;
 var discountRow = document.getElementById('settleDiscountRow');
@@ -9631,7 +9660,8 @@ return '<div class="order-card" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
 + '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
-+ (s.deposit_deducted > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+s.deposit_deducted+'</span></div>' : '')
++ ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
++ (s.credit_deducted > 0 ? '<div class="settle-total-row"><span>↪ 缺貨退款扣抵</span><span>-NT$'+s.credit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
