@@ -435,6 +435,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .pay-method .pay-method-t{ font-size:15px; font-weight:800; color:#14743A; margin-bottom:8px; }
 .pay-method b{ color:#14743A; }
 .adm-float-collapse{ position:fixed; right:14px; bottom:calc(104px + env(safe-area-inset-bottom)); z-index:8000; border:none; background:var(--ink); color:#fff; border-radius:999px; padding:11px 16px; font-size:13.5px; font-weight:700; font-family:var(--font-body); box-shadow:0 4px 14px rgba(20,22,30,.3); }
+.adm-mb.is-freeship{ background:#CFFAFE; color:#0E7490; }
+.settle-freeship{ margin:4px 0 10px; padding:10px 12px; background:#ECFEFF; border-radius:12px; font-size:13.5px; color:#0E7490; }
 .adm-mb.is-friend{ background:#E0E7FF; color:#3730A3; }
 .adm-p-catpill{ display:block; margin:0 0 3px; }
 .adm-p-catpill .adm-cat-pill{ font-size:11px; padding:2px 9px; }
@@ -1453,7 +1455,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261031-1535';
+var APP_VERSION = '20261031-1700';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3987,7 +3989,8 @@ var ADMIN_MEMBER_FILTERS = [
 ['nocoupon', '🈳 已綁定・沒免運券', function(m){ return m.isVerified && !((m.referralCouponBalance || 0) > 0); }],
 ['restricted', '🚫 限制下單', function(m){ return m.orderRestricted; }],
 ['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }],
-['friend', '🧪 朋友', function(m){ return !!m.isFriend; }]
+['friend', '🧪 朋友', function(m){ return !!m.isFriend; }],
+['freeship', '🚚 永久免運', function(m){ return !!m.freeShipping; }]
 ];
 async function loadAdminMembers(){
 var listEl = document.getElementById('adminTabContent');
@@ -4024,6 +4027,7 @@ if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</spa
 if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 小幫手</span>';
 if(m.staffRole === 'owner') out += '<span class="adm-mb is-staff">👑 老闆</span>';
 if(m.isFriend) out += '<span class="adm-mb is-friend">🧪 朋友・不算分潤</span>';
+if(m.freeShipping) out += '<span class="adm-mb is-freeship">🚚 永久免運</span>';
 return out;
 }
 function renderAdminMemberList(){
@@ -4116,6 +4120,7 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '</div>'
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
 + restrictToggleBtn
++ (m.isVerified ? '<button type="button" class="btn btn--full admin-member-freeship-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.freeShipping ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';color:'+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';">'+(m.freeShipping ? '取消永久免運' : '🚚 設為永久免運（結單運費 0）')+'</button>' : '')
 + (m.staffRole ? '' : '<button type="button" class="btn btn--full admin-member-friend-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-friend="'+(m.isFriend ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';color:'+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';">'+(m.isFriend ? '取消朋友（之後的單算分潤）' : '🧪 設為朋友（不算分潤）')+'</button>')
 + (adminRole === 'owner'
 ? (m.staffRole === 'helper'
@@ -4148,6 +4153,20 @@ saveBtns[i].addEventListener('click', function(){ handleAdminSaveMemberBalance(t
 var restrictBtns = container.querySelectorAll('.admin-member-restrict-btn');
 for(var r=0;r<restrictBtns.length;r++){
 restrictBtns[r].addEventListener('click', function(){ handleAdminMemberRestrict(this); });
+}
+var fsBtns = container.querySelectorAll('.admin-member-freeship-btn');
+for(var fsi=0; fsi<fsBtns.length; fsi++){
+fsBtns[fsi].addEventListener('click', async function(){
+var b = this, on = b.getAttribute('data-on') === '1';
+if(!window.confirm(on ? '把這位設為永久免運嗎？\n\n・之後結單運費自動是 NT$0\n・不用免運券，金額多少都免運\n・手上的免運券不會被扣掉' : '取消這位的永久免運嗎？之後結單照一般運費。')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-free-shipping', { lineUid: b.getAttribute('data-line-uid'), on: on });
+showToast(on ? '已設為永久免運' : '已取消永久免運');
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){ alert('操作失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); b.disabled = false; }
+});
 }
 var friendBtns = container.querySelectorAll('.admin-member-friend-btn');
 for(var fr=0; fr<friendBtns.length; fr++){
@@ -9060,6 +9079,7 @@ cumulativeSpend: data.cumulativeSpend || 0,
 redeemable: data.redeemable || 0,
 couponBalance: data.couponBalance || 0,
 referralCouponBalance: data.referralCouponBalance || 0,
+freeShipping: !!data.freeShipping,
 canRedeem: !!data.canRedeem,
 luxuryCumulativeSpend: data.luxuryCumulativeSpend || 0,
 luxuryRedeemable: data.luxuryRedeemable || 0,
@@ -9353,7 +9373,9 @@ var html = '';
 if(myBalance.referralCouponBalance > 0 || myBalance.couponBalance > 0 || (myBalance.luxuryCouponBalance > 0 && luxurySubtotal > 0)){
 html += '<p class="settle-section-title">使用優惠券</p>';
 }
-if(myBalance.referralCouponBalance > 0){
+if(myBalance.freeShipping){
+html += '<p class="settle-freeship">🚚 你享有<b>免運</b>，這次結單運費 NT$0 ♡</p>';
+} else if(myBalance.referralCouponBalance > 0){
 var canReferral = subtotal >= 1000;
 html += '<label class="settle-radio'+(canReferral?'':' settle-radio--disabled')+'">'
 + '<input type="checkbox" id="settleUseReferral"'+(canReferral?'':' disabled')+'>'
@@ -9391,7 +9413,8 @@ return html;
 function recalcSettlement(){
 var pcCalc = pendingCycles[settlementState.group] || {};
 var subtotal = pcCalc._confirmedSubtotal != null ? pcCalc._confirmedSubtotal : (pcCalc.subtotal || 0);
-var shipFee = settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0);
+var shipFee = myBalance.freeShipping ? 0 : (settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0));
+if(myBalance.freeShipping) settlementState.useReferral = false;
 var luxurySub = pcCalc._confirmedLuxurySubtotal || 0;
 var generalSub = subtotal - luxurySub;
 var rewardRaw = settlementState.rewardCount * REWARD_COUPON_VALUE;
