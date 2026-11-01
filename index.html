@@ -1053,6 +1053,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .ao-item{ display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:8px; border:none; border-bottom:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; font-family:var(--font-body); color:var(--text-dark); }
 .ao-item img{ width:44px; height:44px; border-radius:8px; object-fit:cover; flex:none; }
 .ao-item small{ display:block; color:var(--muted); font-weight:600; font-size:12px; }
+.ao-custom{ color:#B45309; font-weight:800; border-bottom:none; margin-top:4px; }
 .ao-confirm{ display:flex; gap:8px; align-items:center; margin:10px 0 0; font-size:13.5px; font-weight:700; }
 .admin-edit-order-btn{ display:block; margin:6px 0 0; background:none; border:none; padding:2px 0; color:#B45309; font-size:12px; font-weight:800; text-decoration:underline; font-family:var(--font-body); }
 .cm-chip.eo-opt.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
@@ -1495,7 +1496,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1730';
+var APP_VERSION = '20261101-1815';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3213,7 +3214,7 @@ var aqty = 0, asell = 0;
 aos.forEach(function(o){ aqty += Number(o.quantity || 1); asell += Number(o.price || 0) * Number(o.quantity || 1); });
 var a0 = aos[0] || {};
 var aNote = aos.map(function(o){ var r = INV_ALLOC && INV_ALLOC.order[o.id]; return r ? (o._nick + '：' + (r.units.length ? invUnitsText(r.units) : '⚠️庫存不夠') + (r.short > 0 && r.units.length ? '（還差'+r.short+'）' : '')) : ''; }).filter(Boolean).join('\n');
-var ac = await openCostModal({ invNote: aNote ? '📦 確認後輪到：\n' + aNote : invNoteText(a0), productId: a0.product_id, name: (a0.product_name || '') + '（一次確認 '+ids.length+' 筆）', variant: a0.variant, qty: aqty, sell: asell });
+var ac = await openCostModal({ isLive: !!a0.is_live_limited, invNote: aNote ? '📦 確認後輪到：\n' + aNote : invNoteText(a0), productId: a0.product_id, name: (a0.product_name || '') + '（一次確認 '+ids.length+' 筆）', variant: a0.variant, qty: aqty, sell: asell });
 if(!ac) return;
 this.disabled = true; this.textContent = '確認中...';
 var fail = 0;
@@ -3675,11 +3676,11 @@ var seen = {}, out = [];
 (adminProductsCache || []).concat(PRODUCTS || []).forEach(function(p){ if(!p || !p.id || seen[p.id]) return; seen[p.id] = 1; out.push(p); });
 return out;
 }
-function openAddOrderModal(nick){
+function openAddOrderModal(nick, zoneId){
 return new Promise(function(resolve){
 var ov = document.createElement('div'); ov.className = 'cm-ov';
 ov.innerHTML = '<div class="cm-box"><p class="cm-title">➕ 幫 '+escHtml(nick)+' 加單</p>'
-+ '<label class="cm-lab full">搜尋商品<input class="pf-in" id="aoQ" placeholder="打商品名稱的幾個字"></label>'
++ '<label class="cm-lab full">搜尋商品（已關閉的專區、隱藏的商品也找得到）<input class="pf-in" id="aoQ" placeholder="打商品名稱的幾個字"></label>'
 + '<div id="aoList" class="ao-list"></div>'
 + '<div id="aoForm" style="display:none;"></div>'
 + '<div class="cm-acts"><button type="button" class="cm-skip" id="aoCancel">取消</button></div></div>';
@@ -3689,22 +3690,30 @@ ov.addEventListener('click', function(e){ if(e.target === ov) finish(null); });
 ov.querySelector('#aoCancel').addEventListener('click', function(){ finish(null); });
 var all = addOrderProductList();
 var qIn = ov.querySelector('#aoQ'), listEl = ov.querySelector('#aoList'), form = ov.querySelector('#aoForm');
+// 已關閉專區、隱藏的商品：客人那邊看不到，從後台商品清單抓完整的
+callMemberApi('admin-list-products').then(function(r){ if(r && r.products){ adminProductsCache = r.products; all = addOrderProductList(); search(); } }).catch(function(){});
 function search(){
 var q = qIn.value.trim().toLowerCase();
-if(!q){ listEl.innerHTML = '<p class="cm-hint">打字搜尋，例如「NOBEL」「吉伊卡哇」</p>'; return; }
+var customBtn = '<button type="button" class="ao-item ao-custom" id="aoCustom">✍️ 網站上沒有這個商品？直接打名稱加單'+(q ? '：「'+escHtml(qIn.value.trim())+'」' : '')+'</button>';
+if(!q){ listEl.innerHTML = '<p class="cm-hint">打字搜尋，例如「NOBEL」「吉伊卡哇」</p>' + customBtn; bindCustom(); return; }
 var hits = all.filter(function(p){ return String(p.name || '').toLowerCase().indexOf(q) >= 0; }).slice(0, 12);
-listEl.innerHTML = hits.length ? hits.map(function(p){ return '<button type="button" class="ao-item" data-pid="'+escAttr(p.id)+'"><img src="'+escAttr(orderThumbUrl({ product_id: p.id }))+'" alt="" onerror="this.style.visibility=\'hidden\'"><span>'+escHtml(p.name)+'<small>NT$'+(p.price || 0)+'</small></span></button>'; }).join('') : '<p class="cm-hint">找不到，換個字試試</p>';
-var bs = listEl.querySelectorAll('.ao-item');
+listEl.innerHTML = (hits.length ? hits.map(function(p){ return '<button type="button" class="ao-item" data-pid="'+escAttr(p.id)+'"><img src="'+escAttr(orderThumbUrl({ product_id: p.id }))+'" alt="" onerror="this.style.visibility=\'hidden\'"><span>'+escHtml(p.name)+'<small>NT$'+(p.price || 0)+(p.is_hidden ? '・隱藏中' : '')+'</small></span></button>'; }).join('') : '<p class="cm-hint">找不到，換個字試試</p>') + customBtn;
+var bs = listEl.querySelectorAll('.ao-item[data-pid]');
 for(var i=0;i<bs.length;i++) bs[i].addEventListener('click', function(){ pick(this.getAttribute('data-pid')); });
+bindCustom();
 }
+function bindCustom(){ var cb = listEl.querySelector('#aoCustom'); if(cb) cb.addEventListener('click', function(){ pick('', qIn.value.trim()); }); }
 qIn.addEventListener('input', search); search();
-function pick(pid){
+function pick(pid, customName){
 var p = null; all.forEach(function(x){ if(x.id === pid) p = x; });
+if(!p && !pid) p = { id:'', name: customName || '', price: 0, custom: true };
 if(!p) return;
 listEl.style.display = 'none'; qIn.parentNode.style.display = 'none';
-var opts = orderFindProductOptions(pid);
+var opts = pid ? orderFindProductOptions(pid) : [];
 form.style.display = 'block';
-form.innerHTML = '<div class="cm-prod"><img src="'+escAttr(orderThumbUrl({ product_id: pid }))+'" alt="" onerror="this.remove()"><div><div class="cm-pn">'+escHtml(p.name)+'</div><button type="button" class="cm-skip" id="aoBack" style="padding:0;">← 換商品</button></div></div>'
+form.innerHTML = (p.custom
+? '<label class="cm-lab full">商品名稱（網站上沒有的）<input class="pf-in" id="aoName" value="'+escAttr(p.name)+'" placeholder="例如：NOBEL 軟糖 檸檬"></label><button type="button" class="cm-skip" id="aoBack" style="padding:0;">← 回去搜尋</button>'
+: '<div class="cm-prod"><img src="'+escAttr(orderThumbUrl({ product_id: pid }))+'" alt="" onerror="this.remove()"><div><div class="cm-pn">'+escHtml(p.name)+'</div><button type="button" class="cm-skip" id="aoBack" style="padding:0;">← 換商品</button></div></div>')
 + (opts.length ? '<p class="cm-lab" style="margin:10px 0 4px;">款式</p><div class="cm-who" style="flex-wrap:wrap;">'+opts.map(function(x){ return '<button type="button" class="cm-chip eo-opt" data-opt="'+escAttr(x)+'">'+escHtml(x)+'<small style="font-weight:600;color:var(--muted);"> $'+orderOptPrice(pid, x)+'</small></button>'; }).join('')+'</div>' : '')
 + '<div class="cm-grid" style="margin-top:10px;"><label class="cm-lab full">款式（可以直接打字）<input class="pf-in" id="aoVar" value=""></label>'
 + '<label class="cm-lab">數量<input class="pf-in" id="aoQty" type="number" inputmode="numeric" min="1" value="1"></label>'
@@ -3722,7 +3731,10 @@ form.querySelector('#aoOk').addEventListener('click', function(){
 var n = Math.round(Number(nIn.value)), pr = Math.round(Number(prIn.value));
 if(!(n >= 1)){ alert('數量要 1 以上'); return; }
 if(opts.length && !vIn.value.trim() && !confirm('沒有選款式，確定嗎？')) return;
-finish({ productId: pid, variant: vIn.value.trim(), quantity: n, price: pr, confirm: form.querySelector('#aoConfirm').checked });
+var nmIn = form.querySelector('#aoName');
+if(p.custom && !(nmIn && nmIn.value.trim())){ alert('請輸入商品名稱'); return; }
+if(p.custom && !(pr > 0) && !confirm('單價是 0，確定嗎？')) return;
+finish({ productId: pid, productName: p.custom ? nmIn.value.trim() : '', zoneId: p.custom ? (zoneId || '') : '', variant: vIn.value.trim(), quantity: n, price: pr, confirm: form.querySelector('#aoConfirm').checked });
 });
 }
 });
@@ -3731,7 +3743,7 @@ document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-add-order-btn') : null;
 if(!b) return;
 e.stopPropagation();
-var r = await openAddOrderModal(b.getAttribute('data-nick') || '客人');
+var r = await openAddOrderModal(b.getAttribute('data-nick') || '客人', b.getAttribute('data-zone') || '');
 if(!r) return;
 try{
 await callMemberApi('admin-add-order', Object.assign({ lineUid: b.getAttribute('data-line-uid') }, r));
@@ -3936,10 +3948,10 @@ return os.some(function(o){ return !!o.is_test; });
 }
 function adminAddOrderHTML(g){
 if(g.isBlocked) return '';
-var html = '<button type="button" class="admin-add-order-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" data-nick="'+escAttr(g.baseNickname || g.nickname || '')+'">➕ 幫她加單（客人說要加買）</button>';
 // 有還沒出貨的結單＋已確認還沒結單的商品 → 可以幫她結單、跟那張一起寄（免運）
 var base = null;
 (g.settlements || []).forEach(function(st){ if(st.abandoned || st.shipped_at) return; if(!base || String(st.cycle_deadline) > String(base.cycle_deadline)) base = st; });
+var html = '<button type="button" class="admin-add-order-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" data-nick="'+escAttr(g.baseNickname || g.nickname || '')+'" data-zone="'+escAttr(base && base.live_zone_id ? base.live_zone_id : '')+'">➕ 幫她加單（客人說要加買）</button>';
 var gc = g.cycle || {};
 if(base) Object.keys(gc).forEach(function(k){
 var cy = gc[k]; if(!cy || !cy.hasPending || !cy.items || !cy.items.length) return;
@@ -4171,6 +4183,9 @@ var jpy0 = (ini.jpy != null && ini.jpy !== '') ? ini.jpy : (guess || '');
 var date0 = ini.date || todayTW();
 var by = ini.by || costDefaultBuyer(ps, info);
 var pay = ini.pay || ''; if(!pay){ try{ pay = localStorage.getItem('pfPay') || 'card'; }catch(e){ pay = 'card'; } }
+// 扭蛋：限時連線（現場扭）＝現金；預購連線（線上幫客人扭）＝刷卡
+var gachaPre = isGacha && (opts.isLive !== undefined ? !opts.isLive : !!(info && info.product && info.product.stock_status === 'preorder'));
+if(isGacha) pay = gachaPre ? 'card' : 'cash';
 var qty = Number(opts.qty) || 1;
 var hint = isGacha
 ? (guess ? '🪙 扭蛋自動帶入機台價 ¥'+fmtNum(guess)+'（改隨機也是這個成本）' : '⚠️ 這件扭蛋還沒設定日幣價格，請填機台價，之後記得到商品補上日幣')
@@ -4191,10 +4206,14 @@ box.innerHTML = '<p class="cm-title">'+(opts.edit ? '✏️ 修改成本' : '�
 + '<p class="cm-lab" style="margin:0;">誰買的</p><div class="cm-who">'
 + ps.map(function(p){ return '<button type="button" class="cm-chip'+(p.id === by ? ' on' : '')+'" data-by="'+escAttr(p.id)+'">'+escHtml(p.name || '未命名')+'</button>'; }).join('')
 + '</div>'
-+ '<p class="cm-lab" style="margin:8px 0 0;">怎麼付的</p><div class="cm-who">'
++ (isGacha
+? (gachaPre
+? '<p class="cm-hint full" style="margin:8px 0 0;">🪙 預購連線的扭蛋自動算 <b>💳 刷卡</b>（會算刷卡手續費）</p>'
+: '<p class="cm-hint full" style="margin:8px 0 0;">🪙 限時連線的扭蛋自動算 <b>💵 現金</b>（不算刷卡手續費）</p>')
+: '<p class="cm-lab" style="margin:8px 0 0;">怎麼付的</p><div class="cm-who">'
 + '<button type="button" class="cm-pay'+(pay === 'cash' ? ' on' : '')+'" data-pay="cash">💵 現金</button>'
 + '<button type="button" class="cm-pay'+(pay === 'card' ? ' on' : '')+'" data-pay="card">💳 刷卡</button>'
-+ '</div>'
++ '</div>')
 + '<div class="cm-acts"><button type="button" class="pf-btn" id="cmOk">'+(opts.edit ? '儲存成本' : '✓ 確認＋記成本')+'</button>'
 + (opts.edit ? (opts.canClear ? '<button type="button" class="cm-skip" id="cmClear">清除這筆成本</button>' : '') : '<button type="button" class="pf-btn ghost" id="cmSkip">先確認，成本之後補</button>')
 + '<button type="button" class="cm-skip" id="cmCancel">取消</button></div>';
@@ -4239,7 +4258,7 @@ box.querySelector('#cmOk').addEventListener('click', function(){
 var j = Number(jIn.value), r = Number(rIn.value);
 if(!(j > 0)){ alert('請輸入日幣金額'); jIn.focus(); return; }
 if(!(r > 0 && r < 5)){ alert('請輸入匯率（例如 0.21）'); rIn.focus(); return; }
-try{ localStorage.setItem('pfMe', by); localStorage.setItem('pfPay', pay); }catch(e){}
+try{ localStorage.setItem('pfMe', by); if(!isGacha) localStorage.setItem('pfPay', pay); }catch(e){}
 finish({ costJpy: Math.round(j), costDate: dIn.value || todayTW(), costRate: r, boughtBy: by, payMethod: pay });
 });
 recalc();
@@ -4289,7 +4308,7 @@ alert('這筆需要訂金，請先在訂金欄位輸入客人付的金額，再�
 if(depositInput) depositInput.focus();
 return;
 }
-var c = await openCostModal({ invNote: invNoteText(o), productId: o ? o.product_id : '', name: o ? o.product_name : '', variant: o ? o.variant : '', qty: o ? o.quantity : 1, sell: o ? Number(o.price || 0) * Number(o.quantity || 1) : 0 });
+var c = await openCostModal({ isLive: o ? !!o.is_live_limited : undefined, invNote: invNoteText(o), productId: o ? o.product_id : '', name: o ? o.product_name : '', variant: o ? o.variant : '', qty: o ? o.quantity : 1, sell: o ? Number(o.price || 0) * Number(o.quantity || 1) : 0 });
 if(!c) return;
 Object.assign(payload, costPayload(c));
 if(Number(payload.depositAmount) > 0 && !(o && Number(o.deposit_amount || 0) === Number(payload.depositAmount))){
@@ -4316,7 +4335,7 @@ if(!b) return;
 var o = findAdminOrder(b.getAttribute('data-cost-oid'));
 if(!o) return;
 var has = o.cost_jpy != null && o.cost_jpy !== '';
-var c = await openCostModal({ edit: true, canClear: has, productId: o.product_id, name: o.product_name, variant: o.variant, qty: o.quantity, sell: Number(o.price || 0) * Number(o.quantity || 1),
+var c = await openCostModal({ isLive: !!o.is_live_limited, edit: true, canClear: has, productId: o.product_id, name: o.product_name, variant: o.variant, qty: o.quantity, sell: Number(o.price || 0) * Number(o.quantity || 1),
 initial: has ? { jpy: o.cost_jpy, date: o.cost_date, rate: o.cost_rate, by: o.bought_by, pay: o.pay_method } : null });
 if(!c) return;
 b.disabled = true;
@@ -4374,7 +4393,7 @@ var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-d
 if(depositInput && depositInput.value !== '') payload.depositAmount = depositInput.value;
 var po = findAdminOrder(payload.orderId);
 if(po && !(po.deposit_required && !(Number(po.deposit_amount || 0) > 0) && !(Number(payload.depositAmount) > 0))){
-var pc = await openCostModal({ productId: po.product_id, name: po.product_name, variant: po.variant, qty: got, sell: Number(po.price || 0) * got });
+var pc = await openCostModal({ isLive: !!po.is_live_limited, productId: po.product_id, name: po.product_name, variant: po.variant, qty: got, sell: Number(po.price || 0) * got });
 if(!pc) return;
 Object.assign(payload, costPayload(pc));
 }
@@ -5193,6 +5212,9 @@ function pfMoney(n){ n = Math.round(Number(n) || 0); return (n < 0 ? '−' : '')
 function pfNum(v){ var n = Number(String(v == null ? '' : v).replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; }
 function pfTaipeiMonth(iso){ var d = new Date(new Date(iso).getTime() + 8*3600000); return d.toISOString().slice(0,7); }
 function pfStockTwd(x){ return Math.round((Number(x.jpy) || 0) * (Number(x.qty) || 0) * (Number(x.rate) || 0)); }
+function pfIsGacha(pid){ return !!(pid && pfDetail && (pfDetail.gachaIds || []).indexOf(pid) !== -1); }
+// 扭蛋沒選的話：限時連線＝現金，預購連線（不是限時連線）＝刷卡
+function pfPayOf(o){ return o.pay_method || (pfIsGacha(o.product_id) ? (o.is_live_limited ? 'cash' : 'card') : ''); }
 function pfCardRate(pid){ var r = (pfData.cardRates || {})[pid]; return (r === undefined || r === null || r === '') ? 1.5 : (Number(r) || 0); }
 function pfSettlementIncome(s){ return (Number(s.subtotal)||0) + (Number(s.shipping_fee)||0) - (Number(s.coupon_discount)||0) - (Number(s.extra_discount)||0); }
 function pfSheetRow(key){
@@ -5454,8 +5476,9 @@ var cardBase = {}, cashBase = {}, unknownPay = 0;
 products.forEach(function(p){ p.unknownPay = 0; p.orders.forEach(function(o){
 if(!pfOrderHasCost(o)) return;
 var k = o.bought_by || 'split', a = costUnitTwd(o.cost_jpy, o.cost_rate) * (Number(o.quantity) || 1);
-if(o.pay_method === 'card') cardBase[k] = (cardBase[k] || 0) + a;
-else if(o.pay_method === 'cash') cashBase[k] = (cashBase[k] || 0) + a;
+var pmx = pfPayOf(o);
+if(pmx === 'card') cardBase[k] = (cardBase[k] || 0) + a;
+else if(pmx === 'cash') cashBase[k] = (cashBase[k] || 0) + a;
 else { unknownPay++; p.unknownPay++; }
 }); });
 (pfData.stockCosts || []).forEach(function(x){ var k = x.payer || 'split', a = pfStockTwd(x); if(x.pay === 'cash') cashBase[k] = (cashBase[k] || 0) + a; else cardBase[k] = (cardBase[k] || 0) + a; });
@@ -5580,7 +5603,8 @@ var q = Number(o.quantity) || 1;
 var head = '<span class="pf-o-who">'+escHtml(o._nick || '')+(o.variant ? '・'+escHtml(o.variant) : '')+' ×'+q+(o._open ? ' <span class="pf-prog">進行中</span>' : '')+'</span>';
 if(pfOrderHasCost(o)){
 var u = costUnitTwd(o.cost_jpy, o.cost_rate);
-var pm = o.pay_method === 'card' ? '<button type="button" class="pf-pay is-card" data-oid="'+escAttr(o.id)+'">💳 刷卡</button>' : o.pay_method === 'cash' ? '<button type="button" class="pf-pay is-cash" data-oid="'+escAttr(o.id)+'">💵 現金</button>' : '<button type="button" class="pf-pay is-none" data-oid="'+escAttr(o.id)+'">❓ 現金還是刷卡？</button>';
+var pmv = pfPayOf(o);
+var pm = pmv === 'card' ? '<button type="button" class="pf-pay is-card" data-oid="'+escAttr(o.id)+'">'+(!o.pay_method ? '🪙 預購扭蛋・刷卡' : '💳 刷卡')+'</button>' : pmv === 'cash' ? '<button type="button" class="pf-pay is-cash" data-oid="'+escAttr(o.id)+'">'+(!o.pay_method ? '🪙 連線扭蛋・現金' : '💵 現金')+'</button>' : '<button type="button" class="pf-pay is-none" data-oid="'+escAttr(o.id)+'">❓ 現金還是刷卡？</button>';
 return '<div class="pf-o">'+head+'<span class="pf-o-cost">¥'+fmtNum(o.cost_jpy)+'×'+o.cost_rate+'='+pfMoney(u*q)+'・'+escHtml(pfPartnerName(o.bought_by))+' '+pm+'</span><button type="button" class="pf-o-edit" data-oid="'+escAttr(o.id)+'">✏️</button></div>';
 }
 return '<div class="pf-o is-todo">'+head+'<span class="pf-o-cost">還沒記成本</span><button type="button" class="pf-o-edit" data-oid="'+escAttr(o.id)+'">補</button></div>';
@@ -5757,7 +5781,7 @@ on('.pf-o-edit', 'click', function(){
 var o = pfFindItem(this.getAttribute('data-oid'));
 if(!o) return;
 var has = pfOrderHasCost(o);
-pfEditCost([String(o.id)], { edit: true, canClear: has, productId: o.product_id, name: o.product_name, variant: o.variant, qty: o.quantity, sell: Number(o.price || 0) * Number(o.quantity || 1),
+pfEditCost([String(o.id)], { isLive: !!o.is_live_limited, edit: true, canClear: has, productId: o.product_id, name: o.product_name, variant: o.variant, qty: o.quantity, sell: Number(o.price || 0) * Number(o.quantity || 1),
 initial: has ? { jpy: o.cost_jpy, date: o.cost_date, rate: o.cost_rate, by: o.bought_by, pay: o.pay_method } : null });
 });
 on('.pf-fill', 'click', function(){
@@ -5771,7 +5795,7 @@ pfEditCost(miss.map(function(o){ return String(o.id); }), { edit: true, productI
 on('.pf-crate', 'input', function(){ if(!pfData.cardRates) pfData.cardRates = {}; pfData.cardRates[this.getAttribute('data-pid')] = this.value.trim(); pfMarkDirty(false); });
 on('.pf-pay', 'click', async function(){
 var oid = this.getAttribute('data-oid'), o = pfFindItem(oid); if(!o) return;
-var next = o.pay_method === 'card' ? 'cash' : 'card';
+var next = pfPayOf(o) === 'card' ? 'cash' : 'card';
 this.disabled = true;
 try{ await callMemberApi('admin-set-pay-method', { orderIds: [String(oid)], payMethod: next }); o.pay_method = next; pfMarkDirty(false); pfRerenderKeep(); }
 catch(e){ this.disabled = false; alert('儲存失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
