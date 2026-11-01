@@ -1496,7 +1496,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1815';
+var APP_VERSION = '20261101-1820';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5212,9 +5212,15 @@ function pfMoney(n){ n = Math.round(Number(n) || 0); return (n < 0 ? '−' : '')
 function pfNum(v){ var n = Number(String(v == null ? '' : v).replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; }
 function pfTaipeiMonth(iso){ var d = new Date(new Date(iso).getTime() + 8*3600000); return d.toISOString().slice(0,7); }
 function pfStockTwd(x){ return Math.round((Number(x.jpy) || 0) * (Number(x.qty) || 0) * (Number(x.rate) || 0)); }
-function pfIsGacha(pid){ return !!(pid && pfDetail && (pfDetail.gachaIds || []).indexOf(pid) !== -1); }
+// 判斷是不是扭蛋：後台回傳的扭蛋清單 → 商品分類 → 款式裡有「蛋殼／蛋紙」（三個任一個符合就算）
+function pfIsGacha(pid, o){
+if(pid && pfDetail && (pfDetail.gachaIds || []).indexOf(pid) !== -1) return true;
+var all = (adminProductsCache || []).concat(PRODUCTS || []);
+for(var i=0;i<all.length;i++){ if(all[i] && all[i].id === pid && all[i].cat === 'gacha') return true; }
+return !!(o && /蛋殼|蛋紙|扭蛋/.test(String(o.variant || '') + String(o.product_name || '')));
+}
 // 扭蛋沒選的話：限時連線＝現金，預購連線（不是限時連線）＝刷卡
-function pfPayOf(o){ return o.pay_method || (pfIsGacha(o.product_id) ? (o.is_live_limited ? 'cash' : 'card') : ''); }
+function pfPayOf(o){ return o.pay_method || (pfIsGacha(o.product_id, o) ? ((o.is_live_limited || (o.is_live_limited === undefined && pfKey && pfKey.indexOf('zone:') === 0)) ? 'cash' : 'card') : ''); }
 function pfCardRate(pid){ var r = (pfData.cardRates || {})[pid]; return (r === undefined || r === null || r === '') ? 1.5 : (Number(r) || 0); }
 function pfSettlementIncome(s){ return (Number(s.subtotal)||0) + (Number(s.shipping_fee)||0) - (Number(s.coupon_discount)||0) - (Number(s.extra_discount)||0); }
 function pfSheetRow(key){
