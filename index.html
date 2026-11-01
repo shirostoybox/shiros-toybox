@@ -1458,7 +1458,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-0220';
+var APP_VERSION = '20261101-1105';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1498,6 +1498,7 @@ throw new Error('登入已過期，請關掉四郎玩具箱重新打開');
 }
 if(res.status === 401){ sessionStorage.removeItem('authRecoveryDone'); throw new Error('登入已過期，請關掉四郎玩具箱重新打開'); }
 var data = await res.json();
+if(res.status === 403 && data && data.blocked){ showBlockedScreen(); throw new Error(data.error || '帳號已停用'); }
 if(!res.ok){ throw new Error(data.error || '連線失敗'); }
 sessionStorage.removeItem('authRecoveryDone');
 return data;
@@ -1741,6 +1742,14 @@ return catIcon(cat);
 }
 function showLoading(msg){
 document.getElementById('loadingText').textContent = msg;
+}
+function showBlockedScreen(){
+if(document.getElementById('blockedScreen')) return;
+var d = document.createElement('div');
+d.id = 'blockedScreen';
+d.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#1B1E27;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;font-family:var(--font-body);';
+d.innerHTML = '<p style="font-size:44px;margin:0 0 12px;">🔒</p><p style="font-size:19px;font-weight:800;margin:0 0 10px;">帳號已停用</p><p style="font-size:13.5px;line-height:1.7;color:#C9CDD6;margin:0;">如有疑問，請私訊四郎玩具箱官方 LINE</p>';
+document.body.appendChild(d);
 }
 function showError(msg){
 var scr = document.getElementById('loadingScreen');
@@ -2069,7 +2078,7 @@ if(o.status === '待確認'){ c.pending++; c.pendPaid += Number(o.deposit_amount
 if(o.status === '已確認'){ c.confirmed++; c.okAmt += Number(o.price || 0) * Number(o.quantity || 1); c.okPaid += Number(o.deposit_amount || 0); }
 if(orderNeedsDeposit(o)) c.deposit++;
 });
-(g.settlements || []).forEach(function(st){ if(st.status !== '已付款') c.unpaid++; });
+(g.settlements || []).forEach(function(st){ if(st.status !== '已付款' && !st.abandoned) c.unpaid++; });
 (g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at) c.credit += Number(o.deposit_amount || 0); });
 var gc = g.cycle || {};
 Object.keys(gc).forEach(function(k){ if(gc[k] && !gc[k].paused && gc[k].hasPending && gc[k].dayNumber >= 4) c.overdue = true; });
@@ -3408,6 +3417,30 @@ showToast('已改成免運，應付 NT$'+r.total+(r.couponReturned ? '，免運�
 await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('改免運失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-settle-cod') : null;
+if(!b) return;
+var undo = b.getAttribute('data-undo') === '1';
+if(!window.confirm(undo ? '改回 LINE 轉帳嗎？\n\n客人那邊會重新顯示3天付款倒數' : '把這筆改成 7-11 取貨付款嗎？\n\n・客人不用在3天內轉帳，取貨時付款\n・客人那邊會顯示「取貨付款」，不會出現逾期\n・記得到賣貨便開單，金額填應付總額')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-settlement-cod', { settlementId: b.getAttribute('data-settlement-id'), undo: undo });
+showToast(undo ? '已改回 LINE 轉帳' : '已改成取貨付款');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-abandon-btn') : null;
+if(!b) return;
+var undo = b.getAttribute('data-undo') === '1';
+if(!window.confirm(undo ? '取消這筆的棄單標記嗎？\n\n（客人的封鎖不會自動解除，要解除請按「解除封鎖＋恢復下單」）' : '確定這筆是棄單嗎？\n\n・這筆結單標記為「棄單」\n・客人會被限制下單\n・客人打開網站只會看到「帳號已停用」\n\n之後可以在客人資料按「解除封鎖＋恢復下單」復原')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-abandon-settlement', { settlementId: b.getAttribute('data-settlement-id'), undo: undo });
+showToast(undo ? '已取消棄單標記' : '已設為棄單，客人已封鎖');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
 function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
 return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+orderPhotoHTML(o, false)+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
@@ -3416,14 +3449,18 @@ var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
 : '門市：'+s.store_info;
 var isPaid = s.status === '已付款';
-var actionBtn = isPaid
+if(s.abandoned) isPaid = true;
+var actionBtn = s.abandoned
+? '<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#1B1E27;color:#fff;font-size:13px;font-weight:800;">🚫 棄單・客人已封鎖<br><button type="button" class="admin-abandon-btn" data-settlement-id="'+s.id+'" data-undo="1" style="background:none;border:none;padding:4px 0 0;color:#C9CDD6;font-size:12px;text-decoration:underline;font-family:var(--font-body);">取消棄單標記</button></div>'
+: isPaid
 ? '<button class="btn btn--dark btn--full admin-shot-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">下載此訂單截圖</button>'
 : '<button class="btn btn--primary btn--full admin-paid-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">整筆訂單已付款</button>';
+var abandonBtn = (!isPaid) ? '<button type="button" class="btn btn--full admin-abandon-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:#1B1E27;color:#fff;">🚫 棄單（限制下單＋封鎖網站）</button>' : '';
 var deleteBtn = '<button type="button" class="btn btn--full admin-delete-settlement-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);">刪除這筆結單</button>';
-var statusClass = isPaid ? 'order-status order-status--confirmed' : 'order-status';
-var fillColor = color ? color.mid : '#F3F4F6';
+var statusClass = (isPaid && !s.abandoned) ? 'order-status order-status--confirmed' : 'order-status';
+var fillColor = s.abandoned ? '#E5E7EB' : (color ? color.mid : '#F3F4F6');
 return '<div class="adm-row" data-unpaid="'+(isPaid?'0':'1')+'" data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
-+ '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+(s.is_test ? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試結單・不算分潤</span>' : '')+'</span><span class="'+statusClass+'">'+s.status+'</span></div>'
++ '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+(s.is_test ? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試結單・不算分潤</span>' : '')+'</span><span class="'+statusClass+'">'+(s.abandoned ? '棄單' : s.status)+'</span></div>'
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + (function(){
 if(!s.live_zone_id) return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4px 0 8px;">📦 現貨／預購商品</p>';
@@ -3440,7 +3477,11 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
++ (isPaid ? '' : (s.cod
+? '<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#ECFDF5;border:1.5px solid #34D399;font-size:13px;font-weight:800;color:#065F46;">📦 取貨付款・客人取貨時付 NT$'+s.total+'<br><span style="font-weight:500;font-size:12px;">不用3天內轉帳。賣貨便撥款後按「整筆訂單已付款」</span><br><button type="button" class="admin-settle-cod" data-settlement-id="'+s.id+'" data-undo="1" style="background:none;border:none;padding:4px 0 0;color:var(--muted);font-size:12px;text-decoration:underline;font-family:var(--font-body);">改回 LINE 轉帳</button></div>'
+: '<button type="button" class="btn btn--full admin-settle-cod" data-settlement-id="'+s.id+'" style="margin-top:10px;background:#ECFDF5;border:1.5px solid #34D399;color:#065F46;">📦 改成 7-11 取貨付款</button>'))
 + actionBtn
++ abandonBtn
 + deleteBtn
 + '</div>';
 }
@@ -3508,7 +3549,8 @@ sum.push('<span class="adm-sum is-paid">合計 $'+fmtNum(cnt.okAmt + cnt.pendAmt
 if(cnt.okAmt - cnt.okPaid >= 1000) sum.push('<span class="adm-sum is-k">💸滿千・可提醒付款</span>');
 if(cnt.deposit) sum.push('<span class="adm-sum is-dep">💰未付訂 '+cnt.deposit+'</span>');
 if(cnt.unpaid) sum.push('<span class="adm-sum is-pay">待付款 '+cnt.unpaid+'</span>');
-if(g.orderRestricted) sum.push('<span class="adm-sum is-ban">🚫限制下單</span>');
+if(g.isBlocked) sum.push('<span class="adm-sum is-ban">⛔已封鎖</span>');
+else if(g.orderRestricted) sum.push('<span class="adm-sum is-ban">🚫限制下單</span>');
 if(!sum.length) sum.push('<span class="adm-sum">只有已付款／已取消</span>');
 var header = '<button type="button" class="adm-group-head">'
 + '<span class="adm-group-name">'+escHtml(g.nickname||'客人')+'</span>'
@@ -3516,8 +3558,8 @@ var header = '<button type="button" class="adm-group-head">'
 + '<span class="adm-group-arrow">▸</span></button>';
 var restrictedBadge = g.orderRestricted
 ? '<div class="adm-extra" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
-+ '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);">🚫 已限制下單資格</span>'
-+ '<button class="admin-unrestrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">恢復下單資格</button>'
++ '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);">'+(g.isBlocked ? '⛔ 已封鎖（網站打不開）' : '🚫 已限制下單資格')+'</span>'
++ '<button class="admin-unrestrict-btn" data-line-uid="'+escAttr(g.lineUid)+'" style="border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">'+(g.isBlocked ? '解除封鎖＋恢復下單' : '恢復下單資格')+'</button>'
 + '</div>'
 : '';
 var gc = g.cycle || {};
@@ -4045,7 +4087,8 @@ var out = m.isVerified
 ? '<span class="adm-mb is-ok">✅ 已綁定</span>'
 : '<span class="adm-mb is-wait">⏳ 未綁定</span>';
 if(m.isVerified && !m.nickname) out += '<span class="adm-mb is-warn">✏️ 沒填暱稱</span>';
-if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</span>';
+if(m.isBlocked) out += '<span class="adm-mb is-ban">⛔ 已封鎖</span>';
+else if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</span>';
 if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 小幫手</span>';
 if(m.staffRole === 'owner') out += '<span class="adm-mb is-staff">👑 老闆</span>';
 if(m.isFriend) out += '<span class="adm-mb is-friend">🧪 朋友・不算分潤</span>';
@@ -4108,11 +4151,11 @@ await handleAdminSearchMembers((document.getElementById('adminMemberSearch') || 
 }catch(err){ b.disabled = false; alert('操作失敗：' + err.message); }
 });
 function adminMemberCardHTML(m){
-var restrictedBadge = m.orderRestricted
-? '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin-bottom:8px;">🚫 已限制下單資格</span>'
+var restrictedBadge = (m.orderRestricted || m.isBlocked)
+? '<span style="display:inline-block;background:var(--ink);color:var(--text-light);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-full);margin-bottom:8px;">'+(m.isBlocked ? '⛔ 已封鎖（網站打不開）' : '🚫 已限制下單資格')+'</span>'
 : '';
-var restrictToggleBtn = m.orderRestricted
-? '<button type="button" class="btn btn--full admin-member-unrestrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;">恢復下單資格</button>'
+var restrictToggleBtn = (m.orderRestricted || m.isBlocked)
+? '<button type="button" class="btn btn--full admin-member-unrestrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;">'+(m.isBlocked ? '解除封鎖＋恢復下單' : '恢復下單資格')+'</button>'
 : '<button type="button" class="btn btn--full admin-member-restrict-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:8px;border:1.5px solid var(--ink);color:var(--ink);">限制下單資格</button>';
 return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-bottom:14px;">'
 + '<p class="admin-member-title" data-line-uid="'+escAttr(m.lineUid)+'" style="font-size:15px;font-weight:700;color:var(--text-dark);margin:0 0 2px;">'+escHtml(m.nickname||'（未設定暱稱）')+'</p>'
@@ -9362,6 +9405,13 @@ return Math.round((today - start) / 86400000) + 1;
 }
 function settlementCycleBannerHTML(s){
 var gcls = cycleGroupClass(s.live_zone_id ? 'zone:' + s.live_zone_id : 'regular');
+if(s.cod){
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">📦</span><p class="cycle-day-label">取貨付款</p></div>'
++ '<p class="cycle-main-text">這筆改成 7-11 取貨付款，不用轉帳 ♡</p>'
++ '<p class="cycle-sub-text">'+(s.order_no||'此筆訂單')+'・到門市取貨時付款 NT$'+s.total+'<br>出貨後會用 LINE 通知您</p>'
++ '</div>';
+}
 var anchor = s.created_at || s.cycle_deadline;
 var day = daysSinceDate(anchor);
 var deadline = new Date(anchor);
