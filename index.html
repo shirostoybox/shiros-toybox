@@ -1032,7 +1032,18 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-o-who{ flex:1 1 100%; color:var(--text-dark); font-weight:700; }
 .pf-o-cost{ flex:1; color:var(--muted); }
 .pf-o-edit{ border:1px solid var(--line); background:#fff; border-radius:999px; padding:3px 10px; font-size:12px; font-family:var(--font-body); }
-.pf-feerow{ border-top:1px solid var(--line); padding-top:10px; }
+.pf-feerow{ border-top:1px solid var(--line); padding:10px 0 6px; }
+.pf-fee-top{ display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:800; color:var(--text-dark); }
+.pf-fee-top b{ font-size:15px; }
+.pf-fee-line{ margin:3px 0 4px; font-size:12px; color:var(--muted); }
+.pf-fee-rate{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+.pf-fee-rate .pf-in{ width:64px; padding:5px 8px; font-size:14px; }
+.pf-pay{ border:1px solid var(--line); background:#fff; border-radius:999px; padding:1px 8px; font-size:11px; font-weight:800; font-family:var(--font-body); margin-left:4px; }
+.pf-pay.is-card{ background:#ECFEFF; color:#0E7490; border-color:#67E8F9; }
+.pf-pay.is-cash{ background:#F0FDF4; color:#15803D; border-color:#86EFAC; }
+.pf-pay.is-none{ background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
+.cm-pay{ flex:1; border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px; font-size:14px; font-weight:800; color:var(--muted); font-family:var(--font-body); }
+.cm-pay.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
 .pf-prod .adm-p-cost{ margin:2px 0 4px; }
 .pf-btn.ghost{ background:#fff; color:var(--text-dark); border:1px solid var(--line); }
 .pf-btn:disabled{ opacity:.6; }
@@ -1470,7 +1481,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1320';
+var APP_VERSION = '20261101-1400';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3836,6 +3847,7 @@ var guess = costJpyGuess(info, opts.variant);
 var jpy0 = (ini.jpy != null && ini.jpy !== '') ? ini.jpy : (guess || '');
 var date0 = ini.date || todayTW();
 var by = ini.by || costDefaultBuyer(ps, info);
+var pay = ini.pay || ''; if(!pay){ try{ pay = localStorage.getItem('pfPay') || 'card'; }catch(e){ pay = 'card'; } }
 var qty = Number(opts.qty) || 1;
 var hint = isGacha
 ? (guess ? '🪙 扭蛋自動帶入機台價 ¥'+fmtNum(guess)+'（改隨機也是這個成本）' : '⚠️ 這件扭蛋還沒設定日幣價格，請填機台價，之後記得到商品補上日幣')
@@ -3856,6 +3868,10 @@ box.innerHTML = '<p class="cm-title">'+(opts.edit ? '✏️ 修改成本' : '�
 + '<p class="cm-lab" style="margin:0;">誰買的</p><div class="cm-who">'
 + ps.map(function(p){ return '<button type="button" class="cm-chip'+(p.id === by ? ' on' : '')+'" data-by="'+escAttr(p.id)+'">'+escHtml(p.name || '未命名')+'</button>'; }).join('')
 + '</div>'
++ '<p class="cm-lab" style="margin:8px 0 0;">怎麼付的</p><div class="cm-who">'
++ '<button type="button" class="cm-pay'+(pay === 'cash' ? ' on' : '')+'" data-pay="cash">💵 現金</button>'
++ '<button type="button" class="cm-pay'+(pay === 'card' ? ' on' : '')+'" data-pay="card">💳 刷卡</button>'
++ '</div>'
 + '<div class="cm-acts"><button type="button" class="pf-btn" id="cmOk">'+(opts.edit ? '儲存成本' : '✓ 確認＋記成本')+'</button>'
 + (opts.edit ? (opts.canClear ? '<button type="button" class="cm-skip" id="cmClear">清除這筆成本</button>' : '') : '<button type="button" class="pf-btn ghost" id="cmSkip">先確認，成本之後補</button>')
 + '<button type="button" class="cm-skip" id="cmCancel">取消</button></div>';
@@ -3874,7 +3890,7 @@ note.textContent = '查詢 '+d+' 的匯率中…';
 getFxOnDate(d).then(function(fx){
 if(my !== fxSeq) return;
 rIn.value = fx.rate;
-note.textContent = '✓ '+(fx.rateDate || d)+' 日圓→台幣 '+fx.rate+'（市場匯率，刷卡手續費在分潤頁另外填）';
+note.textContent = '✓ '+(fx.rateDate || d)+' 日圓→台幣 '+fx.rate+'（市場匯率；選刷卡的話，手續費會在分潤頁自動算）';
 recalc();
 }).catch(function(){
 if(my !== fxSeq) return;
@@ -3885,6 +3901,10 @@ note.classList.add('warn');
 jIn.addEventListener('input', recalc);
 rIn.addEventListener('input', function(){ fxSeq++; note.textContent = '手動輸入的匯率'; note.classList.remove('warn'); recalc(); });
 dIn.addEventListener('change', loadFx);
+var pchips = box.querySelectorAll('.cm-pay');
+for(var pi=0;pi<pchips.length;pi++){
+pchips[pi].addEventListener('click', function(){ pay = this.getAttribute('data-pay'); for(var k=0;k<pchips.length;k++) pchips[k].classList.toggle('on', pchips[k] === this); });
+}
 var chips = box.querySelectorAll('.cm-chip');
 for(var i=0;i<chips.length;i++){
 chips[i].addEventListener('click', function(){ by = this.getAttribute('data-by'); for(var k=0;k<chips.length;k++) chips[k].classList.toggle('on', chips[k] === this); });
@@ -3896,8 +3916,8 @@ box.querySelector('#cmOk').addEventListener('click', function(){
 var j = Number(jIn.value), r = Number(rIn.value);
 if(!(j > 0)){ alert('請輸入日幣金額'); jIn.focus(); return; }
 if(!(r > 0 && r < 5)){ alert('請輸入匯率（例如 0.21）'); rIn.focus(); return; }
-try{ localStorage.setItem('pfMe', by); }catch(e){}
-finish({ costJpy: Math.round(j), costDate: dIn.value || todayTW(), costRate: r, boughtBy: by });
+try{ localStorage.setItem('pfMe', by); localStorage.setItem('pfPay', pay); }catch(e){}
+finish({ costJpy: Math.round(j), costDate: dIn.value || todayTW(), costRate: r, boughtBy: by, payMethod: pay });
 });
 recalc();
 if(ini.rate && ini.date === dIn.value) note.textContent = '已記錄的匯率（改日期會重新查）';
@@ -3974,7 +3994,7 @@ var o = findAdminOrder(b.getAttribute('data-cost-oid'));
 if(!o) return;
 var has = o.cost_jpy != null && o.cost_jpy !== '';
 var c = await openCostModal({ edit: true, canClear: has, productId: o.product_id, name: o.product_name, variant: o.variant, qty: o.quantity, sell: Number(o.price || 0) * Number(o.quantity || 1),
-initial: has ? { jpy: o.cost_jpy, date: o.cost_date, rate: o.cost_rate, by: o.bought_by } : null });
+initial: has ? { jpy: o.cost_jpy, date: o.cost_date, rate: o.cost_rate, by: o.bought_by, pay: o.pay_method } : null });
 if(!c) return;
 b.disabled = true;
 try{
@@ -4847,7 +4867,8 @@ var PF_DEFAULT_PARTNERS = [{ id:'p1', name:'LULU' }, { id:'p2', name:'同事' }]
 function pfMoney(n){ n = Math.round(Number(n) || 0); return (n < 0 ? '−' : '') + 'NT$' + Math.abs(n).toLocaleString('en-US'); }
 function pfNum(v){ var n = Number(String(v == null ? '' : v).replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; }
 function pfTaipeiMonth(iso){ var d = new Date(new Date(iso).getTime() + 8*3600000); return d.toISOString().slice(0,7); }
-function pfStockTwd(x){ return Math.round((Number(x.jpy) || 0) * (Number(x.qty) || 0) * (Number(x.rate) || 0)) + Math.round(Number(x.fee) || 0); }
+function pfStockTwd(x){ return Math.round((Number(x.jpy) || 0) * (Number(x.qty) || 0) * (Number(x.rate) || 0)); }
+function pfCardRate(pid){ var r = (pfData.cardRates || {})[pid]; return (r === undefined || r === null || r === '') ? 1.5 : (Number(r) || 0); }
 function pfSettlementIncome(s){ return (Number(s.subtotal)||0) + (Number(s.shipping_fee)||0) - (Number(s.coupon_discount)||0) - (Number(s.extra_discount)||0); }
 function pfSheetRow(key){
 var rows = (pfOverview && pfOverview.sheets) || [];
@@ -4989,6 +5010,7 @@ done: false
 if(!pfData.productCosts) pfData.productCosts = {};
 if(!pfData.extraCosts) pfData.extraCosts = [];
 if(!pfData.stockCosts) pfData.stockCosts = [];
+if(!pfData.cardRates) pfData.cardRates = {};
 if(!pfData.cardFees) pfData.cardFees = {};
 pfDirty = false;
 renderProfitSheet();
@@ -5102,8 +5124,18 @@ charge(payer, amt);
 if(p.missingQty){ missing++; missingQty += p.missingQty; }
 productCost += p.cost;
 });
-var fee = 0, cf = pfData.cardFees || {};
-partners.forEach(function(p){ var a = pfNum(cf[p.id]); fee += a; charge(p.id, a); });
+// 刷卡手續費：刷卡買的商品（＋刷卡的庫存）× 每個人自己卡的比例（預設1.5%），現金的不算
+var cardBase = {}, cashBase = {}, unknownPay = 0;
+products.forEach(function(p){ p.unknownPay = 0; p.orders.forEach(function(o){
+if(!pfOrderHasCost(o)) return;
+var k = o.bought_by || 'split', a = costUnitTwd(o.cost_jpy, o.cost_rate) * (Number(o.quantity) || 1);
+if(o.pay_method === 'card') cardBase[k] = (cardBase[k] || 0) + a;
+else if(o.pay_method === 'cash') cashBase[k] = (cashBase[k] || 0) + a;
+else { unknownPay++; p.unknownPay++; }
+}); });
+(pfData.stockCosts || []).forEach(function(x){ var k = x.payer || 'split', a = pfStockTwd(x); if(x.pay === 'cash') cashBase[k] = (cashBase[k] || 0) + a; else cardBase[k] = (cardBase[k] || 0) + a; });
+var fee = 0, feeBy = {};
+Object.keys(cardBase).forEach(function(k){ var a = Math.round(cardBase[k] * pfCardRate(k) / 100); feeBy[k] = a; fee += a; charge(k, a); });
 var extra = 0, shipCost = 0;
 (pfData.extraCosts || []).forEach(function(x){
 var a = pfNum(x.amount); extra += a; if(x.ship) shipCost += a;
@@ -5132,7 +5164,7 @@ if(give[gi].v < 0.5) gi++;
 if(take[ti].v < 0.5) ti++;
 }
 }
-return { inc:inc, open:open, inProgress:inProgress, final:final, estIncome:estIncome, cash:cash, cashTotal:cashTotal, products:products, productCost:productCost, fee:fee, extra:extra, stock:stock, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing, missingQty:missingQty, unclaimed:unclaimed };
+return { inc:inc, open:open, inProgress:inProgress, final:final, estIncome:estIncome, cash:cash, cashTotal:cashTotal, products:products, productCost:productCost, fee:fee, feeBy:feeBy, cardBase:cardBase, cashBase:cashBase, unknownPay:unknownPay, extra:extra, stock:stock, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing, missingQty:missingQty, unclaimed:unclaimed };
 }
 function pfProdSumHTML(p){
 var costedQty = p.qty - p.missingQty;
@@ -5142,9 +5174,14 @@ return '售價 '+pfMoney(p.sales)+'・成本 '+(costedQty > 0 ? pfMoney(p.cost) 
 + (p.missingQty && costedQty > 0 ? '・<span style="color:#B45309;">'+p.missingQty+' 件還沒填</span>' : '');
 }
 function pfStockCalcHTML(x){
-var q = Number(x.qty) || 0, j = Number(x.jpy) || 0, r = Number(x.rate) || 0, f = Math.round(Number(x.fee) || 0);
+var q = Number(x.qty) || 0, j = Number(x.jpy) || 0, r = Number(x.rate) || 0;
 if(!(q && j && r)) return '<span style="color:var(--muted);">填數量、日幣、日期（匯率會自動帶入）就會換成台幣</span>';
-return '¥'+fmtNum(j)+' × '+q+' 個 × 匯率 '+r+(f ? ' ＋ 手續費 '+pfMoney(f) : '')+' ＝ <b>'+pfMoney(pfStockTwd(x))+'</b>';
+return '¥'+fmtNum(j)+' × '+q+' 個 × 匯率 '+r+' ＝ <b>'+pfMoney(pfStockTwd(x))+'</b>'+(x.pay === 'cash' ? '' : '<span style="color:var(--muted);">（刷卡手續費在③自動算）</span>');
+}
+function pfFeeLineHTML(c, pid){
+var cb = c.cardBase[pid] || 0, kb = c.cashBase[pid] || 0;
+if(!cb && !kb) return '<span style="color:var(--muted);">這個人還沒有記成本的商品</span>';
+return '刷卡商品 '+pfMoney(cb)+' × '+pfCardRate(pid)+'%'+(kb ? '（現金 '+pfMoney(kb)+' 不算）' : '');
 }
 function pfMissingHTML(c){ return c.missing ? '<span class="pf-badge">'+c.missingQty+' 件還沒填</span>' : ''; }
 function pfResultHTML(c){
@@ -5194,6 +5231,7 @@ if(row){ row.classList.toggle('is-missing', p.missingQty > 0); var sm = row.quer
 var m = document.getElementById('pfMissing'); if(m) m.innerHTML = pfMissingHTML(c);
 var x = document.getElementById('pfExtraTotal'); if(x) x.textContent = pfMoney(c.extra + c.fee);
 var st = document.getElementById('pfStockTotal'); if(st) st.textContent = pfMoney(c.stock);
+(pfData.partners || []).forEach(function(pp){ var fa = document.getElementById('pfFeeAmt-'+pp.id); if(fa) fa.textContent = pfMoney(c.feeBy[pp.id] || 0); var fl = document.getElementById('pfFeeLine-'+pp.id); if(fl) fl.innerHTML = pfFeeLineHTML(c, pp.id); });
 (pfData.stockCosts || []).forEach(function(sx, i){ var el = document.querySelector('.pf-stw[data-i="'+i+'"]'); if(el) el.innerHTML = pfStockCalcHTML(sx); });
 var r = document.getElementById('pfResult'); if(r) r.innerHTML = pfResultHTML(c);
 var sb = document.getElementById('pfSave'); if(sb) sb.textContent = '儲存';
@@ -5217,7 +5255,8 @@ var q = Number(o.quantity) || 1;
 var head = '<span class="pf-o-who">'+escHtml(o._nick || '')+(o.variant ? '・'+escHtml(o.variant) : '')+' ×'+q+(o._open ? ' <span class="pf-prog">進行中</span>' : '')+'</span>';
 if(pfOrderHasCost(o)){
 var u = costUnitTwd(o.cost_jpy, o.cost_rate);
-return '<div class="pf-o">'+head+'<span class="pf-o-cost">¥'+fmtNum(o.cost_jpy)+'×'+o.cost_rate+'='+pfMoney(u*q)+'・'+escHtml(pfPartnerName(o.bought_by))+'</span><button type="button" class="pf-o-edit" data-oid="'+escAttr(o.id)+'">✏️</button></div>';
+var pm = o.pay_method === 'card' ? '<button type="button" class="pf-pay is-card" data-oid="'+escAttr(o.id)+'">💳 刷卡</button>' : o.pay_method === 'cash' ? '<button type="button" class="pf-pay is-cash" data-oid="'+escAttr(o.id)+'">💵 現金</button>' : '<button type="button" class="pf-pay is-none" data-oid="'+escAttr(o.id)+'">❓ 現金還是刷卡？</button>';
+return '<div class="pf-o">'+head+'<span class="pf-o-cost">¥'+fmtNum(o.cost_jpy)+'×'+o.cost_rate+'='+pfMoney(u*q)+'・'+escHtml(pfPartnerName(o.bought_by))+' '+pm+'</span><button type="button" class="pf-o-edit" data-oid="'+escAttr(o.id)+'">✏️</button></div>';
 }
 return '<div class="pf-o is-todo">'+head+'<span class="pf-o-cost">還沒記成本</span><button type="button" class="pf-o-edit" data-oid="'+escAttr(o.id)+'">補</button></div>';
 }
@@ -5244,7 +5283,8 @@ return '<div class="pf-prod'+(p.missingQty ? ' is-missing' : '')+'" data-prodpid
 + '<p class="pf-prod-sum" data-sumpid="'+escAttr(p.pid)+'">'+pfProdSumHTML(p)+'</p>'
 + (p.missingQty && p.legacyUnit > 0 ? '<p class="pf-prod-var">沒記到的件數先用舊的手填成本 '+pfMoney(p.legacyUnit)+'／個</p>' : '')
 + (p.missingQty && !(p.legacyUnit > 0) ? '<button type="button" class="adm-p-cost is-todo pf-fill" data-pid="'+escAttr(p.pid)+'">💴 補成本（'+p.missingQty+' 件）</button>' : '')
-+ '<details class="pf-det"><summary>每筆明細（'+p.orders.length+' 筆）</summary>'+p.orders.map(pfOrderLineHTML).join('')+'</details>'
++ (p.unknownPay ? '<p class="pf-prod-var" style="color:#B91C1C;font-weight:800;">❓ '+p.unknownPay+' 筆還沒選現金／刷卡（點開每筆明細）</p>' : '')
++ '<details class="pf-det"'+(p.unknownPay ? ' open' : '')+'><summary>每筆明細（'+p.orders.length+' 筆）</summary>'+p.orders.map(pfOrderLineHTML).join('')+'</details>'
 + '</div>';
 }).join('');
 var extraRows = (pfData.extraCosts || []).map(function(x, i){
@@ -5264,16 +5304,20 @@ return '<div class="pf-stock">'
 + '<label>日幣（1個）<input class="pf-in pf-stjpy" inputmode="decimal" data-i="'+i+'" value="'+escAttr(x.jpy == null ? '' : x.jpy)+'" placeholder="¥"></label>'
 + '<label>購買日期<input type="date" class="pf-in pf-stdate" data-i="'+i+'" value="'+escAttr(x.date || '')+'"></label>'
 + '<label>匯率<input class="pf-in pf-strate" inputmode="decimal" data-i="'+i+'" value="'+escAttr(x.rate == null ? '' : x.rate)+'" placeholder="選日期自動帶"></label>'
-+ '<label>手續費（台幣）<input class="pf-in pf-stfee" inputmode="numeric" data-i="'+i+'" value="'+escAttr(x.fee == null ? '' : x.fee)+'" placeholder="沒有留空"></label>'
++ '<label>怎麼付的<select class="pf-in pf-stpay" data-i="'+i+'"><option value="card"'+(x.pay !== 'cash' ? ' selected' : '')+'>💳 刷卡</option><option value="cash"'+(x.pay === 'cash' ? ' selected' : '')+'>💵 現金</option></select></label>'
 + '<label>誰付的<select class="pf-in pf-stpayer" data-i="'+i+'">'+pfPayerOptions(x.payer, true)+'</select></label>'
 + '</div>'
 + '<p class="pf-stw" data-i="'+i+'">'+pfStockCalcHTML(x)+'</p>'
 + '</div>';
 }).join('');
 var cf = pfData.cardFees || {};
+var cr0 = pfData.cardRates || {};
 var feeRows = (pfData.partners || []).map(function(p){
-return '<label class="pf-mini pf-feerow">💳 '+escHtml(p.name || '未命名')+' 的刷卡手續費（自己帳單上的）<input class="pf-in pf-cfee" inputmode="numeric" data-pid="'+escAttr(p.id)+'" value="'+escAttr(cf[p.id] == null ? '' : cf[p.id])+'" placeholder="沒有就留空"></label>';
-}).join('');
+return '<div class="pf-feerow"><div class="pf-fee-top"><span>💳 '+escHtml(p.name || '未命名')+' 的刷卡手續費</span><b id="pfFeeAmt-'+escAttr(p.id)+'">'+pfMoney(c.feeBy[p.id] || 0)+'</b></div>'
++ '<p class="pf-fee-line" id="pfFeeLine-'+escAttr(p.id)+'">'+pfFeeLineHTML(c, p.id)+'</p>'
++ '<label class="pf-fee-rate">卡片手續費比例 <input class="pf-in pf-crate" inputmode="decimal" data-pid="'+escAttr(p.id)+'" value="'+escAttr(cr0[p.id] == null ? '1.5' : cr0[p.id])+'"> %（免手續費填 0）</label></div>';
+}).join('')
++ (c.feeBy.split ? '<p class="pf-hint">平分買的刷卡商品手續費 '+pfMoney(c.feeBy.split)+'（1.5%）</p>' : '');
 listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列表</button>'
 + '<h3 class="pf-title">'+escHtml(pfTitle(pfKey))+'</h3>'
 + (c.inProgress ? '<p class="pf-warn" style="background:#EEF2FF;color:#3730A3;">🔄 進行中：還沒結單的已確認商品也一起算（先用喊單金額預估），收到的訂金、預付也可以先認領。全部結單付款後會變成正式結算。</p>' : '')
@@ -5293,6 +5337,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + pfReceiverHTML(c)
 + '</div>'
 
++ (c.unknownPay ? '<p class="pf-warn" style="background:#FEF2F2;color:#B91C1C;">⚠️ 有 '+c.unknownPay+' 筆商品還沒選「現金／刷卡」，刷卡手續費會算不準。<br>到下面「② 商品成本」，有 ❓ 的商品點開「每筆明細」，點 ❓ 選一下。</p>' : '')
 + '<div class="pf-card"><p class="pf-ch">② 商品成本 <span id="pfMissing">'+pfMissingHTML(c)+'</span></p>'
 + '<p class="pf-hint">採購清單按確認時記的：日幣 × 購買當天匯率，誰買的就算誰墊的。點「每筆明細」可以修改。</p>'
 + (prodRows || '<p class="pf-hint">還沒有結單</p>')
@@ -5351,7 +5396,7 @@ await callMemberApi('admin-set-order-cost', c === 'clear' ? { orderIds: orderIds
 (pfDetail.items || []).concat(pfDetail.openItems || []).forEach(function(o){
 if(orderIds.indexOf(String(o.id)) === -1) return;
 if(c === 'clear'){ o.cost_jpy = null; o.cost_rate = null; o.cost_date = null; o.bought_by = null; }
-else { o.cost_jpy = c.costJpy; o.cost_rate = c.costRate; o.cost_date = c.costDate; o.bought_by = c.boughtBy; }
+else { o.cost_jpy = c.costJpy; o.cost_rate = c.costRate; o.cost_date = c.costDate; o.bought_by = c.boughtBy; o.pay_method = c.payMethod; }
 });
 showToast(c === 'clear' ? '已清除成本' : '已記成本');
 pfRerenderKeep();
@@ -5387,7 +5432,7 @@ var o = pfFindItem(this.getAttribute('data-oid'));
 if(!o) return;
 var has = pfOrderHasCost(o);
 pfEditCost([String(o.id)], { edit: true, canClear: has, productId: o.product_id, name: o.product_name, variant: o.variant, qty: o.quantity, sell: Number(o.price || 0) * Number(o.quantity || 1),
-initial: has ? { jpy: o.cost_jpy, date: o.cost_date, rate: o.cost_rate, by: o.bought_by } : null });
+initial: has ? { jpy: o.cost_jpy, date: o.cost_date, rate: o.cost_rate, by: o.bought_by, pay: o.pay_method } : null });
 });
 on('.pf-fill', 'click', function(){
 var pid = this.getAttribute('data-pid'), p = null;
@@ -5397,7 +5442,14 @@ var miss = p.orders.filter(function(o){ return !pfOrderHasCost(o); });
 var q = 0, sell = 0; miss.forEach(function(o){ q += Number(o.quantity) || 1; sell += (Number(o.price) || 0) * (Number(o.quantity) || 1); });
 pfEditCost(miss.map(function(o){ return String(o.id); }), { edit: true, productId: p.productId, name: p.name, variant: miss.length === 1 ? miss[0].variant : '', qty: q, sell: sell });
 });
-on('.pf-cfee', 'input', function(){ if(!pfData.cardFees) pfData.cardFees = {}; pfData.cardFees[this.getAttribute('data-pid')] = this.value.trim(); pfMarkDirty(false); });
+on('.pf-crate', 'input', function(){ if(!pfData.cardRates) pfData.cardRates = {}; pfData.cardRates[this.getAttribute('data-pid')] = this.value.trim(); pfMarkDirty(false); });
+on('.pf-pay', 'click', async function(){
+var oid = this.getAttribute('data-oid'), o = pfFindItem(oid); if(!o) return;
+var next = o.pay_method === 'card' ? 'cash' : 'card';
+this.disabled = true;
+try{ await callMemberApi('admin-set-pay-method', { orderIds: [String(oid)], payMethod: next }); o.pay_method = next; pfMarkDirty(false); pfRerenderKeep(); }
+catch(e){ this.disabled = false; alert('儲存失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
 on('.pf-xlabel', 'input', function(){ pfData.extraCosts[+this.getAttribute('data-i')].label = this.value; pfMarkDirty(false); });
 on('.pf-xamt', 'input', function(){ pfData.extraCosts[+this.getAttribute('data-i')].amount = this.value.trim(); pfMarkDirty(false); });
 on('.pf-xpayer', 'change', function(){ pfData.extraCosts[+this.getAttribute('data-i')].payer = this.value; pfMarkDirty(true); });
@@ -5406,7 +5458,7 @@ on('.pf-stlabel', 'input', function(){ pfData.stockCosts[+this.getAttribute('dat
 on('.pf-stqty', 'input', function(){ pfData.stockCosts[+this.getAttribute('data-i')].qty = this.value.trim(); pfMarkDirty(false); });
 on('.pf-stjpy', 'input', function(){ pfData.stockCosts[+this.getAttribute('data-i')].jpy = this.value.trim(); pfMarkDirty(false); });
 on('.pf-strate', 'input', function(){ pfData.stockCosts[+this.getAttribute('data-i')].rate = this.value.trim(); pfMarkDirty(false); });
-on('.pf-stfee', 'input', function(){ pfData.stockCosts[+this.getAttribute('data-i')].fee = this.value.trim(); pfMarkDirty(false); });
+on('.pf-stpay', 'change', function(){ pfData.stockCosts[+this.getAttribute('data-i')].pay = this.value; pfMarkDirty(true); });
 on('.pf-stpayer', 'change', function(){ pfData.stockCosts[+this.getAttribute('data-i')].payer = this.value; pfMarkDirty(true); });
 on('.pf-stdel', 'click', function(){ pfData.stockCosts.splice(+this.getAttribute('data-i'), 1); pfMarkDirty(true); });
 on('.pf-stdate', 'change', async function(){
@@ -5419,7 +5471,7 @@ catch(e){ if(rin) rin.placeholder = '抓不到，請手動輸入'; }
 });
 on('#pfAddStock', 'click', function(){
 var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
-pfData.stockCosts.push({ label:'', qty:'', jpy:'', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', fee:'', payer: (pfData.partners[0] || {}).id || 'split' });
+pfData.stockCosts.push({ label:'', qty:'', jpy:'', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
 pfMarkDirty(true);
 });
 on('#pfImportStock', 'click', async function(){
@@ -5440,7 +5492,7 @@ list.forEach(function(pid, k){
 var P = alloc.prod[pid];
 var detail = P.leftOrder.map(function(l){ return invLabelText(l)+'×'+P.leftBy[l]; }).join('、');
 var j = costJpyGuess(infos[k], '');
-pfData.stockCosts.push({ pid: pid, label: invProdName(pid) + (detail ? '（'+detail+'）' : ''), qty: String(P.left), jpy: j ? String(j) : '', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', fee:'', payer: (pfData.partners[0] || {}).id || 'split' });
+pfData.stockCosts.push({ pid: pid, label: invProdName(pid) + (detail ? '（'+detail+'）' : ''), qty: String(P.left), jpy: j ? String(j) : '', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
 });
 showToast('已帶入 '+list.length+' 項，請確認日幣和購買日期');
 pfMarkDirty(true);
@@ -5455,6 +5507,7 @@ var p = pfData.partners[i];
 if(!confirm('移除「'+(p.name || '未命名')+'」？他墊付的包材運費會改成平分。')) return;
 pfData.partners.splice(i, 1);
 if(pfData.cardFees) delete pfData.cardFees[p.id];
+if(pfData.cardRates) delete pfData.cardRates[p.id];
 Object.keys(pfData.productCosts).forEach(function(k){ if(pfData.productCosts[k].payer === p.id) pfData.productCosts[k].payer = 'split'; });
 pfData.extraCosts.forEach(function(x){ if(x.payer === p.id) x.payer = 'split'; });
 (pfData.stockCosts || []).forEach(function(x){ if(x.payer === p.id) x.payer = 'split'; });
