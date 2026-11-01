@@ -1042,6 +1042,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-pay.is-card{ background:#ECFEFF; color:#0E7490; border-color:#67E8F9; }
 .pf-pay.is-cash{ background:#F0FDF4; color:#15803D; border-color:#86EFAC; }
 .pf-pay.is-none{ background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
+.adm-hold-link{ display:block; width:100%; margin:8px 0 0; padding:8px; border-radius:12px; border:1.5px dashed #9CA3AF; background:rgba(255,255,255,.6); color:#374151; font-size:12.5px; font-weight:800; font-family:var(--font-body); }
 .admin-edit-order-btn{ display:block; margin:6px 0 0; background:none; border:none; padding:2px 0; color:#B45309; font-size:12px; font-weight:800; text-decoration:underline; font-family:var(--font-body); }
 .cm-chip.eo-opt.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
 .cm-pay{ flex:1; border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px; font-size:14px; font-weight:800; color:var(--muted); font-family:var(--font-body); }
@@ -1483,7 +1484,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1440';
+var APP_VERSION = '20261101-1510';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3230,9 +3231,31 @@ try{ await navigator.clipboard.writeText(text); showToast('已複製採購清單
 catch(e){ window.prompt('長按複製：', text); }
 });
 }
-function adminCycleBannerHTML(cycle, label, groupKey){
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-hold-btn') : null;
+if(!b) return;
+e.stopPropagation();
+var hold = b.getAttribute('data-hold') === '1';
+if(!window.confirm(hold ? '這位客人這一區先不要開始結單嗎？\n\n・客人那邊會顯示「還在幫您採購中」\n・不能結單、不倒數、不會逾期\n・買好後按「開始結單」，從那天起算3天' : '買好了，開始讓這位客人結單嗎？\n\n從今天起算3天結單倒數')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-settle-hold', { lineUid: b.getAttribute('data-line-uid'), group: b.getAttribute('data-group'), hold: hold });
+showToast(hold ? '已暫停這位的結單' : '已開始結單，從今天起算3天');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
+function adminCycleBannerHTML(cycle, label, groupKey, lineUid){
 var gcls = cycleGroupClass(groupKey);
 if(!cycle || !cycle.hasPending) return '';
+if(cycle.held){
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🛒</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
++ '<p class="cycle-main-text">⏸ 還在幫這位採購・先不開始結單</p>'
++ '<p class="cycle-sub-text">共'+cycle.itemCount+'件商品，小計NT$'+cycle.subtotal+'・客人不能結單、不倒數、不會逾期</p>'
++ '<button type="button" class="btn btn--primary btn--full admin-hold-btn" data-line-uid="'+escAttr(lineUid || '')+'" data-group="'+escAttr(groupKey)+'" data-hold="0" style="margin-top:8px;">▶ 買好了，開始結單（從今天起算3天）</button>'
++ '</div>';
+}
+var holdBtn = (!cycle.paused && lineUid) ? '<button type="button" class="admin-hold-btn adm-hold-link" data-line-uid="'+escAttr(lineUid)+'" data-group="'+escAttr(groupKey)+'" data-hold="1">⏸ 還在幫這位買，先不要開始結單</button>' : '';
 if(cycle.paused && cycle.kind === 'regular'){
 return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">⏸</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
@@ -3263,6 +3286,7 @@ return '<div class="cycle-banner '+cls+' '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">'+escHtml(label)+'・結單倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + '<p class="cycle-sub-text">'+subText+'</p>'
++ holdBtn
 + '</div>';
 }
 // 後台訂單的商品小圖：客人選的規格有設定「對應照片」就用那張，沒有就用封面
@@ -3731,7 +3755,7 @@ var restrictedBadge = g.orderRestricted
 : '';
 var gc = g.cycle || {};
 var gcKeys = sortedCycleKeys(gc);
-var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k]), k); }).join('') + '</div>';
+var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k]), k, g.lineUid); }).join('') + '</div>';
 var restrictBtnHtml = ((!g.orderRestricted && cnt.overdue)
 ? '<button class="admin-restrict-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:8px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
 : '')
@@ -9657,6 +9681,13 @@ var gcls = cycleGroupClass(group);
 var pc = pendingCycles[group];
 if(!pc || !pc.hasPending) return '';
 var label = cycleGroupLabel(group, pc);
+if(pc.held){
+return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
++ '<div class="cycle-banner-top"><span class="cycle-icon-pulse">🛒</span><p class="cycle-day-label">'+escHtml(label)+'</p></div>'
++ '<p class="cycle-main-text">還在幫您採購中，先不用結單 ♡</p>'
++ '<p class="cycle-sub-text">目前共'+pc.itemCount+'件商品，小計NT$'+pc.subtotal+'<br>部分商品還在幫您找，買好後會通知您開始結單，這段期間不會倒數、也不會逾期 ♡</p>'
++ '</div>';
+}
 if(pc.paused && group === 'regular'){
 return '<div class="cycle-banner cycle-banner--day1 '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">⏸</span><p class="cycle-day-label">'+escHtml(label)+'・結單倒數暫停中</p></div>'
