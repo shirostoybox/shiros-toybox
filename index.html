@@ -1496,7 +1496,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1820';
+var APP_VERSION = '20261102-0115';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2141,6 +2141,7 @@ if(listEl){ listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">�
 return;
 }
 adminGroupsCache = data.groups || [];
+try{ invMarkAdminAdded(); }catch(ie){}
 try{
 renderAdminOrders();
 }catch(re){
@@ -2610,6 +2611,19 @@ if(forceNew && mine.length) invQueue({ k:'aset', oid:o.id, v:{ p:pid, u:mine, t:
 return added;
 }
 // 之前（自動入庫以前）按確認、還沒結單的喊單：一次補進庫存，並直接分給那位客人
+// 後台「幫她加單」直接設成已確認的：跟採購清單按確認一樣，從庫存扣（沒有庫存才自動入庫）
+function invMarkAdminAdded(){
+var list = [];
+(adminGroupsCache || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){
+if(o.status === '已確認' && o.product_id && !INV.m[o.id] && /^後台幫您加/.test(String(o.admin_note || ''))) list.push(Object.assign({ _nick: g.nickname || '客人' }, o));
+}); });
+if(!list.length) return 0;
+list.forEach(function(o){ invMarkConfirmed(o.id); });
+try{ INV_ALLOC = invAllocate(adminGroupsCache); }catch(e){}
+invAutoStock(list.map(function(o){ return [o, Number(o.quantity || 1)]; }));
+try{ INV_ALLOC = invAllocate(adminGroupsCache); }catch(e){}
+return list.length;
+}
 function invOldConfirmed(){
 var list = [];
 (adminGroupsCache || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){
@@ -2764,6 +2778,12 @@ function invAllocate(groups){
 var res = { order:{}, prod:{} };
 var byPid = {};
 (groups || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(!o.product_id) return; (byPid[o.product_id] = byPid[o.product_id] || []).push(Object.assign({ _nick: g.nickname || '客人' }, o)); }); });
+// 缺貨取消、棄單的：分給他的那幾顆放回庫存
+var releaseIds = {};
+(groups || []).forEach(function(g){
+(g.cancelledOrders || []).forEach(function(o){ releaseIds[o.id] = true; });
+(g.settlements || []).forEach(function(st){ if(st.abandoned) (st.items || []).forEach(function(o){ releaseIds[o.id] = true; }); });
+});
 Object.keys(INV.p).forEach(function(pid){
 var units = (INV.p[pid] && INV.p[pid].u) || [];
 var uById = {}; units.forEach(function(u, ix){ uById[u.i] = { u:u, pos:ix+1 }; });
@@ -2775,6 +2795,7 @@ Object.keys(INV.a).filter(function(oid){ return INV.a[oid] && INV.a[oid].p === p
 .sort(function(x,y){ return (INV.a[x].t || 0) - (INV.a[y].t || 0); })
 .forEach(function(oid){
 var A = INV.a[oid], o = openMap[oid];
+if(!o && releaseIds[oid]){ invQueue({ k:'adel', oid:oid }); return; }
 if(o && (o.status !== '已確認' || !INV.m[oid])){ invQueue({ k:'adel', oid:oid }); return; }
 var q = o ? Number(o.quantity || 1) : 9999;
 var keep = [];
@@ -3020,6 +3041,7 @@ adminGroupsCache = rs[0].groups || [];
 if(rs[2] && rs[2].products) adminProductsCache = rs[2].products;
 if(rs[1] && rs[1].settings){ siteSettings.inventory = rs[1].settings.inventory; siteSettings.order_photos = rs[1].settings.order_photos; }
 invReload(); opReloadMap();
+try{ invMarkAdminAdded(); }catch(ie){}
 }catch(e){ el.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取失敗：'+escHtml(e.message)+'</p>'; return; }
 renderAdminInventory();
 }
@@ -3494,8 +3516,15 @@ if(!r) return;
 b.disabled = true;
 try{
 await callMemberApi('admin-edit-order', Object.assign({ orderId: o.id }, r));
+// 已確認的單改了款式或數量：重新分配庫存（不夠的自動入庫）
+var invChanged = o.status === '已確認' && o.product_id && INV.m[o.id] && (String(r.variant || '') !== String(o.variant || '') || Number(r.quantity) !== Number(o.quantity));
+if(invChanged && INV.a[o.id]) invQueue({ k:'adel', oid:o.id });
 showToast('已修改訂單');
 await loadAdminGroups();
+if(invChanged){
+var no = findAdminOrder(o.id);
+if(no){ try{ INV_ALLOC = invAllocate(adminGroupsCache); }catch(e){} var addN = invAutoStock([[no, Number(no.quantity || 1)]]); if(addN){ showToast('已修改訂單，自動入庫 '+addN+' 個'); await loadAdminGroups(); } }
+}
 }catch(err){ b.disabled = false; alert('修改失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
 // 缺貨取消已付的錢：扣抵了多少、還剩多少要退
