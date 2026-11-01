@@ -1047,6 +1047,13 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-pay.is-none{ background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
 .adm-hold-link{ display:block; width:100%; margin:8px 0 0; padding:8px; border-radius:12px; border:1.5px dashed #9CA3AF; background:rgba(255,255,255,.6); color:#374151; font-size:12.5px; font-weight:800; font-family:var(--font-body); }
 .admin-restore-order-btn{ display:block; margin:8px 0 0; padding:7px 12px; border-radius:999px; border:1.5px solid #1D4ED8; background:#EFF6FF; color:#1D4ED8; font-size:12.5px; font-weight:800; font-family:var(--font-body); }
+.admin-add-order-btn, .admin-merge-settle-btn{ display:block; width:100%; margin:0 0 8px; padding:11px; border-radius:var(--r-md); border:1.5px dashed #059669; background:#ECFDF5; color:#065F46; font-weight:800; font-size:13px; font-family:var(--font-body); }
+.admin-merge-settle-btn{ border-style:solid; background:#FEF3C7; border-color:#F59E0B; color:#92400E; }
+.ao-list{ max-height:45vh; overflow:auto; margin-top:8px; }
+.ao-item{ display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:8px; border:none; border-bottom:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; font-family:var(--font-body); color:var(--text-dark); }
+.ao-item img{ width:44px; height:44px; border-radius:8px; object-fit:cover; flex:none; }
+.ao-item small{ display:block; color:var(--muted); font-weight:600; font-size:12px; }
+.ao-confirm{ display:flex; gap:8px; align-items:center; margin:10px 0 0; font-size:13.5px; font-weight:700; }
 .admin-edit-order-btn{ display:block; margin:6px 0 0; background:none; border:none; padding:2px 0; color:#B45309; font-size:12px; font-weight:800; text-decoration:underline; font-family:var(--font-body); }
 .cm-chip.eo-opt.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
 .cm-pay{ flex:1; border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px; font-size:14px; font-weight:800; color:var(--muted); font-family:var(--font-body); }
@@ -1488,7 +1495,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1620';
+var APP_VERSION = '20261101-1710';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3663,12 +3670,94 @@ showToast(undo ? '已改回未出貨' : '已標記出貨');
 await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
+function addOrderProductList(){
+var seen = {}, out = [];
+(adminProductsCache || []).concat(PRODUCTS || []).forEach(function(p){ if(!p || !p.id || seen[p.id]) return; seen[p.id] = 1; out.push(p); });
+return out;
+}
+function openAddOrderModal(nick){
+return new Promise(function(resolve){
+var ov = document.createElement('div'); ov.className = 'cm-ov';
+ov.innerHTML = '<div class="cm-box"><p class="cm-title">➕ 幫 '+escHtml(nick)+' 加單</p>'
++ '<label class="cm-lab full">搜尋商品<input class="pf-in" id="aoQ" placeholder="打商品名稱的幾個字"></label>'
++ '<div id="aoList" class="ao-list"></div>'
++ '<div id="aoForm" style="display:none;"></div>'
++ '<div class="cm-acts"><button type="button" class="cm-skip" id="aoCancel">取消</button></div></div>';
+document.body.appendChild(ov);
+var done = false; function finish(v){ if(done) return; done = true; ov.remove(); resolve(v); }
+ov.addEventListener('click', function(e){ if(e.target === ov) finish(null); });
+ov.querySelector('#aoCancel').addEventListener('click', function(){ finish(null); });
+var all = addOrderProductList();
+var qIn = ov.querySelector('#aoQ'), listEl = ov.querySelector('#aoList'), form = ov.querySelector('#aoForm');
+function search(){
+var q = qIn.value.trim().toLowerCase();
+if(!q){ listEl.innerHTML = '<p class="cm-hint">打字搜尋，例如「NOBEL」「吉伊卡哇」</p>'; return; }
+var hits = all.filter(function(p){ return String(p.name || '').toLowerCase().indexOf(q) >= 0; }).slice(0, 12);
+listEl.innerHTML = hits.length ? hits.map(function(p){ return '<button type="button" class="ao-item" data-pid="'+escAttr(p.id)+'"><img src="'+escAttr(orderThumbUrl({ product_id: p.id }))+'" alt="" onerror="this.style.visibility=\'hidden\'"><span>'+escHtml(p.name)+'<small>NT$'+(p.price || 0)+'</small></span></button>'; }).join('') : '<p class="cm-hint">找不到，換個字試試</p>';
+var bs = listEl.querySelectorAll('.ao-item');
+for(var i=0;i<bs.length;i++) bs[i].addEventListener('click', function(){ pick(this.getAttribute('data-pid')); });
+}
+qIn.addEventListener('input', search); search();
+function pick(pid){
+var p = null; all.forEach(function(x){ if(x.id === pid) p = x; });
+if(!p) return;
+listEl.style.display = 'none'; qIn.parentNode.style.display = 'none';
+var opts = orderFindProductOptions(pid);
+form.style.display = 'block';
+form.innerHTML = '<div class="cm-prod"><img src="'+escAttr(orderThumbUrl({ product_id: pid }))+'" alt="" onerror="this.remove()"><div><div class="cm-pn">'+escHtml(p.name)+'</div><button type="button" class="cm-skip" id="aoBack" style="padding:0;">← 換商品</button></div></div>'
++ (opts.length ? '<p class="cm-lab" style="margin:10px 0 4px;">款式</p><div class="cm-who" style="flex-wrap:wrap;">'+opts.map(function(x){ return '<button type="button" class="cm-chip eo-opt" data-opt="'+escAttr(x)+'">'+escHtml(x)+'<small style="font-weight:600;color:var(--muted);"> $'+orderOptPrice(pid, x)+'</small></button>'; }).join('')+'</div>' : '')
++ '<div class="cm-grid" style="margin-top:10px;"><label class="cm-lab full">款式（可以直接打字）<input class="pf-in" id="aoVar" value=""></label>'
++ '<label class="cm-lab">數量<input class="pf-in" id="aoQty" type="number" inputmode="numeric" min="1" value="1"></label>'
++ '<label class="cm-lab">單價<input class="pf-in" id="aoPrice" type="number" inputmode="numeric" min="0" value="'+escAttr(p.price || 0)+'"></label></div>'
++ '<label class="ao-confirm"><input type="checkbox" id="aoConfirm" checked> 已經買到了，直接設成「已確認」</label>'
++ '<div class="cm-sum" id="aoSum"></div>'
++ '<div class="cm-acts"><button type="button" class="pf-btn" id="aoOk">加入訂單</button></div>';
+var vIn = form.querySelector('#aoVar'), nIn = form.querySelector('#aoQty'), prIn = form.querySelector('#aoPrice');
+function sum(){ form.querySelector('#aoSum').innerHTML = '<div class="pf-line pf-total"><span>'+escHtml(vIn.value || p.name)+' ×'+(Number(nIn.value)||0)+'</span><span>'+pfMoney((Number(nIn.value)||0) * (Number(prIn.value)||0))+'</span></div>'; }
+var chips = form.querySelectorAll('.eo-opt');
+for(var i=0;i<chips.length;i++) chips[i].addEventListener('click', function(){ var o = this.getAttribute('data-opt'); vIn.value = o; var pr = orderOptPrice(pid, o); if(pr > 0) prIn.value = pr; for(var k=0;k<chips.length;k++) chips[k].classList.toggle('on', chips[k] === this); sum(); });
+[vIn, nIn, prIn].forEach(function(el){ el.addEventListener('input', sum); }); sum();
+form.querySelector('#aoBack').addEventListener('click', function(){ form.style.display = 'none'; listEl.style.display = ''; qIn.parentNode.style.display = ''; });
+form.querySelector('#aoOk').addEventListener('click', function(){
+var n = Math.round(Number(nIn.value)), pr = Math.round(Number(prIn.value));
+if(!(n >= 1)){ alert('數量要 1 以上'); return; }
+if(opts.length && !vIn.value.trim() && !confirm('沒有選款式，確定嗎？')) return;
+finish({ productId: pid, variant: vIn.value.trim(), quantity: n, price: pr, confirm: form.querySelector('#aoConfirm').checked });
+});
+}
+});
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-add-order-btn') : null;
+if(!b) return;
+e.stopPropagation();
+var r = await openAddOrderModal(b.getAttribute('data-nick') || '客人');
+if(!r) return;
+try{
+await callMemberApi('admin-add-order', Object.assign({ lineUid: b.getAttribute('data-line-uid') }, r));
+showToast('已幫她加單');
+await loadAdminGroups();
+}catch(err){ alert('加單失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-merge-settle-btn') : null;
+if(!b) return;
+e.stopPropagation();
+if(!window.confirm('幫她把加買的商品結單嗎？\n\n・跟 '+b.getAttribute('data-no')+' 一起寄，用同一個寄件資料\n・運費 0（不另收運費）\n・商品 NT$'+b.getAttribute('data-sub')+'（有付訂金會自動扣）\n\n結單後按「📋 複製付款訊息」傳給她付款')) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-create-settlement', { lineUid: b.getAttribute('data-line-uid'), group: b.getAttribute('data-group'), mergeWith: b.getAttribute('data-merge') });
+showToast('已結單 '+r.orderNo+'，應付 NT$'+r.total);
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('結單失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
 function settlePayMessage(s, nick){
 var lines = [];
 lines.push('Hi '+(nick || s.nickname || '')+' 你好～這是您的結單明細 ♡');
 var zl = '';
 if(s.live_zone_id){ var sz = zoneById(s.live_zone_id); zl = sz ? zoneDisplayName(sz.name, sz.note) : '限時連線'; } else zl = '現貨／預購';
 lines.push('單號：'+(s.order_no || '')+'（'+zl+'）');
+if(s.merged_with) lines.push('🔗 這是加買的，會跟 '+s.merged_with+' 一起寄出（不另收運費）');
 lines.push('');
 (s.items || []).forEach(function(o){
 var v = shortVariantLabel(o.product_id, o.variant);
@@ -3734,6 +3823,7 @@ var statusClass = (isPaid && !s.abandoned) ? 'order-status order-status--confirm
 var fillColor = s.abandoned ? '#E5E7EB' : (color ? color.mid : '#F3F4F6');
 return '<div class="adm-row" data-unpaid="'+(isPaid?'0':'1')+'" data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+(s.is_test ? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試結單・不算分潤</span>' : '')+'</span><span class="'+statusClass+'">'+(s.abandoned ? '棄單' : (s.shipped_at ? '已出貨' : s.status))+'</span></div>'
++ (s.merged_with ? '<p style="margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:12.5px;font-weight:800;">🔗 加買的，跟 '+escHtml(s.merged_with)+' 一起寄（免運）</p>' : '')
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + (function(){
 if(!s.live_zone_id) return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4px 0 8px;">📦 現貨／預購商品</p>';
@@ -3814,7 +3904,22 @@ function isSelfGroup(g){
 var os = (g.openOrders || []).concat(g.settlements || []);
 return os.some(function(o){ return !!o.is_test; });
 }
+function adminAddOrderHTML(g){
+if(g.isBlocked) return '';
+var html = '<button type="button" class="admin-add-order-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" data-nick="'+escAttr(g.baseNickname || g.nickname || '')+'">➕ 幫她加單（客人說要加買）</button>';
+// 有還沒出貨的結單＋已確認還沒結單的商品 → 可以幫她結單、跟那張一起寄（免運）
+var base = null;
+(g.settlements || []).forEach(function(st){ if(st.abandoned || st.shipped_at) return; if(!base || String(st.cycle_deadline) > String(base.cycle_deadline)) base = st; });
+var gc = g.cycle || {};
+if(base) Object.keys(gc).forEach(function(k){
+var cy = gc[k]; if(!cy || !cy.hasPending || !cy.items || !cy.items.length) return;
+if(cy.items.some(function(o){ return o.status !== '已確認'; })) return;
+html += '<button type="button" class="admin-merge-settle-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" data-group="'+escAttr(k)+'" data-merge="'+escAttr(base.id)+'" data-no="'+escAttr(base.order_no || '')+'" data-sub="'+cy.subtotal+'">🧾 幫她結單：跟 '+escHtml(base.order_no || '上一張')+' 一起寄（免運・NT$'+cy.subtotal+'）</button>';
+});
+return html;
+}
 function adminGroupHTML(g){
+var addOrderHtml = adminAddOrderHTML(g);
 var color = colorForCustomer(g.lineUid || g.nickname || '');
 var cnt = adminGroupCounts(g);
 var key = adminGroupKey(g);
@@ -3875,7 +3980,7 @@ settleHtml += '<details class="adm-extra" style="margin-top:12px;"><summary styl
 }
 return '<div class="order-card admin-group" data-gkey="'+escAttr(key)+'" data-c-pending="'+cnt.pending+'" data-c-deposit="'+cnt.deposit+'" data-c-unpaid="'+cnt.unpaid+'" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:12px;background:'+color.bg+';border-left:4px solid '+color.mid+';">'
 + header
-+ '<div class="adm-group-body" style="display:none;">' + restrictedBadge + cycleHtml + restrictBtnHtml
++ '<div class="adm-group-body" style="display:none;">' + restrictedBadge + cycleHtml + addOrderHtml + restrictBtnHtml
 + (g.openOrders.length ? '<p style="margin:0 0 2px;font-size:11.5px;color:var(--muted);">🧮 點金額可以加總，再點一次取消</p>' : '')
 + openHtml + calcBarHTML(g) + cancelledHtml + settleHtml + '</div>'
 + '</div>';
