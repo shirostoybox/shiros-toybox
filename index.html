@@ -1495,7 +1495,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1710';
+var APP_VERSION = '20261101-1730';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3409,7 +3409,7 @@ return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'"
 + '<div class="order-body"><p class="order-product">'+o.product_name+'<span class="sub">'+(o.variant||'')+' ×'+o.quantity+'</span></p>'
 + '<div class="adm-o-right"><span class="order-price">'+(total ? calcChipHTML(calcGKey, o.id+'-full', total, o.product_name+(o.variant ? '（'+o.variant+'）' : '')+(o.quantity > 1 ? ' ×'+o.quantity : ''), 'NT$'+total) : '—')+'</span>'+(o.product_id ? '<img class="adm-o-thumb" src="'+orderThumbUrl(o)+'" alt="" loading="lazy" onclick="openProductGallery(\''+o.product_id+'\', this.src)" onerror="this.remove();">' : '')+'</div></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
-+ (o.admin_note ? '<p class="adm-rand-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
++ (o.admin_note ? '<p class="adm-rand-note">'+(/^後台幫您加/.test(o.admin_note) ? '➕ ' : '🔄 ')+escHtml(o.admin_note)+'</p>' : '')
 + invTagHTML(o)
 + invPickHTML(o)
 + depositInputHtml
@@ -3751,6 +3751,36 @@ showToast('已結單 '+r.orderNo+'，應付 NT$'+r.total);
 await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('結單失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
+function findSettlementByNo(lineUid, no){
+var hit = null;
+(adminGroupsCache || []).forEach(function(g){ if(g.lineUid !== lineUid) return; (g.settlements || []).forEach(function(x){ if(x.order_no === no) hit = x; }); });
+return hit;
+}
+function mergeFreeshipHTML(s, isPaid){
+if(Number(s.freeship_offset) > 0){
+return '<p style="margin:0 0 8px;padding:6px 10px;border-radius:10px;background:#E0F2FE;color:#075985;font-size:12.5px;font-weight:800;">🚚 已用 1 張免運券，抵掉 '+escHtml(s.merged_with)+' 的運費 NT$'+s.freeship_offset+'</p>'
++ (isPaid ? '' : '<button type="button" class="admin-merge-fs-btn" data-settlement-id="'+s.id+'" data-undo="1" style="background:none;border:none;padding:0 0 8px;color:var(--muted);font-size:12px;text-decoration:underline;font-family:var(--font-body);">按錯了，把免運券還給客人</button>');
+}
+if(isPaid) return '';
+var base = findSettlementByNo(s.line_uid, s.merged_with);
+if(!base || !(Number(base.shipping_fee) > 0) || Number(base.referral_coupon_used) > 0) return '';
+var both = Number(base.subtotal) + Number(s.subtotal);
+if(both < 1000) return '<p style="margin:0 0 8px;font-size:12px;color:var(--muted);">兩張加起來 NT$'+both+'，還沒滿 NT$1,000，不能用免運券</p>';
+return '<button type="button" class="admin-merge-fs-btn" data-settlement-id="'+s.id+'" data-fee="'+base.shipping_fee+'" style="display:block;width:100%;margin:0 0 8px;padding:10px;border-radius:12px;border:1.5px solid #0284C7;background:#E0F2FE;color:#075985;font-weight:800;font-size:13px;font-family:var(--font-body);">🚚 兩張加起來 NT$'+both+' 滿千：用 1 張免運券，抵上一張運費 NT$'+base.shipping_fee+'</button>';
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-merge-fs-btn') : null;
+if(!b) return;
+var undo = b.getAttribute('data-undo') === '1';
+if(!window.confirm(undo ? '把免運券還給客人、取消這次的運費折抵嗎？' : '用客人 1 張免運券，從這張扣掉上一張付的運費 NT$'+b.getAttribute('data-fee')+' 嗎？\n\n・客人的免運券會自動少 1 張\n・這張的應付總額會跟著變少')) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-settlement-merge-freeship', { settlementId: b.getAttribute('data-settlement-id'), undo: undo });
+showToast(undo ? '已把免運券還給客人' : ('已用免運券，應付 NT$'+r.total + (r.refund > 0 ? '，另外要退 NT$'+r.refund : '')));
+if(!undo && r.refund > 0) alert('這張扣到 0 還差 NT$'+r.refund+'，請用 LINE 轉帳退 NT$'+r.refund+' 給客人');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
 function settlePayMessage(s, nick){
 var lines = [];
 lines.push('Hi '+(nick || s.nickname || '')+' 你好～這是您的結單明細 ♡');
@@ -3766,7 +3796,7 @@ lines.push('・'+(o.product_name || '')+(v ? '（'+v+'）' : '')+' ×'+o.quantit
 lines.push('');
 lines.push('商品小計　$'+fmtNum(s.subtotal));
 lines.push('運費　$'+fmtNum(s.shipping_fee));
-if(s.coupon_discount > 0) lines.push('優惠折抵　-$'+fmtNum(s.coupon_discount));
+if(s.coupon_discount > 0) lines.push('優惠折抵　-$'+fmtNum(s.coupon_discount)+(Number(s.freeship_offset) > 0 ? '（用 1 張免運券，抵上一張的運費）' : ''));
 if(s.extra_discount > 0) lines.push('特別折扣　-$'+fmtNum(s.extra_discount));
 var dep = Number(s.deposit_deducted || 0) - Number(s.credit_deducted || 0);
 if(dep > 0) lines.push('已付訂金／預付　-$'+fmtNum(dep));
@@ -3823,7 +3853,7 @@ var statusClass = (isPaid && !s.abandoned) ? 'order-status order-status--confirm
 var fillColor = s.abandoned ? '#E5E7EB' : (color ? color.mid : '#F3F4F6');
 return '<div class="adm-row" data-unpaid="'+(isPaid?'0':'1')+'" data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+(s.is_test ? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試結單・不算分潤</span>' : '')+'</span><span class="'+statusClass+'">'+(s.abandoned ? '棄單' : (s.shipped_at ? '已出貨' : s.status))+'</span></div>'
-+ (s.merged_with ? '<p style="margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:12.5px;font-weight:800;">🔗 加買的，跟 '+escHtml(s.merged_with)+' 一起寄（免運）</p>' : '')
++ (s.merged_with ? '<p style="margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:12.5px;font-weight:800;">🔗 加買的，跟 '+escHtml(s.merged_with)+' 一起寄（免運）</p>' + mergeFreeshipHTML(s, isPaid) : '')
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + (function(){
 if(!s.live_zone_id) return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4px 0 8px;">📦 現貨／預購商品</p>';
@@ -9779,7 +9809,7 @@ return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel'
 + '<div class="my-row-top"><p class="my-row-name">'+escHtml(o.product_name)+'</p><span class="my-row-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + (o.is_test ? '<p style="margin:2px 0 0;font-size:11px;font-weight:700;color:#4F46E5;">🧪 測試單（老闆／小幫手/朋友下的單，不算分潤）</p>' : '')
 + '<div class="my-row-mid"><span class="my-row-var">'+escHtml(o.variant || '')+' ×'+o.quantity+'</span><span class="'+statusClass+' my-row-st">'+statusText+'</span></div>'
-+ (o.admin_note && o.status !== '缺貨已幫您取消' ? '<p class="my-row-note">🔄 '+escHtml(o.admin_note)+'</p>' : '')
++ (o.admin_note && o.status !== '缺貨已幫您取消' ? '<p class="my-row-note">'+(/^後台幫您加/.test(o.admin_note) ? '➕ ' : '🔄 ')+escHtml(o.admin_note)+'</p>' : '')
 + myRandomResultHTML(o)
 + depositHtml
 + '<div class="my-row-meta"><span>'+formatDate(o.created_at)+'・#'+o.order_no+'</span>'+delLink+'</div>'
@@ -10242,6 +10272,7 @@ var shipDetail = s.shipping_method === '黑貓宅急便'
 var statusClass = s.status === '已付款' ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card" style="margin-top:10px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+(s.shipped_at ? '📦 已出貨' : s.status)+'</span></div>'
++ (s.merged_with ? '<p style="margin:4px 0 6px;padding:6px 10px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:12.5px;font-weight:800;">🔗 加買的，會跟 '+escHtml(s.merged_with)+' 一起寄出（不另收運費）'+(Number(s.freeship_offset) > 0 ? '<br>🚚 兩張滿千，用 1 張免運券抵掉上一張的運費 NT$'+s.freeship_offset : '')+'</p>' : '')
 + itemLines
 + '<div class="settle-totals" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
