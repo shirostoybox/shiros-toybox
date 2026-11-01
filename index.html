@@ -1042,6 +1042,8 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-pay.is-card{ background:#ECFEFF; color:#0E7490; border-color:#67E8F9; }
 .pf-pay.is-cash{ background:#F0FDF4; color:#15803D; border-color:#86EFAC; }
 .pf-pay.is-none{ background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
+.admin-edit-order-btn{ display:block; margin:6px 0 0; background:none; border:none; padding:2px 0; color:#B45309; font-size:12px; font-weight:800; text-decoration:underline; font-family:var(--font-body); }
+.cm-chip.eo-opt.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
 .cm-pay{ flex:1; border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px; font-size:14px; font-weight:800; color:var(--muted); font-family:var(--font-body); }
 .cm-pay.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
 .pf-prod .adm-p-cost{ margin:2px 0 4px; }
@@ -1481,7 +1483,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1415';
+var APP_VERSION = '20261101-1440';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3372,9 +3374,78 @@ return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'"
 + invPickHTML(o)
 + depositInputHtml
 + '<button type="button" class="admin-test-toggle" data-order-id="'+o.id+'" data-test="'+(o.is_test?'0':'1')+'" style="display:block;margin:6px 0 0;background:none;border:none;padding:2px 0;color:#4F46E5;font-size:12px;font-weight:700;text-decoration:underline;font-family:var(--font-body);">'+(o.is_test ? '🧪 這筆不是測試，改成正式單（列入分潤）' : '🧪 標記為測試單（不算分潤）')+'</button>'
++ (!o.settlement_id ? '<button type="button" class="admin-edit-order-btn" data-order-id="'+o.id+'">✏️ 幫客人改訂單（款式・數量・價格）</button>' : '')
 + (o.status === '待確認' ? '<button type="button" class="adm-go-purchase">要確認、改隨機、缺貨，請到「🛒 採購清單」›</button>' : '')
 + '</div>';
 }
+function orderOptPrice(pid, opt){
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === pid){ var p = PRODUCTS[i]; return (p.optionPrices && p.optionPrices[opt] > 0) ? p.optionPrices[opt] : Number(p.price || 0); } }
+for(var j=0;j<adminProductsCache.length;j++){ if(adminProductsCache[j].id === pid){ var q = adminProductsCache[j]; var op = {}; try{ op = parseOptionPrices(q.option_prices, parseOptionList(q.options)); }catch(e){} return (op[opt] > 0) ? op[opt] : Number(q.price || 0); } }
+return 0;
+}
+function openEditOrderModal(o){
+return new Promise(function(resolve){
+var ov = document.createElement('div');
+ov.className = 'cm-ov';
+var opts = o.product_id ? orderFindProductOptions(o.product_id) : [];
+ov.innerHTML = '<div class="cm-box">'
++ '<p class="cm-title">✏️ 幫客人改訂單</p>'
++ '<div class="cm-prod">'+(o.product_id ? '<img src="'+escAttr(orderThumbUrl(o))+'" alt="" onerror="this.remove()">' : '')+'<div><div class="cm-pn">'+escHtml(o.product_name || '')+'</div><div class="cm-pv">原本：'+escHtml(o.variant || '（無款式）')+'　×'+o.quantity+'　NT$'+(Number(o.price) * Number(o.quantity || 1))+'</div></div></div>'
++ (opts.length ? '<p class="cm-lab" style="margin:10px 0 4px;">點選要改成的款式（價格會自動帶入）</p><div class="cm-who" style="flex-wrap:wrap;">'+opts.map(function(x){ return '<button type="button" class="cm-chip eo-opt" data-opt="'+escAttr(x)+'">'+escHtml(x)+'<small style="font-weight:600;color:var(--muted);"> $'+orderOptPrice(o.product_id, x)+'</small></button>'; }).join('')+'</div>' : '')
++ '<div class="cm-grid" style="margin-top:10px;">'
++ '<label class="cm-lab full">款式（可以直接改字）<input class="pf-in" id="eoVar" value="'+escAttr(o.variant || '')+'"></label>'
++ '<label class="cm-lab">數量<input class="pf-in" id="eoQty" type="number" inputmode="numeric" min="1" value="'+escAttr(o.quantity || 1)+'"></label>'
++ '<label class="cm-lab">單價（一個）<input class="pf-in" id="eoPrice" type="number" inputmode="numeric" min="0" value="'+escAttr(o.price || 0)+'"></label>'
++ '</div>'
++ '<div class="cm-sum" id="eoSum"></div>'
++ '<p class="cm-hint full" style="margin:6px 0 0;">客人那邊會看到「已幫您改成…（原本：…）」</p>'
++ '<div class="cm-acts"><button type="button" class="pf-btn" id="eoOk">儲存修改</button><button type="button" class="cm-skip" id="eoCancel">取消</button></div>'
++ '</div>';
+document.body.appendChild(ov);
+var vIn = ov.querySelector('#eoVar'), qIn = ov.querySelector('#eoQty'), pIn = ov.querySelector('#eoPrice');
+var done = false;
+function finish(v){ if(done) return; done = true; ov.remove(); resolve(v); }
+function sum(){
+var q = Number(qIn.value) || 0, pr = Number(pIn.value) || 0, old = Number(o.price) * Number(o.quantity || 1), nw = q * pr;
+ov.querySelector('#eoSum').innerHTML = '<div class="pf-line"><span>原本</span><span>'+pfMoney(old)+'</span></div><div class="pf-line pf-total"><span>改成 '+escHtml(vIn.value || '')+' ×'+q+'</span><span>'+pfMoney(nw)+'</span></div>'
++ (nw !== old ? '<div class="pf-line"><span>差額</span><span style="color:'+(nw > old ? '#B45309' : '#1E7A4C')+';">'+(nw > old ? '+' : '')+pfMoney(nw - old)+'</span></div>' : '');
+}
+var chips = ov.querySelectorAll('.eo-opt');
+for(var i=0;i<chips.length;i++){ chips[i].addEventListener('click', function(){
+var opt = this.getAttribute('data-opt');
+var segs = String(o.variant || '').split('・'), hit = false;
+segs = segs.map(function(x){ if(!hit && opts.indexOf(x.trim()) >= 0){ hit = true; return opt; } return x; });
+vIn.value = hit ? segs.join('・') : opt;
+var pr = orderOptPrice(o.product_id, opt); if(pr > 0) pIn.value = pr;
+for(var k=0;k<chips.length;k++) chips[k].classList.toggle('on', chips[k] === this);
+sum();
+}); }
+[vIn, qIn, pIn].forEach(function(el){ el.addEventListener('input', sum); });
+ov.addEventListener('click', function(e){ if(e.target === ov) finish(null); });
+ov.querySelector('#eoCancel').addEventListener('click', function(){ finish(null); });
+ov.querySelector('#eoOk').addEventListener('click', function(){
+var q = Math.round(Number(qIn.value)), pr = Math.round(Number(pIn.value));
+if(!(q >= 1)){ alert('數量要 1 以上'); return; }
+if(!(pr >= 0)){ alert('單價不正確'); return; }
+finish({ variant: vIn.value.trim(), quantity: q, price: pr });
+});
+sum();
+});
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-edit-order-btn') : null;
+if(!b) return;
+var o = findAdminOrder(b.getAttribute('data-order-id'));
+if(!o) return;
+var r = await openEditOrderModal(o);
+if(!r) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-edit-order', Object.assign({ orderId: o.id }, r));
+showToast('已修改訂單');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('修改失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
 // 缺貨取消已付的錢：扣抵了多少、還剩多少要退
 function creditInfo(o){
 var paid = Number(o.deposit_amount || 0);
