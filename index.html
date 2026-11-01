@@ -1458,7 +1458,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1135';
+var APP_VERSION = '20261101-1150';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3430,6 +3430,18 @@ await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
 document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-abandon-open-btn') : null;
+if(!b) return;
+e.stopPropagation();
+if(!window.confirm('確定「'+(b.getAttribute('data-nick')||'這位客人')+'」棄單嗎？\n\n・她還沒結單的喊單，全部收進一張「棄單」結單\n・限制下單＋封鎖網站（打開只會看到「帳號已停用」）\n・分潤不會再等這些喊單\n\n之後可以在客人資料按「解除封鎖＋恢復下單」解除封鎖')) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-abandon-open-orders', { lineUid: b.getAttribute('data-line-uid') });
+showToast('已棄單（'+r.orders+' 筆喊單），客人已封鎖');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
+document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-abandon-btn') : null;
 if(!b) return;
 var undo = b.getAttribute('data-undo') === '1';
@@ -3594,9 +3606,12 @@ var restrictedBadge = g.orderRestricted
 var gc = g.cycle || {};
 var gcKeys = sortedCycleKeys(gc);
 var cycleHtml = '<div class="adm-extra">' + gcKeys.map(function(k){ return adminCycleBannerHTML(gc[k], cycleGroupLabel(k, gc[k]), k); }).join('') + '</div>';
-var restrictBtnHtml = (!g.orderRestricted && cnt.overdue)
-? '<button class="admin-restrict-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
-: '';
+var restrictBtnHtml = ((!g.orderRestricted && cnt.overdue)
+? '<button class="admin-restrict-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" style="width:100%;padding:11px;margin-bottom:8px;border-radius:var(--r-md);border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;">限制下單資格</button>'
+: '')
++ ((cnt.overdue && !g.isBlocked)
+? '<button class="admin-abandon-open-btn adm-extra" data-line-uid="'+escAttr(g.lineUid)+'" data-nick="'+escAttr(g.nickname||'')+'" style="width:100%;padding:11px;margin-bottom:16px;border-radius:var(--r-md);border:none;background:#1B1E27;color:#fff;font-weight:800;font-size:13px;">🚫 棄單（沒結單的喊單全部作廢＋封鎖網站）</button>'
+: '');
 // 客人的喊單依商品分類分組（例如：扭蛋、美妝），到店裡比較好找
 var openCatMap = {}, openCats = [];
 var openSorted = (g.openOrders || []).slice().sort(function(a,b){ return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
