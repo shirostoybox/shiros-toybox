@@ -1043,6 +1043,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-pay.is-cash{ background:#F0FDF4; color:#15803D; border-color:#86EFAC; }
 .pf-pay.is-none{ background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
 .adm-hold-link{ display:block; width:100%; margin:8px 0 0; padding:8px; border-radius:12px; border:1.5px dashed #9CA3AF; background:rgba(255,255,255,.6); color:#374151; font-size:12.5px; font-weight:800; font-family:var(--font-body); }
+.admin-restore-order-btn{ display:block; margin:8px 0 0; padding:7px 12px; border-radius:999px; border:1.5px solid #1D4ED8; background:#EFF6FF; color:#1D4ED8; font-size:12.5px; font-weight:800; font-family:var(--font-body); }
 .admin-edit-order-btn{ display:block; margin:6px 0 0; background:none; border:none; padding:2px 0; color:#B45309; font-size:12px; font-weight:800; text-decoration:underline; font-family:var(--font-body); }
 .cm-chip.eo-opt.on{ border-color:#0E7490; background:#ECFEFF; color:#0E7490; }
 .cm-pay{ flex:1; border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px; font-size:14px; font-weight:800; color:var(--muted); font-family:var(--font-body); }
@@ -1484,7 +1485,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1510';
+var APP_VERSION = '20261101-1530';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3407,6 +3408,17 @@ for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === pid){ var p = PRODUCTS
 for(var j=0;j<adminProductsCache.length;j++){ if(adminProductsCache[j].id === pid){ var q = adminProductsCache[j]; var op = {}; try{ op = parseOptionPrices(q.option_prices, parseOptionList(q.options)); }catch(e){} return (op[opt] > 0) ? op[opt] : Number(q.price || 0); } }
 return 0;
 }
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-restore-order-btn') : null;
+if(!b) return;
+if(!window.confirm('這筆改回「待確認」嗎？\n\n・客人付的錢會留在這筆訂單上（不用退）\n・改回後到「🛒 採購清單」再按確認就好')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-restore-order', { orderId: b.getAttribute('data-order-id') });
+showToast('已改回待確認');
+await loadAdminGroups();
+}catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
+});
 function openEditOrderModal(o){
 return new Promise(function(resolve){
 var ov = document.createElement('div');
@@ -3506,6 +3518,7 @@ return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top
 + '<span class="order-price">'+(total ? 'NT$'+total : '—')+'</span></div>'
 + '<p class="order-time">喊單 '+formatDate(o.created_at)+'</p>'
 + refundHtml
++ ((!o.settlement_id && !o.refunded_at && !(ci.used > 0)) ? '<button type="button" class="admin-restore-order-btn" data-order-id="'+o.id+'">↩ 按錯了，其實有貨・改回待確認</button>' : '')
 + (needRefund ? '' : '<br><button type="button" class="admin-delete-order-btn" data-order-id="'+o.id+'" style="margin-top:4px;background:none;border:none;color:var(--ignis-deep);font-size:12px;font-weight:700;text-decoration:underline;padding:4px 0;">刪除</button>')
 + '</div>';
 }
