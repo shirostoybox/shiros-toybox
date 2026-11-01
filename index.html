@@ -1481,7 +1481,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1400';
+var APP_VERSION = '20261101-1415';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5082,11 +5082,11 @@ function pfCompute(){
 var sts = pfDetail.settlements || [];
 var partners = pfData.partners || [];
 var n = partners.length || 1;
-var inc = { subtotal:0, ship:0, coupon:0, paid:0, paidCount:0, unpaid:0, unpaidCount:0 };
+var inc = { subtotal:0, ship:0, coupon:0, disc:0, discCount:0, paid:0, paidCount:0, unpaid:0, unpaidCount:0 };
 sts.forEach(function(s){
 if(s.abandoned) return;
 if(s.status === '已付款'){
-inc.subtotal += Number(s.subtotal)||0; inc.ship += Number(s.shipping_fee)||0; inc.coupon += Number(s.coupon_discount)||0;
+inc.subtotal += Number(s.subtotal)||0; inc.ship += Number(s.shipping_fee)||0; inc.coupon += Number(s.coupon_discount)||0; if(Number(s.extra_discount) > 0){ inc.disc += Number(s.extra_discount); inc.discCount++; }
 inc.paid += pfSettlementIncome(s); inc.paidCount++;
 } else { inc.unpaid += pfSettlementIncome(s); inc.unpaidCount++; }
 });
@@ -5326,6 +5326,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<div class="pf-line"><span>商品金額</span><span>'+pfMoney(c.inc.subtotal)+'</span></div>'
 + '<div class="pf-line"><span>＋ 向客人收的運費</span><span>'+pfMoney(c.inc.ship)+'</span></div>'
 + '<div class="pf-line"><span>− 免運券・回饋券・特選商品券</span><span>'+pfMoney(-c.inc.coupon)+'</span></div>'
++ (c.inc.disc ? '<div class="pf-line"><span>− 🎁 特別折扣（'+c.inc.discCount+' 筆結單）</span><span>'+pfMoney(-c.inc.disc)+'</span></div>' : '')
 + '<div class="pf-line pf-total"><span>實收（'+c.inc.paidCount+' 筆已付款）</span><span>'+pfMoney(c.inc.paid)+'</span></div>'
 + (c.inProgress
 ? '<p class="pf-ch" style="margin-top:14px;">進行中（預估）</p>'
