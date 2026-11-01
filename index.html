@@ -504,6 +504,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .inv-pick{ display:block; width:100%; text-align:left; border:1.5px dashed var(--line); background:#fff; border-radius:12px; padding:10px 12px; margin:0 0 8px; font-size:13px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
 .cm-inv{ margin:10px 0 0; padding:9px 11px; background:#F3F0FF; color:#4B3BA8; border-radius:12px; font-size:13px; font-weight:700; line-height:1.6; }
 .my-row-rand{ margin:4px 0 0; font-size:12.5px; font-weight:700; color:#1D4E89; background:#EEF6FF; display:inline-block; padding:3px 10px; border-radius:999px; }
+.adm-sum.is-fsused, .adm-mb.is-fsused{ background:#FCE7F3; color:#9D174D; }
 .adm-sum.is-paid{ background:#DCFCE7; color:#166534; }
 .adm-sum.is-dep{ background:#FEF3C7; color:#92400E; }
 .adm-sum.is-pay{ background:#E0E7FF; color:#3730A3; }
@@ -1485,7 +1486,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1530';
+var APP_VERSION = '20261101-1555';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3643,6 +3644,52 @@ showToast(amount > 0 ? '已折 NT$'+amount+'，應付 NT$'+r.total : '已取消�
 await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
+function settlePayMessage(s, nick){
+var lines = [];
+lines.push('Hi '+(nick || s.nickname || '')+' 你好～這是您的結單明細 ♡');
+var zl = '';
+if(s.live_zone_id){ var sz = zoneById(s.live_zone_id); zl = sz ? zoneDisplayName(sz.name, sz.note) : '限時連線'; } else zl = '現貨／預購';
+lines.push('單號：'+(s.order_no || '')+'（'+zl+'）');
+lines.push('');
+(s.items || []).forEach(function(o){
+var v = shortVariantLabel(o.product_id, o.variant);
+lines.push('・'+(o.product_name || '')+(v ? '（'+v+'）' : '')+' ×'+o.quantity+'　$'+fmtNum(Number(o.price) * Number(o.quantity || 1)));
+});
+lines.push('');
+lines.push('商品小計　$'+fmtNum(s.subtotal));
+lines.push('運費　$'+fmtNum(s.shipping_fee));
+if(s.coupon_discount > 0) lines.push('優惠折抵　-$'+fmtNum(s.coupon_discount));
+if(s.extra_discount > 0) lines.push('特別折扣　-$'+fmtNum(s.extra_discount));
+var dep = Number(s.deposit_deducted || 0) - Number(s.credit_deducted || 0);
+if(dep > 0) lines.push('已付訂金／預付　-$'+fmtNum(dep));
+if(s.credit_deducted > 0) lines.push('缺貨退款扣抵　-$'+fmtNum(s.credit_deducted));
+lines.push('➡️ 應付總額　NT$'+fmtNum(s.total));
+lines.push('');
+if(s.cod){
+lines.push('📦 這筆是 7-11 取貨付款，到門市取貨時付 NT$'+fmtNum(s.total)+' 就好');
+} else if(Number(s.total) > 0){
+var anchor = new Date(s.created_at || s.cycle_deadline); anchor.setDate(anchor.getDate() + 2);
+lines.push('💚 請用 LINE 轉帳 NT$'+fmtNum(s.total));
+lines.push('⏰ 付款期限：'+(anchor.getMonth()+1)+'/'+anchor.getDate()+' 24:00 前');
+} else {
+lines.push('💚 這筆不用再付款，我們會直接幫您出貨 ♡');
+}
+lines.push('');
+lines.push('寄送：'+(s.shipping_method || '')+(s.shipping_method === '黑貓宅急便' ? '　'+(s.address || '')+'（'+(s.delivery_time || '')+'）' : '　'+(s.store_info || '')));
+lines.push('收件人：'+(s.recipient_name || ''));
+if(!s.cod && Number(s.total) > 0) lines.push('轉帳後跟我說一聲就好，謝謝 ♡');
+return lines.join('\n');
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-copy-pay') : null;
+if(!b) return;
+var id = b.getAttribute('data-settlement-id'), st = null, nk = '';
+(adminGroupsCache || []).forEach(function(g){ (g.settlements || []).forEach(function(x){ if(String(x.id) === String(id)){ st = x; nk = g.baseNickname || g.nickname || ''; } }); });
+if(!st) return;
+var text = settlePayMessage(st, nk);
+try{ await navigator.clipboard.writeText(text); showToast('已複製，貼到 LINE 給客人就好'); }
+catch(err){ window.prompt('長按全選複製：', text); }
+});
 function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
 return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+orderPhotoHTML(o, false)+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
@@ -3657,6 +3704,7 @@ var actionBtn = s.abandoned
 : isPaid
 ? '<button class="btn btn--dark btn--full admin-shot-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">下載此訂單截圖</button>'
 : '<button class="btn btn--primary btn--full admin-paid-btn" data-settlement-id="'+s.id+'" style="margin-top:12px;">整筆訂單已付款</button>';
+var copyBtn = (!isPaid) ? '<button type="button" class="btn btn--full admin-copy-pay" data-settlement-id="'+s.id+'" style="margin-top:12px;background:#06C755;color:#fff;border:none;">📋 複製付款訊息（貼給客人）</button>' : '';
 var abandonBtn = (!isPaid) ? '<button type="button" class="btn btn--full admin-abandon-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:#1B1E27;color:#fff;">🚫 棄單（限制下單＋封鎖網站）</button>' : '';
 var deleteBtn = '<button type="button" class="btn btn--full admin-delete-settlement-btn" data-settlement-id="'+s.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--ignis-deep);color:var(--ignis-deep);">刪除這筆結單</button>';
 var statusClass = (isPaid && !s.abandoned) ? 'order-status order-status--confirmed' : 'order-status';
@@ -3684,6 +3732,7 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + (isPaid ? '' : (s.cod
 ? '<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#ECFDF5;border:1.5px solid #34D399;font-size:13px;font-weight:800;color:#065F46;">📦 取貨付款・客人取貨時付 NT$'+s.total+'<br><span style="font-weight:500;font-size:12px;">不用3天內轉帳。賣貨便撥款後按「整筆訂單已付款」</span><br><button type="button" class="admin-settle-cod" data-settlement-id="'+s.id+'" data-undo="1" style="background:none;border:none;padding:4px 0 0;color:var(--muted);font-size:12px;text-decoration:underline;font-family:var(--font-body);">改回 LINE 轉帳</button></div>'
 : '<button type="button" class="btn btn--full admin-settle-cod" data-settlement-id="'+s.id+'" style="margin-top:10px;background:#ECFDF5;border:1.5px solid #34D399;color:#065F46;">📦 改成 7-11 取貨付款</button>'))
++ copyBtn
 + actionBtn
 + abandonBtn
 + deleteBtn
@@ -3753,6 +3802,7 @@ sum.push('<span class="adm-sum is-paid">合計 $'+fmtNum(cnt.okAmt + cnt.pendAmt
 if(cnt.okAmt - cnt.okPaid >= 1000) sum.push('<span class="adm-sum is-k">💸滿千・可提醒付款</span>');
 if(cnt.deposit) sum.push('<span class="adm-sum is-dep">💰未付訂 '+cnt.deposit+'</span>');
 if(cnt.unpaid) sum.push('<span class="adm-sum is-pay">待付款 '+cnt.unpaid+'</span>');
+if(g.freeShipUsed > 0) sum.push('<span class="adm-sum is-fsused">🎟用過免運'+g.freeShipUsed+'次</span>');
 if(g.isBlocked) sum.push('<span class="adm-sum is-ban">⛔已封鎖</span>');
 else if(g.orderRestricted) sum.push('<span class="adm-sum is-ban">🚫限制下單</span>');
 if(!sum.length) sum.push('<span class="adm-sum">只有已付款／已取消</span>');
@@ -4270,7 +4320,8 @@ var ADMIN_MEMBER_FILTERS = [
 ['restricted', '🚫 限制下單', function(m){ return m.orderRestricted; }],
 ['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }],
 ['friend', '🧪 朋友', function(m){ return !!m.isFriend; }],
-['freeship', '🚚 永久免運', function(m){ return !!m.freeShipping; }]
+['freeship', '🚚 永久免運', function(m){ return !!m.freeShipping; }],
+['fsused', '🎟 用過免運券', function(m){ return (m.freeShipUsed || 0) > 0; }]
 ];
 async function loadAdminMembers(){
 var listEl = document.getElementById('adminTabContent');
@@ -4303,6 +4354,7 @@ var out = m.isVerified
 ? '<span class="adm-mb is-ok">✅ 已綁定</span>'
 : '<span class="adm-mb is-wait">⏳ 未綁定</span>';
 if(m.isVerified && !m.nickname) out += '<span class="adm-mb is-warn">✏️ 沒填暱稱</span>';
+if(m.freeShipUsed > 0) out += '<span class="adm-mb is-fsused">🎟 用過免運 '+m.freeShipUsed+' 次</span>';
 if(m.isBlocked) out += '<span class="adm-mb is-ban">⛔ 已封鎖</span>';
 else if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</span>';
 if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 小幫手</span>';
