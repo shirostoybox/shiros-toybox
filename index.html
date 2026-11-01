@@ -579,6 +579,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .my-row-mid{ display:flex; justify-content:space-between; gap:8px; align-items:center; margin-top:4px; }
 .my-row-var{ font-size:12.5px; color:var(--muted); min-width:0; }
 .my-row-st{ flex:0 0 auto; font-size:11.5px !important; padding:2px 9px !important; }
+.my-credit-calc{ margin:6px 0 0; padding:8px 10px; border-radius:10px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:12.5px; color:#166534; }
+.mcc-row{ display:flex; justify-content:space-between; gap:8px; padding:1px 0; font-weight:600; }
+.mcc-end{ border-top:1px dashed #86EFAC; margin-top:4px; padding-top:4px; font-weight:900; font-size:14px; }
+.mcc-note{ margin:4px 0 0; font-size:11.5px; font-weight:500; color:#15803D; }
 .my-row-dep{ margin:6px 0 0; padding:7px 9px; border-radius:8px; background:#FFF8E6; color:#92400E; font-size:12px; font-weight:700; line-height:1.6; }
 .my-row-dep.is-paid{ background:#ECFDF3; color:#166534; }
 .my-row-note{ margin:6px 0 0; padding:7px 9px; border-radius:8px; background:#F5F3FF; color:#5B21B6; font-size:12px; font-weight:700; line-height:1.6; }
@@ -1142,6 +1146,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="settle-total-row" id="settleCreditRow" style="display:none;"><span>↪ 缺貨退款扣抵</span><span id="settleCredit" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
 </div>
+<p id="settleCreditLeft" style="display:none;font-size:13px;font-weight:800;color:#166534;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:8px 10px;margin:8px 0 0;"></p>
 <p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
 <p id="settleBlockNote" style="display:none;font-size:12.5px;color:var(--ignis-deep);font-weight:600;margin:8px 0 0;background:rgba(255,102,71,.08);padding:10px 12px;border-radius:10px;"></p>
 <button class="btn btn--primary btn--full" id="settlementSubmit" style="margin-top:16px;">送出結單</button>
@@ -1465,7 +1470,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261101-1215';
+var APP_VERSION = '20261101-1320';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2086,7 +2091,7 @@ if(o.status === '已確認'){ c.confirmed++; c.okAmt += Number(o.price || 0) * N
 if(orderNeedsDeposit(o)) c.deposit++;
 });
 (g.settlements || []).forEach(function(st){ if(st.status !== '已付款' && !st.abandoned) c.unpaid++; });
-(g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at) c.credit += Number(o.deposit_amount || 0); });
+(g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at) c.credit += creditInfo(o).remain; });
 var gc = g.cycle || {};
 Object.keys(gc).forEach(function(k){ if(gc[k] && !gc[k].paused && gc[k].hasPending && gc[k].dayNumber >= 4) c.overdue = true; });
 return c;
@@ -3359,15 +3364,34 @@ return '<div class="adm-row" data-pending="'+(o.status==='待確認'?'1':'0')+'"
 + (o.status === '待確認' ? '<button type="button" class="adm-go-purchase">要確認、改隨機、缺貨，請到「🛒 採購清單」›</button>' : '')
 + '</div>';
 }
-function adminCancelledOrderRowHTML(o){
+// 缺貨取消已付的錢：扣抵了多少、還剩多少要退
+function creditInfo(o){
+var paid = Number(o.deposit_amount || 0);
+var used = Number(o.credit_used || 0);
+if(!(used > 0) && o.credited_to && o.refunded_at) used = paid;
+used = Math.min(used, paid);
+return { paid: paid, used: used, remain: Math.max(0, paid - used) };
+}
+// 缺貨已付的錢：還有連線開著、或客人還有沒結單的商品 → 等結單自動扣（不用退）；都沒有了 → 要退款
+function anyZoneOpen(){ for(var i=0;i<LIVE_ZONES.length;i++){ if(LIVE_ZONES[i].is_open) return true; } return false; }
+function creditStage(hasOpenOrders){ return (hasOpenOrders || anyZoneOpen()) ? 'wait' : 'refund'; }
+function adminCancelledOrderRowHTML(o, g){
 var total = o.price ? (o.price * o.quantity) : null;
 var paid = Number(o.deposit_amount || 0);
 var needRefund = paid > 0 && !o.refunded_at;
+var ci = creditInfo(o);
+var stage = creditStage(!!(g && (g.openOrders || []).length));
+var waitHtml = '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#1D4ED8;">⏳ 已付 NT$'+paid+(ci.used > 0 ? '（已扣抵 NT$'+ci.used+'，剩 NT$'+ci.remain+'）' : '')+'・等客人結單自動扣抵</p><p style="margin:2px 0 0;font-size:11.5px;color:var(--muted);">現在不用退。連線都結束、客人也沒有要結單的商品時，才會變成「要退款」</p>';
+var refundNowHtml = '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#B45309;">💸 要退 NT$'+ci.remain+' 給客人'+(ci.used > 0 ? '（原付 NT$'+paid+'，已扣抵 NT$'+ci.used+'）' : '')+'</p><p style="margin:2px 0 0;font-size:11.5px;color:var(--muted);">客人沒有其他要結單的商品了。用 LINE 轉帳退款後再按下面的按鈕</p><button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" data-amt="'+ci.remain+'" style="margin-top:6px;padding:7px 14px;font-size:12.5px;">✓ 已轉帳退款 NT$'+ci.remain+'</button>';
 var refundHtml = paid > 0
-? (o.credited_to
-? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">↪ 已付 NT$'+paid+' 已扣抵在結單 '+escHtml(o.credited_to)+'（不用退款）</p>'
+? ((o.refunded_at && ci.remain === 0 && ci.used > 0)
+? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">↪ 已付 NT$'+paid+' 已扣抵在結單 '+escHtml(o.credited_to || '')+'（不用退款）</p>'
+: (ci.used > 0 && needRefund)
+? (stage === 'wait' ? waitHtml : refundNowHtml)
+: (ci.used > 0 && o.refunded_at)
+? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">↪ 已扣抵 NT$'+ci.used+'（結單 '+escHtml(o.credited_to || '')+'）＋ ✓ 剩下的 NT$'+ci.remain+' 已退款（'+formatDate(o.refunded_at)+'）</p><button type="button" class="admin-refund-undo" data-order-id="'+o.id+'" style="background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px 0;">按錯了，改回待退款</button>'
 : needRefund
-? '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#B45309;">💸 客人已付 NT$'+paid+'・客人下次結單會自動扣抵</p><p style="margin:2px 0 0;font-size:11.5px;color:var(--muted);">不會再結單的話，退款後按「已退款」</p><button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="margin-top:6px;padding:7px 14px;font-size:12.5px;">✓ 已退款</button>'
+? (stage === 'wait' ? waitHtml : refundNowHtml)
 : '<p style="margin:6px 0 0;font-size:12.5px;font-weight:700;color:#166534;">✓ 已退款 NT$'+paid+'（'+formatDate(o.refunded_at)+'）</p><button type="button" class="admin-refund-undo" data-order-id="'+o.id+'" style="background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px 0;">按錯了，改回待退款</button>')
 : '';
 return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;'+(needRefund ? '' : 'opacity:.55;')+'">'
@@ -3382,30 +3406,43 @@ return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top
 // 待退款：缺貨取消、客人付過錢、還沒按「已退款」的單，集中列在客人訂單最上面
 function adminPendingRefunds(groups){
 var out = [];
-(groups || []).forEach(function(g){ (g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at) out.push({ g:g, o:o }); }); });
+(groups || []).forEach(function(g){ (g.cancelledOrders || []).forEach(function(o){ if(Number(o.deposit_amount || 0) > 0 && !o.refunded_at && creditInfo(o).remain > 0) out.push({ g:g, o:o }); }); });
 return out;
 }
 function adminRefundBoxHTML(groups){
-var list = adminPendingRefunds(groups);
-if(!list.length) return '';
-var sum = list.reduce(function(a, x){ return a + Number(x.o.deposit_amount || 0); }, 0);
-return '<details open style="margin:0 0 12px;padding:10px 12px;border-radius:var(--r-md);background:#FFF7E6;border:1.5px solid #F5C66B;">'
-+ '<summary style="cursor:pointer;font-size:14px;font-weight:800;color:#92400E;">💸 待退款／待扣抵 '+list.length+' 筆・共 NT$'+sum+'</summary>'
+var all = adminPendingRefunds(groups);
+if(!all.length) return '';
+var list = all.filter(function(x){ return creditStage((x.g.openOrders || []).length > 0) === 'refund'; });
+var waits = all.filter(function(x){ return creditStage((x.g.openOrders || []).length > 0) === 'wait'; });
+var sum = list.reduce(function(a, x){ return a + creditInfo(x.o).remain; }, 0);
+var wsum = waits.reduce(function(a, x){ return a + creditInfo(x.o).remain; }, 0);
+var waitBox = waits.length
+? '<details style="margin:0 0 12px;padding:10px 12px;border-radius:var(--r-md);background:#EFF6FF;border:1.5px solid #93C5FD;">'
++ '<summary style="cursor:pointer;font-size:14px;font-weight:800;color:#1D4ED8;">⏳ 等結單扣抵 '+waits.length+' 筆・共 NT$'+wsum+'（現在不用退）</summary>'
++ waits.map(function(x){ var o = x.o, ci = creditInfo(o);
+return '<div style="padding:8px 0;border-top:1px dashed #93C5FD;margin-top:8px;font-size:12.5px;line-height:1.55;"><b>'+escHtml(x.g.nickname || '')+'</b>・NT$'+ci.remain+(ci.used > 0 ? '<span style="color:var(--muted);">（原付 NT$'+ci.paid+'，已扣抵 NT$'+ci.used+'）</span>' : '')+'<br><span style="color:var(--muted);">'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(o.variant)+'）' : '')+'</span></div>';
+}).join('')
++ '<p style="margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">客人按結單時會自動扣掉。連線都結束、客人也沒有要結單的商品時，會自動移到「要退款」。</p>'
++ '</details>'
+: '';
+if(!list.length) return waitBox;
+return waitBox + '<details open style="margin:0 0 12px;padding:10px 12px;border-radius:var(--r-md);background:#FFF7E6;border:1.5px solid #F5C66B;">'
++ '<summary style="cursor:pointer;font-size:14px;font-weight:800;color:#92400E;">💸 要退款 '+list.length+' 筆・共 NT$'+sum+'</summary>'
 + list.map(function(x){
 var o = x.o;
 return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px dashed #F5C66B;margin-top:8px;">'
-+ '<div style="min-width:0;font-size:12.5px;line-height:1.55;color:var(--text-dark);"><b>'+escHtml(x.g.nickname || '')+'</b>・NT$'+Number(o.deposit_amount)
++ '<div style="min-width:0;font-size:12.5px;line-height:1.55;color:var(--text-dark);"><b>'+escHtml(x.g.nickname || '')+'</b>・NT$'+creditInfo(o).remain+(creditInfo(o).used > 0 ? '<span style="color:var(--muted);">（原付 NT$'+creditInfo(o).paid+'，已扣抵 NT$'+creditInfo(o).used+'）</span>' : '')
 + '<br><span style="color:var(--muted);">'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(o.variant)+'）' : '')+' #'+escHtml(o.order_no || '')+'</span></div>'
-+ '<button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" style="flex-shrink:0;padding:7px 12px;font-size:12px;">✓ 已退款</button></div>';
++ '<button type="button" class="btn btn--dark admin-refund-btn" data-order-id="'+o.id+'" data-amt="'+creditInfo(o).remain+'" style="flex-shrink:0;padding:7px 12px;font-size:12px;">✓ 已轉帳退款</button></div>';
 }).join('')
-+ '<p style="margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">客人下次結單時，這些錢會<b>自動扣抵</b>應付總額，不用另外退。客人不會再結單的話，請用 LINE 轉帳退給客人後再按「已退款」。</p>'
++ '<p style="margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6;">這些客人沒有其他要結單的商品了。用 LINE 轉帳退款後再按「已轉帳退款」。</p>'
 + '</details>';
 }
 document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-refund-btn, .admin-refund-undo') : null;
 if(!b) return;
 var undo = b.classList.contains('admin-refund-undo');
-if(!undo && !window.confirm('確定已經把錢退給客人了嗎？')) return;
+if(!undo && !window.confirm('確定已經用 LINE 轉帳退 NT$'+(b.getAttribute('data-amt') || '')+' 給客人了嗎？\n\n還沒轉帳的話請按「取消」')) return;
 b.disabled = true;
 try{
 await callMemberApi('admin-mark-refunded', { orderId: b.getAttribute('data-order-id'), undo: undo });
@@ -3627,7 +3664,7 @@ var openHtml = openCats.length > 1
 ? openCats.map(function(k){ var c = openCatMap[k]; return '<p class="adm-o-cat">'+catPillHTML(c.info, '<span class="adm-cat-n">'+c.list.length+' 筆</span>')+'</p>' + c.list.map(adminOpenOrderRowHTML).join(''); }).join('')
 : openSorted.map(adminOpenOrderRowHTML).join('');
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
-? '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(adminCancelledOrderRowHTML).join('') + '</details>'
+? '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(function(co){ return adminCancelledOrderRowHTML(co, g); }).join('') + '</details>'
 : '';
 // 還沒付款的結單直接顯示（要處理的）；已付款的收進「已付款」折疊區，跟已取消一樣點開才看得到。
 var unpaidSettlements = g.settlements.filter(function(s){ return s.status !== '已付款'; });
@@ -9366,11 +9403,20 @@ statusText = '已付訂・已確認';
 }
 var depositHtml = '';
 if(depositAmount > 0 && o.status === '缺貨已幫您取消'){
-depositHtml = o.credited_to
-? '<p class="my-row-dep is-paid">↪ 已付的 NT$'+depositAmount+' 已扣抵在結單 '+escHtml(o.credited_to)+' 的應付金額 ♡</p>'
+var ci = creditInfo(o);
+depositHtml = (o.refunded_at && ci.remain === 0 && ci.used > 0)
+? '<p class="my-row-dep is-paid">↪ 您已付的 NT$'+ci.paid+' 已扣抵在結單 '+escHtml(o.credited_to || '')+' ♡</p>'
+: (ci.used > 0 && !o.refunded_at)
+? (creditStage((myOrders || []).length > 0) === 'wait'
+? '<p class="my-row-dep is-paid">💰 您已付的 NT$'+ci.paid+'，結單 '+escHtml(o.credited_to || '')+' 已扣 NT$'+ci.used+'，<br>剩下 NT$'+ci.remain+' 會在下次結單自動扣抵 ♡</p>'
+: '<p class="my-row-dep is-paid">💸 您已付的 NT$'+ci.paid+'，結單 '+escHtml(o.credited_to || '')+' 已扣 NT$'+ci.used+'，<br>剩下 NT$'+ci.remain+' 會用 LINE 轉帳退還給您 ♡</p>')
+: (ci.used > 0 && o.refunded_at)
+? '<p class="my-row-dep is-paid">↪ 您已付的 NT$'+ci.paid+'：已扣抵 NT$'+ci.used+'，剩下的 NT$'+ci.remain+' 已退款（'+formatDate(o.refunded_at)+'）</p>'
 : o.refunded_at
-? '<p class="my-row-dep is-paid">💸已退款 NT$'+depositAmount+'（'+formatDate(o.refunded_at)+'）</p>'
-: '<p class="my-row-dep is-paid">💰您已付的 NT$'+depositAmount+' 會在下次結單時自動扣抵，不用另外付這筆 ♡<br><span style="font-weight:500;">（沒有要結單的話，會全額退還給您）</span></p>';
+? '<p class="my-row-dep is-paid">💸已退款 NT$'+ci.paid+'（'+formatDate(o.refunded_at)+'）</p>'
+: (creditStage((myOrders || []).length > 0) === 'wait'
+? '<p class="my-row-dep is-paid">💰您已付的 NT$'+ci.paid+' 會在結單時自動扣抵，不用另外付這筆 ♡<br><span style="font-weight:500;">（扣不完的會退還給您）</span></p>'
+: '<p class="my-row-dep is-paid">💸您已付的 NT$'+ci.paid+' 會用 LINE 轉帳全額退還給您 ♡</p>');
 } else if(depositAmount > 0){
 depositHtml = '<p class="my-row-dep is-paid">'+(paidFull ? '💳已付清 NT$' : (o.deposit_required ? '💰已付訂金 NT$' : '💳已預付 NT$'))+depositAmount+'</p>';
 } else if(o.deposit_required && o.status === '待確認' && total){
@@ -9633,7 +9679,7 @@ var overflow = rewardRaw > generalSub || luxuryRaw > luxurySub || discount > pay
 if(discount > payable) discount = payable;
 var depositTotal = pcCalc._confirmedDeposit != null ? pcCalc._confirmedDeposit : 0;
 var creditRoom = Math.max(0, payable - discount - depositTotal), creditTotal = 0;
-(myBalance.creditItems || []).forEach(function(a){ a = Number(a) || 0; if(a > 0 && a <= creditRoom){ creditRoom -= a; creditTotal += a; } });
+(myBalance.creditItems || []).forEach(function(a){ a = Math.min(Number(a) || 0, creditRoom); if(a > 0){ creditRoom -= a; creditTotal += a; } });
 var total = Math.max(0, payable - discount - depositTotal - creditTotal);
 var creditRow = document.getElementById('settleCreditRow');
 if(creditRow){ creditRow.style.display = creditTotal > 0 ? 'flex' : 'none'; document.getElementById('settleCredit').textContent = '-NT$'+creditTotal; }
@@ -9650,6 +9696,9 @@ depositRow.style.display = 'flex';
 document.getElementById('settleDeposit').textContent = '-NT$'+depositTotal;
 } else { depositRow.style.display = 'none'; }
 document.getElementById('settleTotal').textContent = 'NT$'+total;
+var creditAll = (myBalance.creditItems || []).reduce(function(a, x){ return a + (Number(x) || 0); }, 0);
+var leftEl = document.getElementById('settleCreditLeft');
+if(leftEl){ var lf = creditAll - creditTotal; leftEl.style.display = lf > 0 ? 'block' : 'none'; leftEl.textContent = '💸 缺貨的錢扣完還剩 NT$'+lf+'，會退還給您 ♡'; }
 var note = document.getElementById('settleOverflowNote');
 if(overflow){
 note.style.display = 'block';
