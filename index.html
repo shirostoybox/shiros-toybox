@@ -1498,7 +1498,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261102-1420';
+var APP_VERSION = '20261102-1610';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3620,10 +3620,11 @@ document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-settle-freeship') : null;
 if(!b) return;
 if(!window.confirm('把這筆結單改成免運嗎？\n\n・運費 NT$'+b.getAttribute('data-fee')+' 改成 0，應付總額會跟著變少\n・這筆如果用了免運券，會把券還給客人\n・客人那邊的應付金額也會更新')) return;
+var useCoupon = b.getAttribute('data-ref') === '1' ? false : window.confirm('要扣她 1 張免運券嗎？\n\n按「確定」＝扣 1 張免運券（算她用過免運，免運的錢不算進回饋）\n按「取消」＝店家招待，不扣券');
 b.disabled = true;
 try{
-var r = await callMemberApi('admin-settlement-free-shipping', { settlementId: b.getAttribute('data-settlement-id') });
-showToast('已改成免運，應付 NT$'+r.total+(r.couponReturned ? '，免運券已還給客人' : ''));
+var r = await callMemberApi('admin-settlement-free-shipping', { settlementId: b.getAttribute('data-settlement-id'), useCoupon: useCoupon });
+showToast('已改成免運，應付 NT$'+r.total+(r.couponReturned ? '，免運券已還給客人' : '')+(r.couponUsed ? '，已扣她 1 張免運券' : ''));
 await loadAdminGroups();
 }catch(err){ b.disabled = false; alert('改免運失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); }
 });
@@ -3682,7 +3683,7 @@ else if(n < 100) amount = Math.round(sub * (1 - n / 100));
 else { alert('折數請輸入 9、95 這種數字'); return; }
 }
 if(isNaN(amount) || amount < 0){ alert('金額不正確'); return; }
-if(!window.confirm(amount > 0 ? '這筆結單折 NT$'+amount+'，確定嗎？\n\n客人那邊的應付總額會跟著變少' : '取消這筆的特別折扣嗎？')) return;
+if(!window.confirm(amount > 0 ? '這筆結單折 NT$'+amount+'，確定嗎？\n\n・客人那邊的應付總額會跟著變少\n・折掉的錢不算進回饋（累積消費會扣掉 NT$'+amount+'）' : '取消這筆的特別折扣嗎？\n\n（之前扣掉的累積消費會加回去）')) return;
 b.disabled = true;
 try{
 var r = await callMemberApi('admin-settlement-discount', { settlementId: b.getAttribute('data-settlement-id'), amount: amount });
@@ -3929,7 +3930,7 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + itemLines
 + '<div class="settle-totals" style="margin-top:10px;">'
 + '<div class="settle-total-row"><span>商品小計</span><span>NT$'+s.subtotal+'</span></div>'
-+ '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+((!isPaid && Number(s.shipping_fee) > 0) ? ' <button type="button" class="admin-settle-freeship" data-settlement-id="'+s.id+'" data-fee="'+s.shipping_fee+'">🚚 改成免運</button>' : '')+'</span></div>'
++ '<div class="settle-total-row"><span>運費</span><span>NT$'+s.shipping_fee+((!isPaid && Number(s.shipping_fee) > 0) ? ' <button type="button" class="admin-settle-freeship" data-settlement-id="'+s.id+'" data-fee="'+s.shipping_fee+'" data-ref="'+(Number(s.referral_coupon_used) > 0 ? '1' : '0')+'">🚚 改成免運</button>' : '')+'</span></div>'
 + (s.coupon_discount > 0 ? '<div class="settle-total-row"><span>優惠折抵</span><span>-NT$'+s.coupon_discount+'</span></div>' : '')
 + (s.extra_discount > 0 ? '<div class="settle-total-row"><span>🎁 特別折扣</span><span>-NT$'+s.extra_discount+'</span></div>' : '')
 + ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
