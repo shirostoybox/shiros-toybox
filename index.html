@@ -1498,7 +1498,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261102-1300';
+var APP_VERSION = '20261102-1420';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3856,6 +3856,7 @@ if(s.merged_with) lines.push('🔗 這是加買的，會跟 '+s.merged_with+' �
 lines.push('');
 (s.items || []).forEach(function(o){
 var v = shortVariantLabel(o.product_id, o.variant);
+var ol = openedLabels(o); if(ol.length) v = (v ? v + '・' : '') + '開出：' + ol.join('、');
 lines.push('・'+(o.product_name || '')+(v ? '（'+v+'）' : '')+' ×'+o.quantity+'　$'+fmtNum(Number(o.price) * Number(o.quantity || 1)));
 });
 lines.push('');
@@ -3895,7 +3896,7 @@ catch(err){ window.prompt('長按全選複製：', text); }
 });
 function adminSettlementCardHTML(s, color){
 var itemLines = (s.items||[]).map(function(o){
-return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+orderPhotoHTML(o, false)+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
+return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+openedTagHTML(o)+orderPhotoHTML(o, false)+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
 }).join('');
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
@@ -9900,6 +9901,16 @@ return '<div class="my-row'+(o.status === '缺貨已幫您取消' ? ' is-cancel'
 + '<div class="my-row-meta"><span>'+formatDate(o.created_at)+'・#'+o.order_no+'</span>'+delLink+'</div>'
 + '</div></div>';
 }
+// 這筆開出／分到哪一款（隨機、不指定的才需要）：後台用即時庫存，客人用網站設定裡的庫存
+function openedLabels(o){
+if(!o || o.status === '缺貨已幫您取消') return [];
+var d = (typeof INV !== 'undefined' && INV && INV.p && Object.keys(INV.p).length) ? INV : invParse(siteSettings.inventory);
+var A = d.a[o.id];
+if((!A || !d.p[A.p]) && d.o[o.id] && invIsRandom(o.variant)) return d.o[o.id].filter(function(x){ return x && x !== '不指定'; });
+if(!A || !d.p[A.p] || !(A.r || invIsRandom(o.variant))) return [];
+return (A.u || []).map(function(id){ var u = (d.p[A.p].u || []).filter(function(x){ return x.i === id; })[0]; return u ? (u.l || '') : null; }).filter(function(x){ return x && x !== '不指定'; });
+}
+function openedTagHTML(o){ var l = openedLabels(o); return l.length ? '<br><span style="font-size:12px;font-weight:800;color:#7C3AED;">🎲 開出：'+escHtml(l.join('、'))+'</span>' : ''; }
 // 隨機（不指定）的喊單：老闆記好庫存後，客人這邊會看到抽到哪一款
 function myRandomResultHTML(o){
 if(!o || o.status === '缺貨已幫您取消') return '';
@@ -10415,7 +10426,7 @@ if(historyBtn) historyBtn.addEventListener('click', function(){ showView('histor
 }
 function myHistorySettlementHTML(s){
 var itemLines = (s.items||[]).map(function(o){
-return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
+return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.variant+'）':'')+' ×'+o.quantity+openedTagHTML(o)+'</span><span>NT$'+(o.price*o.quantity)+'</span></div>';
 }).join('');
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
