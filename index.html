@@ -1499,7 +1499,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261103-0110';
+var APP_VERSION = '20261103-0120';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4088,13 +4088,14 @@ var openHtml = openCats.length > 1
 var cancelledHtml = (g.cancelledOrders && g.cancelledOrders.length > 0)
 ? '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已取消 ('+g.cancelledOrders.length+')</summary>' + g.cancelledOrders.map(function(co){ return adminCancelledOrderRowHTML(co, g); }).join('') + '</details>'
 : '';
-// 還沒付款的結單直接顯示（要處理的）；已付款的收進「已付款」折疊區，跟已取消一樣點開才看得到。
-var unpaidSettlements = g.settlements.filter(function(s){ return s.status !== '已付款'; });
-var paidSettlements = g.settlements.filter(function(s){ return s.status === '已付款'; });
-var settleHtml = unpaidSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
-if(paidSettlements.length > 0){
-settleHtml += '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已付款 ('+paidSettlements.length+')</summary>'
-+ paidSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('') + '</details>';
+// 還要處理的結單（待付款、已付款還沒寄）直接顯示；已出貨、棄單的收進折疊區，點開才看得到。
+var doneSt = function(st){ return !!st.shipped_at || !!st.abandoned; };
+var activeSettlements = g.settlements.filter(function(st){ return !doneSt(st); });
+var doneSettlements = g.settlements.filter(doneSt);
+var settleHtml = activeSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('');
+if(doneSettlements.length > 0){
+settleHtml += '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已出貨／已完成 ('+doneSettlements.length+')</summary>'
++ doneSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('') + '</details>';
 }
 return '<div class="order-card admin-group" data-gkey="'+escAttr(key)+'" data-c-pending="'+cnt.pending+'" data-c-deposit="'+cnt.deposit+'" data-c-unpaid="'+cnt.unpaid+'" data-c-unsettled="'+cnt.confirmed+'" data-c-overdue="'+(cnt.overdue?1:0)+'" data-c-toship="'+(cnt.paidWait||0)+'" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:12px;background:'+color.bg+';border-left:4px solid '+color.mid+';">'
 + header
