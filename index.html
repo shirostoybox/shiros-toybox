@@ -414,7 +414,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-seg-btn.on{ background:var(--ink); color:#fff; }
 .adm-link{ border:none; background:none; padding:0; color:var(--muted); font-size:12px; font-weight:700; text-decoration:underline; font-family:var(--font-body); }
 .adm-group-head{ display:flex; align-items:center; gap:10px; width:100%; padding:0; border:none; background:none; text-align:left; font-family:var(--font-body); cursor:pointer; }
-.adm-group-name{ flex:0 0 auto; font-size:16px; font-weight:800; color:var(--text-dark); }
+.adm-group-name{ flex:0 0 auto; font-size:16px; font-weight:800; color:var(--text-dark); max-width:46%; }
+.adm-group-line{ display:block; margin-top:1px; font-size:11px; font-weight:600; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .adm-group-sum{ flex:1; display:flex; flex-wrap:wrap; gap:5px; }
 .adm-group-arrow{ flex:0 0 auto; font-size:14px; color:var(--muted); transition:transform .15s; }
 .admin-group.is-open .adm-group-arrow{ transform:rotate(90deg); }
@@ -1498,7 +1499,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261102-1610';
+var APP_VERSION = '20261102-2030';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3967,7 +3968,7 @@ for(var i=0;i<str.length;i++){ hash = (hash * 31 + str.charCodeAt(i)) >>> 0; }
 return ADMIN_CUSTOMER_COLORS[hash % ADMIN_CUSTOMER_COLORS.length];
 }
 function buildAdminSearchText(g){
-var parts = [g.nickname || ''];
+var parts = [g.nickname || '', g.displayName || ''];
 var addOrder = function(o){ parts.push(o.order_no||'', o.product_name||'', o.variant||'', o.status||''); };
 (g.openOrders||[]).forEach(addOrder);
 (g.cancelledOrders||[]).forEach(addOrder);
@@ -4039,7 +4040,7 @@ if(g.isBlocked) sum.push('<span class="adm-sum is-ban">⛔已封鎖</span>');
 else if(g.orderRestricted) sum.push('<span class="adm-sum is-ban">🚫限制下單</span>');
 if(!sum.length) sum.push('<span class="adm-sum">✅ 都處理完了</span>');
 var header = '<button type="button" class="adm-group-head">'
-+ '<span class="adm-group-name">'+escHtml(g.nickname||'客人')+'</span>'
++ '<span class="adm-group-name">'+escHtml(g.baseNickname || g.nickname || '客人')+(g.displayName ? '<small class="adm-group-line">LINE：'+escHtml(g.displayName)+'</small>' : '')+'</span>'
 + '<span class="adm-group-sum">'+sum.join('')+'</span>'
 + '<span class="adm-group-arrow">▸</span></button>';
 var restrictedBadge = g.orderRestricted
