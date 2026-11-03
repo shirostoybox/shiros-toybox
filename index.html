@@ -1183,12 +1183,17 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <label class="settle-radio"><input type="radio" name="shipMethod" value="7-11" class="ship-method-input"> 7-11（運費NT$60）</label>
 <label class="settle-radio"><input type="radio" name="shipMethod" value="全家" class="ship-method-input"> 全家（運費NT$60）</label>
 <label class="settle-radio"><input type="radio" name="shipMethod" value="黑貓宅急便" class="ship-method-input"> 黑貓宅急便（運費NT$130）</label>
+<label class="settle-radio"><input type="radio" name="shipMethod" value="自取" class="ship-method-input"> 🙋 自取（免運費）</label>
 </div>
 <div class="settle-section" id="settleInfoSection">
 <input type="text" class="gate-input" id="settleRecipientName" placeholder="收件姓名" style="margin-bottom:10px;">
 <input type="tel" class="gate-input" id="settlePhone" placeholder="手機號碼" style="margin-bottom:10px;">
 <div id="settleConvenienceFields">
 <input type="text" class="gate-input" id="settleStoreInfo" placeholder="門市名稱＋店號">
+</div>
+<div id="settlePickupFields" style="display:none;">
+<textarea class="gate-input" id="settlePickupNote" rows="3" maxlength="300" placeholder="留言備註（選填）：例如想約的時間、地點" style="resize:vertical;font-family:inherit;"></textarea>
+<p style="font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.6;">結單後會再跟您約自取的時間地點 ♡</p>
 </div>
 <div id="settleHomeDeliveryFields" style="display:none;">
 <input type="text" class="gate-input" id="settleAddress" placeholder="完整地址" style="margin-bottom:10px;">
@@ -1530,7 +1535,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261104-0110';
+var APP_VERSION = '20261104-0130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3970,7 +3975,7 @@ lines.push('⏰ 付款期限：'+(anchor.getMonth()+1)+'/'+anchor.getDate()+' 24
 lines.push('💚 這筆不用再付款，我們會直接幫您出貨 ♡');
 }
 lines.push('');
-lines.push('寄送：'+(s.shipping_method || '')+(s.shipping_method === '黑貓宅急便' ? '　'+(s.address || '')+'（'+(s.delivery_time || '')+'）' : '　'+(s.store_info || '')));
+lines.push('寄送：'+(s.shipping_method || '')+(s.shipping_method === '黑貓宅急便' ? '　'+(s.address || '')+'（'+(s.delivery_time || '')+'）' : (s.shipping_method === '自取' ? (s.store_info ? '　留言：'+s.store_info : '') : '　'+(s.store_info || ''))));
 lines.push('收件人：'+(s.recipient_name || ''));
 if(!s.cod && Number(s.total) > 0) lines.push('轉帳後跟我說一聲就好，謝謝 ♡');
 return lines.join('\n');
@@ -3993,7 +3998,7 @@ var scs = selfCostSum(s.items);
 var selfCostBox = (scs.sum || scs.miss) ? '<div class="self-cost-box">💴 自己人成本合計 <b>NT$'+fmtNum(scs.sum)+'</b>'+(scs.miss ? '<br><span>還有 '+scs.miss+' 筆沒記成本，記好後會自動加進來</span>' : '')+'<br><span>運費另計：NT$'+(s.shipping_fee || 0)+'</span></div>' : '';
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
-: '門市：'+s.store_info;
+: (s.shipping_method === '自取' ? '🙋 自取・留言：'+(s.store_info ? escHtml(s.store_info) : '（沒有留言）') : '門市：'+s.store_info);
 var isPaid = s.status === '已付款';
 if(s.abandoned) isPaid = true;
 var actionBtn = s.abandoned
@@ -10509,8 +10514,14 @@ return html;
 function recalcSettlement(){
 var pcCalc = pendingCycles[settlementState.group] || {};
 var subtotal = pcCalc._confirmedSubtotal != null ? pcCalc._confirmedSubtotal : (pcCalc.subtotal || 0);
-var shipFee = (myBalance.freeShipping || settlementState.mergeBase) ? 0 : (settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0));
+var isPickup = !settlementState.mergeBase && settlementState.shippingMethod === '自取';
+var shipFee = (myBalance.freeShipping || settlementState.mergeBase || isPickup) ? 0 : (settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0));
 if(myBalance.freeShipping) settlementState.useReferral = false;
+// 自取不用運費，免運券留著下次用
+var refBox = document.getElementById('settleUseReferral');
+if(isPickup){ settlementState.useReferral = false; if(refBox){ refBox.checked = false; refBox.disabled = true; } }
+else if(refBox && refBox.getAttribute('data-pick-off')){ refBox.disabled = false; }
+if(refBox){ if(isPickup) refBox.setAttribute('data-pick-off', '1'); else refBox.removeAttribute('data-pick-off'); }
 var luxurySub = pcCalc._confirmedLuxurySubtotal || 0;
 var generalSub = subtotal - luxurySub;
 var rewardRaw = settlementState.rewardCount * REWARD_COUPON_VALUE;
@@ -10625,6 +10636,8 @@ document.getElementById('settleStoreInfo').value = '';
 document.getElementById('settleAddress').value = '';
 document.getElementById('settleConvenienceFields').style.display = 'block';
 document.getElementById('settleHomeDeliveryFields').style.display = 'none';
+document.getElementById('settlePickupFields').style.display = 'none';
+document.getElementById('settlePickupNote').value = '';
 var radios = document.querySelectorAll('input[name="shipMethod"], input[name="deliveryTime"]');
 for(var i=0;i<radios.length;i++){ radios[i].checked = false; }
 renderSettleMergeBox();
@@ -10705,7 +10718,7 @@ return;
 var recipientName = document.getElementById('settleRecipientName').value.trim();
 var phone = document.getElementById('settlePhone').value.trim();
 if(!settlementState.shippingMethod){ alert('請選擇寄送方式'); return; }
-if(!recipientName || !phone){ alert('請填寫收件姓名與手機號碼'); return; }
+if(!recipientName || !phone){ alert(settlementState.shippingMethod === '自取' ? '請填寫取貨人姓名與手機號碼' : '請填寫收件姓名與手機號碼'); return; }
 var payload = {
 group: settlementState.group,
 shippingMethod: settlementState.shippingMethod,
@@ -10720,6 +10733,8 @@ var timeInput = document.querySelector('input[name="deliveryTime"]:checked');
 if(!address){ alert('請填寫完整地址'); return; }
 if(!timeInput){ alert('請選擇指定收貨時段'); return; }
 payload.address = address; payload.deliveryTime = timeInput.value;
+} else if(settlementState.shippingMethod === '自取'){
+payload.storeInfo = document.getElementById('settlePickupNote').value.trim();
 } else {
 var storeInfo = document.getElementById('settleStoreInfo').value.trim();
 if(!storeInfo){ alert('請填寫門市名稱＋店號'); return; }
@@ -10779,7 +10794,7 @@ return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.v
 }).join('');
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
-: '門市：'+s.store_info;
+: (s.shipping_method === '自取' ? '🙋 自取・留言：'+(s.store_info ? escHtml(s.store_info) : '（沒有留言）') : '門市：'+s.store_info);
 var statusClass = s.status === '已付款' ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card" style="margin-top:10px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+(s.shipped_at ? '📦 已出貨' : s.status)+'</span></div>'
@@ -11212,9 +11227,11 @@ var shipInputs = document.querySelectorAll('.ship-method-input');
 for(var si=0;si<shipInputs.length;si++){
 shipInputs[si].addEventListener('change', function(){
 settlementState.shippingMethod = this.value;
-var isHome = this.value === '黑貓宅急便';
-document.getElementById('settleConvenienceFields').style.display = isHome ? 'none' : 'block';
+var isHome = this.value === '黑貓宅急便', isPick = this.value === '自取';
+document.getElementById('settleConvenienceFields').style.display = (isHome || isPick) ? 'none' : 'block';
 document.getElementById('settleHomeDeliveryFields').style.display = isHome ? 'block' : 'none';
+document.getElementById('settlePickupFields').style.display = isPick ? 'block' : 'none';
+document.getElementById('settleRecipientName').placeholder = isPick ? '取貨人姓名' : '收件姓名';
 recalcSettlement();
 });
 }
