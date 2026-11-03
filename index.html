@@ -1069,6 +1069,16 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-prod .adm-p-cost{ margin:2px 0 4px; }
 .pf-btn.ghost{ background:#fff; color:var(--text-dark); border:1px solid var(--line); }
 .pf-btn:disabled{ opacity:.6; }
+
+.adm-prod-use{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0 0;font-size:11px;font-weight:700}
+.adm-prod-use span{padding:1px 7px;border-radius:999px}
+.adm-prod-use .u-o{background:#ECFDF5;color:#047857}.adm-prod-use .u-n{background:#F3F4F6;color:#6B7280}
+.adm-prod-use .u-i{background:#FEF3C7;color:#92400E}.adm-prod-use .u-z{background:#EEF2FF;color:#3730A3}
+.adm-area{display:flex;align-items:center;gap:8px;margin:0 0 8px}.adm-area-l{font-size:13px;font-weight:700;white-space:nowrap;color:var(--text-dark)}.adm-area select{margin:0;flex:1;min-width:0}
+.adm-never-btn{width:100%;margin-top:14px;padding:11px 14px;border:1.5px dashed #FCA5A5;border-radius:var(--r-md);background:#FEF2F2;color:#B91C1C;font:inherit;font-size:13.5px;font-weight:700;text-align:left;cursor:pointer}.adm-never-btn b{margin-left:4px}
+.adm-never-bar{padding:12px 14px;border-radius:var(--r-md);background:#FEF2F2;border:1.5px solid #FCA5A5}
+.adm-never-back{border:0;background:none;color:#B91C1C;font:inherit;font-weight:700;font-size:13px;padding:0;margin-bottom:6px;cursor:pointer}
+.adm-never-t{margin:0 0 4px;font-size:14px;font-weight:700;color:#991B1B}.adm-never-n{margin:0;font-size:12.5px;line-height:1.6;color:#7F1D1D}
 </style>
 </head>
 <body>
@@ -1504,7 +1514,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261103-2100';
+var APP_VERSION = '20261103-2230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5083,10 +5093,7 @@ adminLiveZoneFilter = this.getAttribute('data-zone-id');
 renderAdminProducts();
 });
 }
-var zoneSelects = container.querySelectorAll('.admin-product-zone-select');
-for(var z=0;z<zoneSelects.length;z++){
-zoneSelects[z].addEventListener('change', function(){ handleAdminSetProductZone(this); });
-}
+
 }
 async function handleAdminCreateZone(){
 var btn = document.getElementById('nzSubmit');
@@ -5147,13 +5154,19 @@ alert('刪除失敗：' + e.message);
 btn.disabled = false;
 }
 }
+function bindAdminZoneSelects(container){
+var zs = container.querySelectorAll('.admin-product-zone-select');
+for(var z=0;z<zs.length;z++){ zs[z].addEventListener('change', function(){ handleAdminSetProductZone(this); }); }
+}
 async function handleAdminSetProductZone(select){
 var productId = select.getAttribute('data-product-id');
-var zoneId = select.value || null;
+var area = select.value;
+if(!area) return;
+var label = select.options[select.selectedIndex].text.replace(/^➜\s*/, '');
 select.disabled = true;
 try{
-await callMemberApi('admin-set-product-zone', { productId: productId, zoneId: zoneId });
-showToast('已移到其他專區');
+await callMemberApi('admin-move-product-area', { productId: productId, area: area });
+showToast('已移到「'+label+'」');
 await loadAdminProducts();
 }catch(e){
 alert('更新失敗：' + e.message);
@@ -5214,8 +5227,10 @@ var listEl = document.getElementById('adminTabContent');
 try{
 var results = await Promise.all([
 callMemberApi('admin-list-products'),
-adminProductsMode === 'live' ? loadLiveZones() : Promise.resolve()
+loadLiveZones(),
+callMemberApi('get-site-settings').catch(function(){ return null; })
 ]);
+if(results[2] && results[2].settings){ siteSettings.inventory = results[2].settings.inventory; invReload(); }
 adminProductsCache = results[0].products || [];
 adminProductOrderCounts = results[0].orderCounts || {};
 if(!ADMIN_FX) loadAdminFx();
@@ -5236,6 +5251,17 @@ var allProducts = adminProductsCache;
 if(!listEl) return;
 var products = allProducts.filter(function(p){ return isLiveMode ? isLiveStock(p.stock_status) : !isLiveStock(p.stock_status); });
 var html = '';
+if(adminNeverOrderedOnly){
+var nv = allProducts.filter(prodNeverOrdered);
+var invKept = allProducts.filter(function(p){ return !prodOrderCnt(p.id) && prodInvCnt(p.id) > 0; }).length;
+html += adminNeverBarHTML(nv.length, invKept);
+html += nv.length ? '<div style="margin-top:12px;">' + adminProductsGroupedHTML(nv) + '</div>' : '<p style="font-size:14px;color:var(--muted);margin-top:14px;">沒有可以安心刪的商品 🎉</p>';
+listEl.innerHTML = html;
+bindAdminProductActions(listEl);
+bindAdminCatToggles(listEl);
+bindAdminZoneSelects(listEl);
+return;
+}
 if(isLiveMode){
 if(adminLiveZoneFilter !== '__none__' && !zoneById(adminLiveZoneFilter)){
 adminLiveZoneFilter = LIVE_ZONES.length ? LIVE_ZONES[0].id : '__none__';
@@ -5260,12 +5286,13 @@ html += adminNewProductFormHTML(allProducts, isLiveMode);
 if(products.length === 0){
 html += '<p style="font-size:14px;color:var(--muted);margin-top:16px;">'+(isLiveMode ? '目前沒有限時連線商品。' : '目前沒有商品。')+'</p>';
 } else {
-html += adminBulkHideHTML(products) + '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + '</div>';
+html += adminNeverBarHTML(-1) + adminBulkHideHTML(products) + '<div style="margin-top:16px;">' + adminProductsGroupedHTML(products) + '</div>';
 }
 listEl.innerHTML = html;
 bindAdminProductActions(listEl);
 bindAdminQuickForm(listEl);
 bindAdminCatToggles(listEl);
+bindAdminZoneSelects(listEl);
 if(isLiveMode) bindAdminZoneActions(listEl);
 var catSelect = document.getElementById('npCat');
 if(catSelect){
@@ -7374,6 +7401,46 @@ return '<button type="button" class="btn btn--dark btn--full" id="adminNewProduc
 + '<button type="button" class="btn btn--primary btn--full" id="npSubmit">建立商品</button>'
 + '</div>';
 }
+// 「從沒人喊過單」：一筆單都沒有（含已結單、取消的）而且沒有記庫存 → 刪掉也不影響任何紀錄
+var adminNeverOrderedOnly = false;
+function prodOrderCnt(pid){ return Number(adminProductOrderCounts[pid] || 0); }
+function prodInvCnt(pid){ var P = INV && INV.p && INV.p[pid]; return (P && P.u) ? P.u.length : 0; }
+function prodNeverOrdered(p){ return !prodOrderCnt(p.id) && !prodInvCnt(p.id); }
+function adminNeverBarHTML(n, invKept){
+if(n < 0){
+var cnt = adminProductsCache.filter(prodNeverOrdered).length;
+return '<button type="button" class="adm-never-btn" id="admNeverToggle">🗑 從沒人喊過單（可安心刪）<b>'+cnt+'</b> 件 ›</button>';
+}
+return '<div class="adm-never-bar"><button type="button" class="adm-never-back" id="admNeverToggle">‹ 回到全部商品</button>'
++ '<p class="adm-never-t">🗑 從沒人喊過單：<b>'+n+'</b> 件（現貨、預購、所有專區一起列）</p>'
++ '<p class="adm-never-n">這些商品從來沒有任何一筆喊單、也沒有記庫存，刪掉不會影響訂單、庫存或利潤表。'+(invKept ? '<br>📦 有 '+invKept+' 件沒人喊過但<b>有庫存</b>，已經排除，不會出現在這裡。' : '')+'</p></div>';
+}
+function adminProdUseHTML(p){
+var oc = prodOrderCnt(p.id), ic = prodInvCnt(p.id);
+var zn = isLiveStock(p.stock_status) && p.live_zone_id && zoneById(p.live_zone_id) ? (zoneById(p.live_zone_id).name || '專區') : '';
+return '<p class="adm-prod-use">'
++ (oc ? '<span class="u-o">🛒 喊過 '+oc+' 筆</span>' : '<span class="u-n">🛒 沒人喊過</span>')
++ (ic ? '<span class="u-i">📦 庫存 '+ic+'</span>' : '')
++ (adminNeverOrderedOnly ? '<span class="u-z">'+escHtml(zn ? '專區：'+zn : (p.stock_status==='preorder'?'預購區':(p.stock_status==='in'?'現貨區':'缺貨')))+'</span>' : '')
++ '</p>';
+}
+function adminAreaSelectHTML(p){
+var live = isLiveStock(p.stock_status);
+var cur = live ? (p.live_zone_id && zoneById(p.live_zone_id) ? 'zone:'+p.live_zone_id : '') : (p.stock_status === 'preorder' ? 'preorder' : (p.stock_status === 'in' ? 'in' : ''));
+var opt = function(v, t){ return '<option value="'+escAttr(v)+'"'+(cur===v?' selected':'')+'>'+(cur===v?'':'➜ ')+escHtml(t)+'</option>'; };
+return '<div class="adm-area"><span class="adm-area-l">📍 放在哪一區</span><select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'">'
++ (cur ? '' : '<option value="" selected>（'+(live ? '未分配專區' : '缺貨中，選一區移過去')+'）</option>')
++ opt('in', '現貨區') + opt('preorder', '預購連線區')
++ LIVE_ZONES.map(function(z){ return opt('zone:'+z.id, '專區：'+(z.name||'限時連線專區')+(z.note?'｜'+z.note:'')); }).join('')
++ '</select></div>';
+}
+document.addEventListener('click', function(e){
+var t = e.target.closest && e.target.closest('#admNeverToggle');
+if(!t) return;
+adminNeverOrderedOnly = !adminNeverOrderedOnly;
+renderAdminProducts();
+window.scrollTo(0, 0);
+});
 var ADMIN_STOCK_OPTIONS = [
 ['in','現貨'], ['preorder','預購連線'], ['live_limited','限時連線'], ['live_ended','連線已結束'], ['sold_out','缺貨']
 ];
@@ -7481,7 +7548,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
-+ '<p class="adm-prod-meta">'+(p.buy_store ? '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">📍 '+escHtml(p.buy_store)+'</span>' : '')+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p></div>'
++ '<p class="adm-prod-meta">'+(p.buy_store ? '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">📍 '+escHtml(p.buy_store)+'</span>' : '')+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p>'+adminProdUseHTML(p)+'</div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
@@ -7498,10 +7565,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + adminPrivatePanelHTML(p)
-+ (adminProductsMode === 'live' && LIVE_ZONES.length ? '<select class="gate-input admin-product-zone-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'
-+ (p.live_zone_id && zoneById(p.live_zone_id) ? '' : '<option value="" selected>（未分配專區）</option>')
-+ LIVE_ZONES.map(function(z){ return '<option value="'+escAttr(z.id)+'"'+(p.live_zone_id===z.id?' selected':'')+'>專區：'+escHtml((z.name||'限時連線專區')+(z.note?'｜'+z.note:''))+'</option>'; }).join('')
-+ '</select>' : '')
++ adminAreaSelectHTML(p)
 + (isLiveStock(p.stock_status) ? '' : '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-featured-toggle" data-product-id="'+p.id+'"'+(p.featured?' checked':'')+' style="width:18px;height:18px;"> ⭐ 本週嚴選（顯示在首頁）</label>')
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-luxury-toggle" data-product-id="'+p.id+'"'+(p.is_luxury?' checked':'')+' style="width:18px;height:18px;"> 🏷️ 特選商品（累積到特選商品回饋，限用特選商品回饋券）</label>'
 + adminCatSelectHTML(p)
@@ -8318,6 +8382,7 @@ var delProdBtns = container.querySelectorAll('.admin-delete-product-btn');
 for(var dp=0; dp<delProdBtns.length; dp++){
 delProdBtns[dp].addEventListener('click', async function(){
 var b = this, pid = b.getAttribute('data-product-id');
+if(prodInvCnt(pid) > 0){ alert('這件商品還有庫存 '+prodInvCnt(pid)+' 件，不能刪除。\n\n可以用「📍 放在哪一區」移到現貨區或預購區繼續賣。'); return; }
 if(!window.confirm('確定要刪除「'+b.getAttribute('data-name')+'」嗎？\n\n刪除後：\n・商品和照片都會刪掉，無法復原\n・客人已經結單／付款的紀錄不受影響\n・還有客人喊單但沒結單的商品不能刪')) return;
 b.disabled = true; b.textContent = '刪除中...';
 try{
