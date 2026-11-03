@@ -1504,7 +1504,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261103-2050';
+var APP_VERSION = '20261103-2100';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3420,8 +3420,13 @@ catch(err){ window.prompt('長按複製：', text); }
 });
 // 自己人（測試單）：顯示實際成本（日幣×匯率），方便跟自己人收成本
 function selfCostOf(o){ if(!(o && o.cost_jpy != null && o.cost_jpy !== '' && Number(o.cost_rate) > 0)) return null; return Math.round(Number(o.cost_jpy) * Number(o.cost_rate)) * (Number(o.quantity) || 1); }
+function isSelfLine(uid){
+if(!uid) return false;
+for(var i=0;i<(adminGroupsCache || []).length;i++){ var g = adminGroupsCache[i]; if(g.lineUid === uid) return isSelfGroup(g); }
+return false;
+}
 function selfCostLineHTML(o){
-if(!o || !o.is_test) return '';
+if(!o || !(o.is_test || isSelfLine(o.line_uid))) return '';
 var c = selfCostOf(o);
 return c == null
 ? '<p class="self-cost is-miss">💴 成本：還沒記（採購按確認時填日幣，這裡就會算好）</p>'
@@ -3429,7 +3434,7 @@ return c == null
 }
 function selfCostSum(list){
 var sum = 0, miss = 0;
-(list || []).forEach(function(o){ if(!o.is_test) return; var c = selfCostOf(o); if(c == null) miss++; else sum += c; });
+(list || []).forEach(function(o){ if(!(o.is_test || isSelfLine(o.line_uid))) return; var c = selfCostOf(o); if(c == null) miss++; else sum += c; });
 return { sum: sum, miss: miss };
 }
 function adminOpenOrderRowHTML(o){
