@@ -1098,6 +1098,17 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .adm-share-n{margin:0 0 8px;font-size:11.5px;line-height:1.6;color:var(--muted)}
 .pf-share{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
 .pf-share-t{margin:0 0 6px;font-size:14px;font-weight:700}
+.admin-zone-card{border:1.5px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px}
+.admin-zone-card.is-closed{padding:8px 10px;margin-bottom:6px}
+.zc-row{display:flex;align-items:center;gap:8px}
+.zc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:#D4A017}.zc-blue{background:#3B82F6}.zc-purple{background:#8B5CF6}.zc-green{background:#10B981}
+.zc-name{flex:1;min-width:0;font-size:13.5px;font-weight:700;color:var(--text-dark);line-height:1.35}
+.zc-name b{font-weight:600;color:var(--muted);margin-left:6px;font-size:12.5px}.zc-name small{display:block;font-size:11.5px;font-weight:500;color:var(--muted)}
+.zc-btn{border:0;border-radius:999px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;background:var(--ignis);color:#fff;cursor:pointer;white-space:nowrap}
+.zc-btn.is-ghost{background:#fff;border:1.5px solid var(--line);color:var(--text-dark);padding:5px 11px}
+.zc-closed{margin:4px 0 10px}.zc-closed summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1.5px dashed var(--line);border-radius:var(--r-md);font-size:13.5px;font-weight:700;color:var(--text-dark)}
+.zc-closed summary::-webkit-details-marker{display:none}.zc-closed[open] summary{margin-bottom:8px}.zc-closed[open] .zc-arrow{transform:rotate(90deg)}.zc-arrow{transition:transform .15s}
+.zc-empty{font-size:13px;color:var(--muted);margin:0 0 10px}
 .adm-never-btn{width:100%;margin-top:14px;padding:11px 14px;border:1.5px dashed #FCA5A5;border-radius:var(--r-md);background:#FEF2F2;color:#B91C1C;font:inherit;font-size:13.5px;font-weight:700;text-align:left;cursor:pointer}.adm-never-btn b{margin-left:4px}
 .adm-never-bar{padding:12px 14px;border-radius:var(--r-md);background:#FEF2F2;border:1.5px solid #FCA5A5}
 .adm-never-back{border:0;background:none;color:#B91C1C;font:inherit;font-weight:700;font-size:13px;padding:0;margin-bottom:6px;cursor:pointer}
@@ -1542,7 +1553,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261104-1830';
+var APP_VERSION = '20261104-1900';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5026,17 +5037,23 @@ function adminZonesManageHTML(){
 var html = '<div style="background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:14px;">'
 + '<p style="font-size:14px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">專區管理</p>'
 + '<p style="font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 12px;">開啟中的專區會出現在客人首頁；關閉後客人看不到、也不能再喊單，已經喊單的訂單不受影響。</p>';
-html += LIVE_ZONES.map(function(z){
+function zoneCardHTML(z){
 var colorVal = ['gold','blue','purple','green'].indexOf(z.color) !== -1 ? z.color : 'gold';
-return '<div class="admin-zone-card" data-zone-id="'+escAttr(z.id)+'" style="border:1.5px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px;">'
-+ '<div class="live-entry '+zoneColorClass(z)+(z.is_open?'':' is-idle')+'" style="width:100%;margin:0 0 10px;padding:10px 12px;cursor:default;">'
+var head = z.is_open
+? '<div class="live-entry '+zoneColorClass(z)+'" style="width:100%;margin:0 0 10px;padding:10px 12px;cursor:default;">'
 + '<span class="live-entry-text"><span class="live-entry-top"><span class="live-entry-title" style="font-size:15px;">'+escHtml(z.name||'限時連線專區')+'</span></span>'
 + (z.note ? '<span class="live-entry-note">'+escHtml(z.note)+'</span> ' : '')
-+ '<span class="live-entry-sub">'+(z.is_open ? '🟢 開啟中' : '⚪️ 已關閉')+'</span></span></div>'
++ '<span class="live-entry-sub">🟢 開啟中</span></span></div>'
 + '<div style="display:flex;gap:8px;">'
-+ '<button type="button" class="btn btn--full admin-zone-toggle" data-open="'+(z.is_open?'1':'0')+'" style="flex:1;'+(z.is_open?'border:1.5px solid var(--ink);color:var(--ink);':'background:var(--ignis);color:#fff;')+'">'+(z.is_open?'關閉專區':'開啟專區')+'</button>'
++ '<button type="button" class="btn btn--full admin-zone-toggle" data-open="1" style="flex:1;border:1.5px solid var(--ink);color:var(--ink);">關閉專區</button>'
 + '<button type="button" class="btn admin-zone-edit-toggle" style="border:1.5px solid var(--line);color:var(--text-dark);">編輯</button>'
 + '</div>'
+// 已關閉的：一行就好
+: '<div class="zc-row"><span class="zc-dot zc-'+colorVal+'"></span><span class="zc-name">'+escHtml(z.note || z.name || '限時連線專區')+'<small>'+escHtml([z.note ? (z.name || '限時連線專區') : '', z.trip_date || ''].filter(Boolean).join('・'))+'</small></span>'
++ '<button type="button" class="zc-btn admin-zone-toggle" data-open="0">開啟</button>'
++ '<button type="button" class="zc-btn is-ghost admin-zone-edit-toggle">編輯</button></div>';
+return '<div class="admin-zone-card'+(z.is_open ? '' : ' is-closed')+'" data-zone-id="'+escAttr(z.id)+'">'
++ head
 + '<div class="admin-zone-edit" style="display:none;margin-top:10px;">'
 + '<input type="text" class="gate-input admin-zone-name" value="'+escAttr(z.name||'')+'" placeholder="專區名稱" style="margin-bottom:8px;">'
 + '<input type="text" class="gate-input admin-zone-note" value="'+escAttr(z.note||'')+'" placeholder="備註（地點或小幫手名字，例如：岡山・小美）" style="margin-bottom:8px;">'
@@ -5054,7 +5071,13 @@ return '<div class="admin-zone-card" data-zone-id="'+escAttr(z.id)+'" style="bor
 + '<button type="button" class="btn btn--dark admin-zone-save" style="flex:1;">儲存</button>'
 + '<button type="button" class="btn admin-zone-delete" style="border:1.5px solid var(--ignis-deep);color:var(--ignis-deep);">刪除專區</button>'
 + '</div></div></div>';
-}).join('');
+}
+var zOpen = LIVE_ZONES.filter(function(z){ return z.is_open; }), zClosed = LIVE_ZONES.filter(function(z){ return !z.is_open; });
+html += zOpen.length ? zOpen.map(zoneCardHTML).join('') : '<p class="zc-empty">目前沒有開啟中的專區</p>';
+if(zClosed.length){
+html += '<details class="zc-closed" id="zcClosed"'+(adminClosedZonesOpen ? ' open' : '')+'><summary>⚪️ 已關閉的專區（'+zClosed.length+'）<span class="zc-arrow">▸</span></summary>'
++ '<div class="zc-list">'+zClosed.map(zoneCardHTML).join('')+'</div></details>';
+}
 html += '<button type="button" class="btn btn--dark btn--full" id="adminZoneNewToggle">+ 建立新專區</button>'
 + '<div id="adminZoneNewForm" style="display:'+(LIVE_ZONES.length ? 'none' : 'block')+';margin-top:10px;">'
 + '<input type="text" class="gate-input" id="nzName" value="限時連線專區" placeholder="專區名稱">'
@@ -5066,11 +5089,28 @@ html += '<button type="button" class="btn btn--dark btn--full" id="adminZoneNewT
 + '</div></div>';
 return html;
 }
+var adminClosedZonesOpen = false, adminClosedChipsOpen = false;
+document.addEventListener('toggle', function(e){ if(e.target && e.target.id === 'zcClosed') adminClosedZonesOpen = e.target.open; }, true);
+document.addEventListener('click', function(e){
+var t = e.target.closest && e.target.closest('#zcChipMore');
+if(!t) return;
+adminClosedChipsOpen = !adminClosedChipsOpen;
+var w = document.getElementById('zcChipWrap'); if(w) w.style.display = adminClosedChipsOpen ? 'flex' : 'none';
+t.textContent = adminClosedChipsOpen ? '收起已關閉 ▴' : '已關閉的 '+t.getAttribute('data-n')+' 個 ▾';
+});
 function adminZoneFilterHTML(unassignedCount){
-var chips = LIVE_ZONES.map(function(z){
-var label = (z.name || '限時連線專區') + (z.note ? '｜' + z.note : '') + (z.is_open ? '' : '（已關閉）');
-return '<button type="button" class="cat-tab admin-zone-filter'+(adminLiveZoneFilter===z.id?' active':'')+'" data-zone-id="'+escAttr(z.id)+'">'+escHtml(label)+'</button>';
-}).join('');
+function chip(z){
+var label = (z.name || '限時連線專區') + (z.note ? '｜' + z.note : '');
+return '<button type="button" class="cat-tab admin-zone-filter'+(adminLiveZoneFilter===z.id?' active':'')+'" data-zone-id="'+escAttr(z.id)+'">'+(z.is_open ? '🟢 ' : '')+escHtml(label)+'</button>';
+}
+// 開啟中的＋現在選的那個一直顯示；其他已關閉的收起來
+var shown = LIVE_ZONES.filter(function(z){ return z.is_open || z.id === adminLiveZoneFilter; });
+var hidden = LIVE_ZONES.filter(function(z){ return !z.is_open && z.id !== adminLiveZoneFilter; });
+var chips = shown.map(chip).join('');
+if(hidden.length){
+chips += '<button type="button" class="cat-tab" id="zcChipMore" data-n="'+hidden.length+'" style="border-style:dashed;">'+(adminClosedChipsOpen ? '收起已關閉 ▴' : '已關閉的 '+hidden.length+' 個 ▾')+'</button>'
++ '<div id="zcChipWrap" style="display:'+(adminClosedChipsOpen ? 'flex' : 'none')+';flex-wrap:wrap;gap:8px;width:100%;">'+hidden.map(chip).join('')+'</div>';
+}
 if(unassignedCount > 0){
 chips += '<button type="button" class="cat-tab admin-zone-filter'+(adminLiveZoneFilter==='__none__'?' active':'')+'" data-zone-id="__none__">未分配（'+unassignedCount+'）</button>';
 }
