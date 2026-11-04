@@ -1012,6 +1012,13 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pf-extra-hint{ grid-column:1 / -1; margin:-2px 0 2px; font-size:11.5px; color:var(--muted); }
 .pf-x{ border:none; background:none; color:var(--muted); font-size:15px; padding:4px; }
 .pf-partner{ display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+.pf-partner .pf-pname{ flex:1; min-width:0; }
+.pf-wl{ font-size:12px; color:var(--muted); white-space:nowrap; }
+.pf-partner .pf-pw{ width:52px; flex:none; text-align:center; }
+.pf-wp{ font-size:12px; font-weight:700; color:var(--text-dark); width:42px; text-align:right; white-space:nowrap; }
+.pf-presets{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
+.pf-preset{ border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:6px 14px; font:inherit; font-size:13px; font-weight:700; color:var(--text-dark); cursor:pointer; }
+.pf-preset.on{ background:#2B2622; border-color:#2B2622; color:#fff; }
 .pf-result{ border:2px solid var(--ink); }
 .pf-table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:12.5px; }
 .pf-table th{ font-size:11px; color:var(--muted); font-weight:700; text-align:right; padding:4px 2px; }
@@ -1535,7 +1542,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261104-0130';
+var APP_VERSION = '20261104-1830';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5759,6 +5766,10 @@ var totalCost = productCost + fee + extra + stock;
 var final = !inProgress;
 var profit = (final ? inc.paid : estIncome) - totalCost - consignTotal - sharedTotal;
 var share = profit / n;
+// 分潤比例：每個夥伴的比例（預設 1，大家一樣就是平分）
+var wts = pfWeights(partners), wSum = 0; partners.forEach(function(p){ wSum += wts[p.id]; });
+var shareBy = {}; partners.forEach(function(p){ shareBy[p.id] = wSum > 0 ? profit * wts[p.id] / wSum : share; });
+var ratioEqual = partners.every(function(p){ return wts[p.id] === wts[partners[0].id]; });
 var extraGets = {}, extraPeople = [];
 Object.keys(sharedGroups).forEach(function(gk){
 var g = sharedGroups[gk], per = g.people.length ? g.amt / g.people.length : 0;
@@ -5766,7 +5777,7 @@ g.people.forEach(function(id){ extraGets[id] = (extraGets[id] || 0) + per; });
 });
 var people = partners.map(function(p){
 var received = recBy[p.id] || 0, paid = paidBy[p.id] || 0, ex = extraGets[p.id] || 0;
-return { id:p.id, name:p.name || '未命名', paid: paid, received: received, gets: paid + share + ex, balance: received - (paid + share + ex) };
+return { id:p.id, name:p.name || '未命名', paid: paid, received: received, gets: paid + shareBy[p.id] + ex, share: shareBy[p.id], balance: received - (paid + shareBy[p.id] + ex) };
 });
 Object.keys(extraGets).forEach(function(id){
 if(partners.some(function(p){ return p.id === id; })) return;
@@ -5788,7 +5799,7 @@ if(give[gi].v < 0.5) gi++;
 if(take[ti].v < 0.5) ti++;
 }
 }
-return { nPartners:n, consignDisc:consignDisc, consignBy:consignBy, consignRows:consignRows, consignTotal:consignTotal, sharedGroups:sharedGroups, sharedRows:sharedRows, sharedTotal:sharedTotal, inc:inc, open:open, inProgress:inProgress, final:final, estIncome:estIncome, cash:cash, cashTotal:cashTotal, products:products, productCost:productCost, fee:fee, feeBy:feeBy, cardBase:cardBase, cashBase:cashBase, unknownPay:unknownPay, extra:extra, stock:stock, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing, missingQty:missingQty, unclaimed:unclaimed };
+return { shareBy:shareBy, ratioEqual:ratioEqual, ratioText:partners.map(function(p){ return pfFmtW(wts[p.id]); }).join(' : '), nPartners:n, consignDisc:consignDisc, consignBy:consignBy, consignRows:consignRows, consignTotal:consignTotal, sharedGroups:sharedGroups, sharedRows:sharedRows, sharedTotal:sharedTotal, inc:inc, open:open, inProgress:inProgress, final:final, estIncome:estIncome, cash:cash, cashTotal:cashTotal, products:products, productCost:productCost, fee:fee, feeBy:feeBy, cardBase:cardBase, cashBase:cashBase, unknownPay:unknownPay, extra:extra, stock:stock, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing, missingQty:missingQty, unclaimed:unclaimed };
 }
 function pfProdSumHTML(p){
 var costedQty = p.qty - p.missingQty;
@@ -5808,6 +5819,20 @@ if(!cb && !kb) return '<span style="color:var(--muted);">這個人還沒有記�
 return '刷卡商品 '+pfMoney(cb)+' × '+pfCardRate(pid)+'%'+(kb ? '（現金 '+pfMoney(kb)+' 不算）' : '');
 }
 function pfMissingHTML(c){ return c.missing ? '<span class="pf-badge">'+c.missingQty+' 件還沒填</span>' : ''; }
+function pfWeights(partners){
+var w = {}; (partners || []).forEach(function(p){ var v = parseFloat(p.w); w[p.id] = (v > 0) ? v : 1; }); return w;
+}
+function pfFmtW(v){ return String(Math.round(v * 100) / 100); }
+// 「N 人平分，每人 X」或「照 3.5 : 3.5 : 3 分」＋每個人拿多少
+function pfSplitHTML(c, est){
+if(c.ratioEqual) return '<div class="pf-line"><span>'+c.nPartners+' 人平分，每人'+(est ? '約' : '')+'</span><span><b>'+pfMoney(c.share)+'</b></span></div>';
+return '<div class="pf-line"><span>照 <b>'+escHtml(c.ratioText)+'</b> 分'+(est ? '（預估）' : '')+'</span><span></span></div>'
++ c.people.filter(function(p){ return !p.ext; }).map(function(p){ return '<div class="pf-line"><span>　'+escHtml(p.name)+'</span><span><b>'+pfMoney(p.share)+'</b></span></div>'; }).join('');
+}
+function pfSplitText(c){
+if(c.ratioEqual) return c.nPartners + ' 人平分每人' + (c.final ? ' ' : '約 ') + pfMoney(c.share);
+return '照 ' + c.ratioText + ' 分（' + c.people.filter(function(p){ return !p.ext; }).map(function(p){ return p.name + ' ' + pfMoney(p.share); }).join('、') + '）';
+}
 function pfShareMinusHTML(c){
 return (c.sharedTotal ? '<div class="pf-line"><span>− 🤝 共同庫存賣出（另外分）</span><span>'+pfMoney(-c.sharedTotal)+'</span></div>' : '')
 + (c.consignTotal ? '<div class="pf-line"><span>− 🎁 寄賣賣出（歸寄賣人）</span><span>'+pfMoney(-c.consignTotal)+'</span></div>' : '');
@@ -5846,7 +5871,7 @@ return pfShareSectionsHTML(c) + '<p class="pf-ch">④ 目前預估 <span class="
 + (c.stock ? '<div class="pf-line"><span>− 庫存未售出</span><span>'+pfMoney(-c.stock)+'</span></div>' : '')
 + pfShareMinusHTML(c)
 + '<div class="pf-line pf-big'+(c.profit < 0 ? ' neg' : '')+'"><span>預估利潤'+margin(c.estIncome)+'</span><span>'+pfMoney(c.profit)+'</span></div>'
-+ '<div class="pf-line"><span>'+c.nPartners+' 人平分，每人約</span><span><b>'+pfMoney(c.share)+'</b></span></div>'
++ pfSplitHTML(c, true)
 + '<p class="pf-ch" style="margin-top:14px;">目前每個人</p>'
 + '<table class="pf-table"><tr><th></th><th>已墊付</th><th>已收到客人的錢</th></tr>'+rows+'</table>'
 + (c.unclaimed.n ? '<p class="pf-warn" style="margin-top:8px;">還有 '+c.unclaimed.n+' 筆收到的錢（'+pfMoney(c.unclaimed.amt)+'）沒認領是誰收的。</p>' : '')
@@ -5867,9 +5892,9 @@ return pfShareSectionsHTML(c) + '<p class="pf-ch">④ 利潤・分潤</p>'
 + (c.stock ? '<div class="pf-line"><span>− 庫存未售出</span><span>'+pfMoney(-c.stock)+'</span></div>' : '')
 + pfShareMinusHTML(c)
 + '<div class="pf-line pf-big'+(c.profit < 0 ? ' neg' : '')+'"><span>利潤'+margin(c.inc.paid)+'</span><span>'+pfMoney(c.profit)+'</span></div>'
-+ '<div class="pf-line"><span>'+c.nPartners+' 人平分，每人</span><span><b>'+pfMoney(c.share)+'</b></span></div>'
++ pfSplitHTML(c, false)
 + '<table class="pf-table"><tr><th></th><th>墊付</th><th>收到</th><th>應得</th></tr>'+peopleRows+'</table>'
-+ '<p class="pf-hint" style="margin:4px 0 8px;">應得＝自己墊的成本拿回來＋平分的利潤</p>'
++ '<p class="pf-hint" style="margin:4px 0 8px;">應得＝自己墊的成本拿回來＋'+(c.ratioEqual ? '平分' : '照比例分')+'的利潤</p>'
 + (c.unclaimed.n ? '<p class="pf-warn">還有 '+c.unclaimed.n+' 筆收到的錢（'+pfMoney(c.unclaimed.amt)+'）沒認領是誰收的，全部認領後才會算出誰要轉給誰。</p>' : transferHTML)
 + (c.missing ? '<p class="pf-warn" style="margin-top:8px;">還有 '+c.missingQty+' 件商品沒填成本，利潤會偏高。</p>' : '');
 }
@@ -5918,12 +5943,24 @@ var its = (pfDetail.items || []).concat(pfDetail.openItems || []);
 for(var i=0;i<its.length;i++){ if(String(its[i].id) === String(id)) return its[i]; }
 return null;
 }
+function pfRatioPresetHTML(){
+var n = (pfData.partners || []).length;
+var presets = n === 3 ? [['1:1:1', [1,1,1]], ['3.5:3.5:3', [3.5,3.5,3]]] : (n === 2 ? [['1:1', [1,1]]] : [['大家一樣', null]]);
+var cur = (pfData.partners || []).map(function(p){ var v = parseFloat(p.w); return v > 0 ? v : 1; }).join(':');
+return '<div class="pf-presets">'+presets.map(function(pr){
+var arr = pr[1] || (pfData.partners || []).map(function(){ return 1; });
+return '<button type="button" class="pf-preset'+(arr.join(':') === cur ? ' on' : '')+'" data-w="'+arr.join(',')+'">'+pr[0]+'</button>';
+}).join('')+'</div>'
++ (n === 3 ? '<p class="pf-hint" style="margin:0 0 8px;">3.5:3.5:3 是照下面的順序：第 1、2 位各 35%，第 3 位 30%。也可以自己改每個人的比例。</p>' : '');
+}
 function renderProfitSheet(){
 var listEl = document.getElementById('adminTabContent');
 if(!listEl || !pfData) return;
 var c = pfCompute();
 var partnersHTML = (pfData.partners || []).map(function(p, i){
+var wv = pfWeights(pfData.partners), ws = 0; pfData.partners.forEach(function(x){ ws += wv[x.id]; });
 return '<div class="pf-partner"><input class="pf-in pf-pname" data-i="'+i+'" value="'+escAttr(p.name || '')+'" placeholder="名字">'
++ '<span class="pf-wl">比例</span><input class="pf-in pf-pw" data-i="'+i+'" type="text" inputmode="decimal" value="'+escAttr(p.w != null && p.w !== '' ? p.w : '1')+'"><span class="pf-wp" data-i="'+i+'">'+(ws > 0 ? Math.round(wv[p.id] / ws * 1000) / 10 : 0)+'%</span>'
 + ((pfData.partners.length > 1) ? '<button type="button" class="pf-x pf-pdel" data-i="'+i+'" aria-label="移除">✕</button>' : '') + '</div>';
 }).join('');
 var prodRows = c.products.map(function(p){
@@ -6012,7 +6049,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 
 + '<div class="pf-card pf-result" id="pfResult">'+pfResultHTML(c)+'</div>'
 
-+ '<div class="pf-card"><p class="pf-ch">夥伴（利潤平分）</p>' + partnersHTML
++ '<div class="pf-card"><p class="pf-ch">夥伴・分潤比例</p>' + pfRatioPresetHTML() + partnersHTML
 + '<button type="button" class="adm-link" id="pfAddPartner">＋ 新增夥伴</button></div>'
 
 + '<label class="pf-donebox"><input type="checkbox" id="pfDone"'+(pfData.done ? ' checked' : '')+'> 這張已經分完錢了</label>'
@@ -6155,6 +6192,9 @@ pfMarkDirty(true);
 on('#pfAddExtra', 'click', function(){ pfData.extraCosts.push({ label:'', amount:'', payer: (pfData.partners[0] || {}).id || 'split' }); pfMarkDirty(true); });
 on('.pf-pname', 'input', function(){ pfData.partners[+this.getAttribute('data-i')].name = this.value; pfMarkDirty(false); });
 on('.pf-pname', 'blur', function(){ pfMarkDirty(true); });
+on('.pf-pw', 'input', function(){ pfData.partners[+this.getAttribute('data-i')].w = this.value.trim(); pfMarkDirty(false); });
+on('.pf-pw', 'blur', function(){ pfMarkDirty(true); });
+on('.pf-preset', 'click', function(){ var w = this.getAttribute('data-w').split(','); pfData.partners.forEach(function(p, i){ p.w = w[i] || '1'; }); pfMarkDirty(true); });
 on('.pf-pdel', 'click', function(){
 var i = +this.getAttribute('data-i');
 var p = pfData.partners[i];
@@ -6206,7 +6246,7 @@ lines.push('【' + pfTitle(pfKey) + '｜分潤】');
 if(!c.final) lines.push('🔄 進行中・預估（還有沒結單或沒付款的）');
 lines.push((c.final ? '實收 ' + pfMoney(c.inc.paid) + '（' + c.inc.paidCount + ' 筆已付款，已扣優惠券）' : '預估收入 ' + pfMoney(c.estIncome) + '（已付款 ' + pfMoney(c.inc.paid) + '）'));
 lines.push('成本 ' + pfMoney(c.totalCost) + '（商品 ' + pfMoney(c.productCost) + '・刷卡手續費 ' + pfMoney(c.fee) + '・包材運費 ' + pfMoney(c.extra) + (c.stock ? '・庫存未售出 ' + pfMoney(c.stock) : '') + '）');
-lines.push((c.final ? '利潤 ' : '預估利潤 ') + pfMoney(c.profit) + '，' + c.nPartners + ' 人平分每人' + (c.final ? ' ' : '約 ') + pfMoney(c.share));
+lines.push((c.final ? '利潤 ' : '預估利潤 ') + pfMoney(c.profit) + '，' + pfSplitText(c));
 lines.push('');
 c.people.forEach(function(p){ lines.push(p.name + '：墊付 ' + pfMoney(p.paid) + '・收到 ' + pfMoney(p.received) + (c.final ? '・應得 ' + pfMoney(p.gets) : '')); });
 lines.push('');
@@ -6240,7 +6280,8 @@ if(c.stock) rows.push({ t:'line', a:'− 庫存未售出', b:pfMoney(-c.stock) }
 if(c.sharedTotal) rows.push({ t:'line', a:'− 共同庫存賣出（另外分）', b:pfMoney(-c.sharedTotal) });
 if(c.consignTotal) rows.push({ t:'line', a:'− 寄賣賣出（歸寄賣人）', b:pfMoney(-c.consignTotal) });
 rows.push({ t:'big', a:c.final ? '利潤' : '預估利潤', b:pfMoney(c.profit), neg: c.profit < 0 });
-rows.push({ t:'line', a:c.nPartners+' 人平分，每人'+(c.final ? '' : '約'), b:pfMoney(c.share), bold:true });
+if(c.ratioEqual) rows.push({ t:'line', a:c.nPartners+' 人平分，每人'+(c.final ? '' : '約'), b:pfMoney(c.share), bold:true });
+else c.people.filter(function(p){ return !p.ext; }).forEach(function(p){ rows.push({ t:'line', a:p.name+'（比例 '+pfFmtW(pfWeights(pfData.partners)[p.id])+'）', b:pfMoney(p.share), bold:true }); });
 rows.push({ t:'gap' });
 rows.push({ t:'head' });
 c.people.forEach(function(p){ rows.push({ t:'person', p:p }); });
