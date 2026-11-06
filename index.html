@@ -1114,6 +1114,12 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .adm-share-ok{margin:0 0 10px;padding:9px 10px;border-radius:10px;background:#ECFDF5;border:1.5px solid #A7F3D0;color:#047857;font-size:12.5px;font-weight:700;line-height:1.6}
 .cm-stockin{margin:8px 0;padding:9px 10px;border-radius:10px;background:#FFFBEB;border:1.5px solid #FCD34D;color:#92400E;font-size:12.5px;font-weight:600;line-height:1.6}
 .cm-stockin.is-ok{background:#ECFDF5;border-color:#A7F3D0;color:#047857}
+.adm-area-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:0 0 12px;border-bottom:1.5px dashed var(--line)}
+.adm-area-chips-l{font-size:12px;font-weight:800;color:var(--muted);margin-right:2px}
+.adm-area-chips b{margin-left:3px}
+.adm-area-chips [data-dash]{border-style:dashed !important}
+.adm-done{margin:6px 0 10px}.adm-done summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px dashed var(--line);border-radius:var(--r-md);font-size:14px;font-weight:800;color:var(--text-dark)}
+.adm-done summary::-webkit-details-marker{display:none}.adm-done[open] summary{margin-bottom:10px}.adm-done[open] .zc-arrow{transform:rotate(90deg)}
 .adm-never-btn{width:100%;margin-top:14px;padding:11px 14px;border:1.5px dashed #FCA5A5;border-radius:var(--r-md);background:#FEF2F2;color:#B91C1C;font:inherit;font-size:13.5px;font-weight:700;text-align:left;cursor:pointer}.adm-never-btn b{margin-left:4px}
 .adm-never-bar{padding:12px 14px;border-radius:var(--r-md);background:#FEF2F2;border:1.5px solid #FCA5A5}
 .adm-never-back{border:0;background:none;color:#B91C1C;font:inherit;font-weight:700;font-size:13px;padding:0;margin-bottom:6px;cursor:pointer}
@@ -1558,7 +1564,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261106-1500';
+var APP_VERSION = '20261106-2200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2162,6 +2168,54 @@ await loadAdminGroups();
 var adminOrdersView = 'customers';     // 'customers' 客人訂單 / 'purchase' 採購清單
 var adminOrderFilter = 'all';          // all / pending / unsettled / overdue / unpaid / toship / deposit
 var adminOrderQuery = '';
+// 客人訂單：先選「哪一區」（all / regular / zone:專區id），記在這支手機
+var adminOrderArea = 'all', adminAreaMoreOpen = false;
+try{ adminOrderArea = localStorage.getItem('admOrderArea') || 'all'; }catch(e){}
+function areaOfOrder(o){ return o && o.is_live_limited ? 'zone:' + (o.live_zone_id || 'z_default') : 'regular'; }
+function areaOfSettle(st){ return st && st.live_zone_id ? 'zone:' + st.live_zone_id : 'regular'; }
+// 只留這一區的喊單／結單（沒有就回傳 null）
+function projectGroup(g, area){
+if(area === 'all') return g;
+var oo = (g.openOrders || []).filter(function(o){ return areaOfOrder(o) === area; });
+var co = (g.cancelledOrders || []).filter(function(o){ return areaOfOrder(o) === area; });
+var ss = (g.settlements || []).filter(function(st){ return areaOfSettle(st) === area; });
+if(!oo.length && !co.length && !ss.length) return null;
+var cy = {}; Object.keys(g.cycle || {}).forEach(function(k){ if(k === area) cy[k] = g.cycle[k]; });
+return Object.assign({}, g, { openOrders: oo, cancelledOrders: co, settlements: ss, cycle: cy });
+}
+// 還有事要做（喊單中、待付款、待出貨、要退款…）
+function groupIsActive(g){
+var c = adminGroupCounts(g);
+return !!(c.pending || c.confirmed || c.unpaid || c.paidWait || c.deposit || c.credit > 0);
+}
+function adminAreaLabel(a){
+if(a === 'all') return '全部';
+if(a === 'regular') return '🛍 現貨・預購';
+var z = zoneById(a.slice(5));
+return (z && z.is_open ? '🟢 ' : '') + (z ? (z.note || z.name || '限時連線專區') : '限時連線（舊）');
+}
+function adminAreaChipsHTML(){
+var act = {}, seen = {};
+adminGroupsCache.forEach(function(g){
+var keys = {};
+(g.openOrders || []).concat(g.cancelledOrders || []).forEach(function(o){ keys[areaOfOrder(o)] = 1; });
+(g.settlements || []).forEach(function(st){ keys[areaOfSettle(st)] = 1; });
+Object.keys(keys).forEach(function(k){ seen[k] = 1; var pg = projectGroup(g, k); if(pg && groupIsActive(pg)) act[k] = (act[k] || 0) + 1; });
+});
+var chip = function(a){ var n = act[a] || 0; return adminChip(escHtml(adminAreaLabel(a)) + (n ? ' <b>'+n+'</b>' : ''), adminOrderArea === a, 'data-oarea="'+escAttr(a)+'"'); };
+var zoneKeys = Object.keys(seen).filter(function(k){ return k !== 'regular'; });
+LIVE_ZONES.forEach(function(z){ if(z.is_open && zoneKeys.indexOf('zone:'+z.id) < 0) zoneKeys.push('zone:'+z.id); });
+var isOpenZ = function(k){ var z = zoneById(k.slice(5)); return !!(z && z.is_open); };
+// 開啟中的、還有事要做的、現在選的 → 一直顯示；其他收起來
+var shown = zoneKeys.filter(function(k){ return isOpenZ(k) || act[k] || k === adminOrderArea; });
+var hidden = zoneKeys.filter(function(k){ return shown.indexOf(k) < 0; });
+var order = function(arr){ var zi = {}; LIVE_ZONES.forEach(function(z, i){ zi['zone:'+z.id] = i; }); return arr.sort(function(a,b){ return (isOpenZ(b) - isOpenZ(a)) || ((zi[a] != null ? zi[a] : 999) - (zi[b] != null ? zi[b] : 999)); }); };
+return '<div class="adm-area-chips"><span class="adm-area-chips-l">哪一區</span>'
++ chip('all') + chip('regular') + order(shown).map(chip).join('')
++ (hidden.length ? adminChip(adminAreaMoreOpen ? '收起已關閉 ▴' : '已關閉的 '+hidden.length+' 個 ▾', false, 'id="admAreaMore" data-dash="1"')
++ (adminAreaMoreOpen ? order(hidden).map(chip).join('') : '') : '')
++ '</div>';
+}
 var adminExpanded = {};                // 手動展開的客人
 var adminGroupsCache = [];
 var adminPurchaseStatus = 'all';       // all / pending / confirmed
@@ -2232,10 +2286,16 @@ var viewToggle = '<div class="adm-seg">'
 + '<button type="button" class="adm-seg-btn'+(adminOrdersView==='purchase'?' on':'')+'" data-view="purchase">🛒 採購清單</button>'
 + '</div>';
 // 自己人（老闆／小幫手／測試單，不算分潤）排最上面，其他照原本順序
-var groups = adminGroupsCache.map(function(g, i){ var cc = adminGroupCounts(g); return { g:g, i:i, t:isSelfGroup(g) ? 0 : (cc.paidWait ? 1 : 2) }; })
-.sort(function(a,b){ return a.t - b.t || String(groupLatest(b.g)).localeCompare(String(groupLatest(a.g))) || a.i - b.i; }).map(function(x){ return x.g; });
+var sortGroups = function(list){ return list.map(function(g, i){ var cc = adminGroupCounts(g); return { g:g, i:i, t:isSelfGroup(g) ? 0 : (cc.paidWait ? 1 : 2) }; })
+.sort(function(a,b){ return a.t - b.t || String(groupLatest(b.g)).localeCompare(String(groupLatest(a.g))) || a.i - b.i; }).map(function(x){ return x.g; }); };
+if(adminOrderArea !== 'all' && adminOrderArea !== 'regular' && !zoneById(adminOrderArea.slice(5)) && !adminGroupsCache.some(function(g){ return projectGroup(g, adminOrderArea); })) adminOrderArea = 'all';
+var groupsAll = sortGroups(adminGroupsCache);
+var groups = adminOrdersView === 'purchase' ? groupsAll : sortGroups(adminGroupsCache.map(function(g){ return projectGroup(g, adminOrderArea); }).filter(Boolean));
+var activeGroups = groups.filter(groupIsActive), doneGroups = groups.filter(function(g){ return !groupIsActive(g); });
 var body = '';
-if(groups.length === 0){
+if(adminOrdersView !== 'purchase' && adminGroupsCache.length && groups.length === 0){
+body = adminAreaChipsHTML() + '<p style="font-size:14px;color:var(--muted);">「'+escHtml(adminAreaLabel(adminOrderArea))+'」目前沒有訂單。</p>';
+} else if(groups.length === 0){
 body = '<p style="font-size:14px;color:var(--muted);">目前沒有進行中的訂單。</p>';
 } else if(adminOrdersView === 'purchase'){
 body = adminPurchaseListHTML(groups);
@@ -2251,7 +2311,7 @@ var chipDefs = [
 ['toship', '📦 待出貨', tot.toship, '張'],
 ['deposit', '💰 需訂金未付', tot.deposit, '筆']
 ];
-body = adminRefundBoxHTML(groups)
+body = adminAreaChipsHTML() + adminRefundBoxHTML(groups)
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;">'
 + adminChip('全部', adminOrderFilter==='all', 'data-ofilter="all"')
 + chipDefs.filter(function(d){ return d[2] > 0 || adminOrderFilter === d[0]; }).map(function(d){ return adminChip(d[1]+' '+d[2]+' '+d[3], adminOrderFilter===d[0], 'data-ofilter="'+d[0]+'"'); }).join('')
@@ -2261,9 +2321,17 @@ body = adminRefundBoxHTML(groups)
 + '<p id="adminOrderSearchHint" style="font-size:12px;color:var(--muted);margin:0;"></p>'
 + '<span style="font-size:12px;white-space:nowrap;"><button type="button" class="adm-link" id="admExpandAll">全部展開</button>・<button type="button" class="adm-link" id="admCollapseAll">全部收起</button></span>'
 + '</div>'
-+ groups.map(adminGroupHTML).join('');
++ (activeGroups.length ? activeGroups.map(adminGroupHTML).join('') : '<p style="font-size:13px;color:var(--muted);margin:0 0 10px;">這區目前沒有要處理的客人 🎉</p>')
++ (doneGroups.length ? '<details class="adm-done" id="admDone"'+(adminOrderQuery.trim() ? ' open' : '')+'><summary>✅ '+(adminOrderArea === 'all' ? '' : '這區')+'都處理完的客人（'+doneGroups.length+' 位）<span class="zc-arrow">▸</span></summary>'
++ '<div class="adm-done-list">'+doneGroups.map(adminGroupHTML).join('')+'</div></details>' : '');
 }
 listEl.innerHTML = viewToggle + body;
+var areaBtns = listEl.querySelectorAll('[data-oarea]');
+for(var ab=0; ab<areaBtns.length; ab++){
+areaBtns[ab].addEventListener('click', function(){ adminOrderArea = this.getAttribute('data-oarea'); try{ localStorage.setItem('admOrderArea', adminOrderArea); }catch(e){} renderAdminOrders(); window.scrollTo(0, 0); });
+}
+var amBtn = document.getElementById('admAreaMore');
+if(amBtn) amBtn.addEventListener('click', function(){ adminAreaMoreOpen = !adminAreaMoreOpen; renderAdminOrders(); });
 setTimeout(paintFloatCollapse, 0);
 var segBtns = listEl.querySelectorAll('.adm-seg-btn');
 for(var sb=0; sb<segBtns.length; sb++){
@@ -2295,7 +2363,7 @@ for(var c=0;c<cards.length;c++){
 cards[c].setAttribute('data-search-full', normalizeSearchText((cards[c].getAttribute('data-search-text') || '') + ' ' + cards[c].textContent));
 }
 var searchInput = document.getElementById('adminOrderSearch');
-searchInput.addEventListener('input', function(){ adminOrderQuery = this.value; applyAdminOrderFilters(); });
+searchInput.addEventListener('input', function(){ adminOrderQuery = this.value; var dd = document.getElementById('admDone'); if(dd && this.value.trim()) dd.open = true; applyAdminOrderFilters(); });
 applyAdminOrderFilters();
 }
 // 客人訂單：有展開的客人時，右下角浮出「全部收起」，滑到哪都按得到
