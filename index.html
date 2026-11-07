@@ -1120,6 +1120,9 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .adm-area-chips [data-dash]{border-style:dashed !important}
 .adm-done{margin:6px 0 10px}.adm-done summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px dashed var(--line);border-radius:var(--r-md);font-size:14px;font-weight:800;color:var(--text-dark)}
 .adm-done summary::-webkit-details-marker{display:none}.adm-done[open] summary{margin-bottom:10px}.adm-done[open] .zc-arrow{transform:rotate(90deg)}
+.adm-stat-scopes{display:flex;gap:0;margin:0 0 12px;border:1.5px solid var(--line);border-radius:999px;padding:3px;background:#fff}
+.adm-stat-scope{flex:1;border:0;background:none;border-radius:999px;padding:9px 6px;font:inherit;font-size:14px;font-weight:800;color:var(--muted);cursor:pointer}
+.adm-stat-scope.on{background:#1F2937;color:#fff}.adm-stat-scope b{margin-left:3px}
 .adm-never-btn{width:100%;margin-top:14px;padding:11px 14px;border:1.5px dashed #FCA5A5;border-radius:var(--r-md);background:#FEF2F2;color:#B91C1C;font:inherit;font-size:13.5px;font-weight:700;text-align:left;cursor:pointer}.adm-never-btn b{margin-left:4px}
 .adm-never-bar{padding:12px 14px;border-radius:var(--r-md);background:#FEF2F2;border:1.5px solid #FCA5A5}
 .adm-never-back{border:0;background:none;color:#B91C1C;font:inherit;font-weight:700;font-size:13px;padding:0;margin-bottom:6px;cursor:pointer}
@@ -1564,7 +1567,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261106-2200';
+var APP_VERSION = '20261107-1310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1575,9 +1578,10 @@ var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 var currentUser = { uid:null, displayName:'', pictureUrl:'', nickname:'', idToken:null };
 async function callMemberApi(action, extra){
 var payload = Object.assign({ action:action, idToken:currentUser.idToken }, extra || {});
-// 45 秒沒回應就停止，顯示錯誤（不會一直卡在「讀取中」）
+// 45 秒沒回應就停止，顯示錯誤（不會一直卡在「讀取中」）；AI 辨識、比價要等 Google，給到 110 秒
+var waitMs = /^admin-ai-|^admin-tw-price|^admin-price/.test(action) ? 110000 : 45000;
 var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, 45000) : null;
+var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, waitMs) : null;
 var res;
 try{
 res = await fetch(MEMBER_API_URL, {
@@ -1771,6 +1775,8 @@ function thumbImgFail(img){
 if(img.getAttribute('data-full') && !img.getAttribute('data-tried')){ img.setAttribute('data-tried', '1'); img.src = img.getAttribute('data-full'); return true; }
 return false;
 }
+// 圖片的 onerror／onload 寫在 HTML 裡，會在全域找函式；程式包在 (function(){…})() 裡面，要掛到 window 才找得到
+window.thumbImgFail = thumbImgFail;
 function productImageUrl(productId, slot){
 if(PRIVATE_IDS[productId]){
 var acc = PRIVATE_ACCESS[productId];
@@ -2624,6 +2630,7 @@ if(OP_MAP[oid]) return opPublic('op-' + oid + '-' + OP_MAP[oid] + '-2.jpg');
 return opPublic('op-' + oid + (old ? '' : '-2') + '.jpg?v=' + (OPHOTO_V[oid] || OPHOTO_PAGE_V));
 }
 function opLoad(img){ var w = img.parentNode; w.classList.add('has'); w.classList.toggle('is-new', !img.getAttribute('data-fb')); }
+window.opLoad = opLoad; window.opErr = function(img){ return opErr(img); };
 function opErr(img){
 var w = img.parentNode, oid = w.getAttribute('data-oid');
 if(!img.getAttribute('data-fb') && !OP_MAP[oid] && !OP_LOCAL[oid]){ img.setAttribute('data-fb', '1'); img.src = orderPhotoUrl(oid, true); return; }
@@ -6455,11 +6462,19 @@ showVoteImage(cv.toDataURL('image/jpeg', 0.92), '長按圖片可以存到手機�
 var adminStatsSort = 'viewers';
 var adminStatsCat = 'all';
 var adminStatsData = null;
+var adminStatsScope = 'now', adminStatsZone = 'all';
+// 現在客人還看得到、買得到的；其他（已關閉專區、售完、連線結束、隱藏）放歷史紀錄
+function statsIsNow(p){
+if(p.is_hidden || p.stock_status === 'sold_out' || p.stock_status === 'live_ended') return false;
+if(isLiveStock(p.stock_status)){ var z = p.live_zone_id ? zoneById(p.live_zone_id) : null; return !!(z && z.is_open); }
+return true;
+}
+function statsHistKey(p){ return (isLiveStock(p.stock_status) && p.live_zone_id) ? p.live_zone_id : '__other__'; }
 async function loadAdminStats(){
 var listEl = document.getElementById('adminTabContent');
 if(!listEl) return;
 listEl.innerHTML = '<p style="font-size:14px;color:var(--muted);">讀取中...</p>';
-try{ adminStatsData = await callMemberApi('admin-product-stats'); }
+try{ var sr = await Promise.all([callMemberApi('admin-product-stats'), loadLiveZones()]); adminStatsData = sr[0]; }
 catch(e){ listEl.innerHTML = '<p style="font-size:14px;color:var(--ignis-deep);">讀取失敗：'+escHtml(e.message)+'</p>'; return; }
 renderAdminStats();
 }
@@ -6469,12 +6484,29 @@ if(!listEl || !adminStatsData) return;
 var smap = {};
 (adminStatsData.stats || []).forEach(function(r){ smap[r.product_id] = r; });
 var oc = adminStatsData.orderCount || {};
-var rows = (adminStatsData.products || []).filter(function(p){ return p.stock_status !== 'sold_out' && p.stock_status !== 'live_ended'; }).map(function(p){
+var allRows = (adminStatsData.products || []).map(function(p){
 var st = smap[p.id] || {};
 var views = Number(st.views || 0), viewers = Number(st.viewers || 0), secs = Number(st.total_seconds || 0);
 var orders = Number(oc[p.id] || 0);
 return { p:p, views:views, viewers:viewers, avg: views ? Math.round(secs / views) : 0, photos:Number(st.photo_views || 0), orders:orders, gap: viewers - orders * 3 };
 }).filter(function(r){ return r.views > 0; });
+var nowRows = allRows.filter(function(r){ return statsIsNow(r.p); }), histRows = allRows.filter(function(r){ return !statsIsNow(r.p); });
+var rows = adminStatsScope === 'history' ? histRows : nowRows;
+// 歷史紀錄：再分是哪個專區
+var histZoneChips = '';
+if(adminStatsScope === 'history'){
+var hz = {}, hzOrder = [];
+histRows.forEach(function(r){ var k = statsHistKey(r.p); if(!hz[k]){ hz[k] = 0; hzOrder.push(k); } hz[k]++; });
+if(adminStatsZone !== 'all' && !(adminStatsZone in hz)) adminStatsZone = 'all';
+if(adminStatsZone !== 'all') rows = rows.filter(function(r){ return statsHistKey(r.p) === adminStatsZone; });
+var zi = {}; LIVE_ZONES.forEach(function(z, i){ zi[z.id] = i; });
+hzOrder.sort(function(a,b){ if(a === '__other__') return 1; if(b === '__other__') return -1; return (zi[a] != null ? zi[a] : 999) - (zi[b] != null ? zi[b] : 999); });
+var zlabel = function(k){ if(k === '__other__') return '下架・售完'; var z = zoneById(k); return z ? (z.note || z.name || '限時連線專區') : '已刪除的專區'; };
+histZoneChips = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;">'
++ '<button type="button" class="cat-tab adm-stat-zone'+(adminStatsZone==='all'?' active':'')+'" data-zone="all" style="padding:7px 13px;font-size:13px;">全部歷史</button>'
++ hzOrder.map(function(k){ return '<button type="button" class="cat-tab adm-stat-zone'+(adminStatsZone===k?' active':'')+'" data-zone="'+escAttr(k)+'" style="padding:7px 13px;font-size:13px;">'+(k === '__other__' ? '📦 ' : '⚡ ')+escHtml(zlabel(k))+' '+hz[k]+'</button>'; }).join('')
++ '</div>';
+}
 // 分類篩選（用商品原本的分類名稱）
 var catSeen = {}, catList = [];
 rows.forEach(function(r){ var k = r.p.cat || '__none__'; if(!catSeen[k]){ catSeen[k] = { label: r.p.cat_label || catLabelFor(r.p.cat) || '其他', color: colorForCategory(r.p.cat), n:0 }; catList.push(k); } catSeen[k].n++; });
@@ -6495,7 +6527,10 @@ var list = rows.slice();
 if(adminStatsSort === 'gap') list = list.filter(function(r){ return r.viewers >= 3 && r.orders <= Math.max(1, Math.floor(r.viewers / 5)); });
 list.sort(sorters[adminStatsSort]);
 var chip = function(k, label){ return '<button type="button" class="cat-tab adm-stat-sort'+(adminStatsSort===k?' active':'')+'" data-sort="'+k+'" style="padding:7px 13px;font-size:13px;">'+label+'</button>'; };
+var scopeBtn = function(k, label){ return '<button type="button" class="adm-stat-scope'+(adminStatsScope===k?' on':'')+'" data-scope="'+k+'">'+label+'</button>'; };
 listEl.innerHTML = '<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6;">客人打開商品的次數和停留時間（只記總數，不記是誰；客人看不到這頁）。你和小幫手自己點開不會算進去。</p>'
++ '<div class="adm-stat-scopes">' + scopeBtn('now', '🟢 現在在賣 <b>'+nowRows.length+'</b>') + scopeBtn('history', '📦 歷史紀錄 <b>'+histRows.length+'</b>') + '</div>'
++ (adminStatsScope === 'history' ? '<p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6;">已關閉的專區、售完、連線結束或隱藏的商品，紀錄都留在這裡。</p>' + histZoneChips : '')
 + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;">' + chip('viewers','👀 最多人看') + chip('avg','⏱ 停留最久') + chip('gap','🤔 很多人看・很少人喊') + '</div>'
 + catChips
 + (adminStatsSort === 'gap' ? '<p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6;">看過的人多、喊單少的商品。可以檢查價格、照片或規格說明是不是需要調整。</p>' : '')
@@ -6507,6 +6542,10 @@ return '<div class="adm-stat-row"><span class="adm-stat-rank">'+(i+1)+'</span>'
 }).join('') : '<p style="font-size:14px;color:var(--muted);">'+(rows.length ? '目前沒有符合的商品' : '還沒有瀏覽資料，客人開始逛之後就會出現')+'</p>');
 var btns = listEl.querySelectorAll('.adm-stat-sort');
 for(var i=0;i<btns.length;i++){ btns[i].addEventListener('click', function(){ adminStatsSort = this.getAttribute('data-sort'); renderAdminStats(); }); }
+var scb = listEl.querySelectorAll('.adm-stat-scope');
+for(var sc=0;sc<scb.length;sc++){ scb[sc].addEventListener('click', function(){ adminStatsScope = this.getAttribute('data-scope'); adminStatsCat = 'all'; adminStatsZone = 'all'; renderAdminStats(); }); }
+var zb = listEl.querySelectorAll('.adm-stat-zone');
+for(var zz=0;zz<zb.length;zz++){ zb[zz].addEventListener('click', function(){ adminStatsZone = this.getAttribute('data-zone'); adminStatsCat = 'all'; renderAdminStats(); }); }
 var cbtns = listEl.querySelectorAll('.adm-stat-cat');
 for(var j=0;j<cbtns.length;j++){ cbtns[j].addEventListener('click', function(){ adminStatsCat = this.getAttribute('data-cat'); renderAdminStats(); }); }
 }
@@ -7733,7 +7772,7 @@ var sIn = adminStockIn[p.id];
 // 記過庫存成本、還沒設共同庫存：預設帶入數量、來源、勾全部夥伴
 if(sIn && mode !== 'shared' && !sh.qty){ sh = Object.assign({}, sh, { qty: stockInQty(sIn) || '', src: stockInText(sIn).replace(/ \d+ 個/g, '').replace(/[「」]/g, '') + '（成本已在那張分攤）', people: ps.map(function(x){ return x.id; }) }); }
 var consignors = {}; adminProductsCache.forEach(function(x){ if(x.share && x.share.mode === 'consign' && x.share.consignor) consignors[x.share.consignor] = 1; });
-var modes = [['normal','一般','大家平分'],['shared','共同庫存','指定的人分'],['consign','寄賣','全部歸寄賣人']];
+var modes = [['normal','一般','照分潤表比例'],['shared','共同庫存','指定的人分'],['consign','寄賣','全部歸寄賣人']];
 return '<div class="adm-share" data-product-id="'+p.id+'" data-mode="'+mode+'">'
 + '<p class="adm-share-t">🤝 賣掉的錢歸誰</p>'
 + (sIn && mode !== 'shared' ? '<p class="adm-share-warn">📒 這件在 '+escHtml(stockInText(sIn))+' 的分潤表「庫存成本」記過了。<br>建議改成「共同庫存」，之後賣出就不會重複扣成本；那幾個賣完後，提醒會自動消失。</p>' : '')
@@ -7750,7 +7789,7 @@ return '<div class="adm-share" data-product-id="'+p.id+'" data-mode="'+mode+'">'
 + '<div class="adm-share-r"><span>寄賣人</span><input type="text" class="gate-input adm-share-who" list="admConsignors" value="'+escAttr(sh.consignor || '')+'" placeholder="例：小美"></div>'
 + '<datalist id="admConsignors">'+Object.keys(consignors).map(function(k){ return '<option value="'+escAttr(k)+'">'; }).join('')+'</datalist>'
 + '<p class="adm-share-n">賣出的錢全部歸寄賣人，不扣成本、不算分潤。客人可以用折價券，折掉的錢由分潤的人＋寄賣人一起平均分攤。這件商品<b>不會累積回饋</b>。</p></div>'
-+ '<div class="adm-share-p" data-for="normal"'+(mode==='normal'?'':' style="display:none;"')+'><p class="adm-share-n">賣出的錢算進這個月現貨的利潤，大家平分。</p></div>'
++ '<div class="adm-share-p" data-for="normal"'+(mode==='normal'?'':' style="display:none;"')+'><p class="adm-share-n">賣出的錢算進它所在那張分潤表（現貨月表或專區表），照那張表設定的比例分。</p></div>'
 + '<button type="button" class="btn btn--full adm-share-save" data-product-id="'+p.id+'">儲存「賣掉的錢歸誰」</button>'
 + '</div>';
 }
