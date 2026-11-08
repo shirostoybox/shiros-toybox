@@ -1136,6 +1136,14 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 .pa-ok:disabled{background:#D1D5DB;color:#fff}
 .pa-sw{width:100%;border:1.5px solid #111827;border-radius:999px;padding:11px;font:inherit;font-size:14px;font-weight:800;background:#fff;color:#111827;margin-bottom:6px}
 .pa-cancel{width:100%;border:0;background:none;font:inherit;font-size:13px;color:#6B7280;padding:6px}
+.sw-title{margin:0 0 8px;font-size:18px;font-weight:900;color:#111827}
+.sw-desc{margin:0 0 12px;font-size:13.5px;color:#4B5563;line-height:1.6}
+.sw-alt{width:100%;border:1.5px solid #111827;border-radius:14px;padding:12px 14px;font:inherit;font-size:15px;font-weight:800;background:#fff;color:#111827;margin-bottom:8px;text-align:left;display:flex;justify-content:space-between;align-items:center}
+.sw-alt small{font-size:13px;font-weight:700;color:#B45309}
+.sw-none{width:100%;border:1.5px solid #E5E7EB;border-radius:14px;padding:12px 14px;font:inherit;font-size:15px;font-weight:800;background:#F9FAFB;color:#374151;margin-bottom:6px;text-align:left}
+.adm-p-st.is-swap{background:#ECFDF5;color:#065F46}
+.adm-p-st.is-swapno{background:#F3F4F6;color:#374151}
+.adm-p-btn.is-swap{background:#ECFDF5;color:#065F46;border-color:#A7F3D0}
 .adm-never-btn{width:100%;margin-top:14px;padding:11px 14px;border:1.5px dashed #FCA5A5;border-radius:var(--r-md);background:#FEF2F2;color:#B91C1C;font:inherit;font-size:13.5px;font-weight:700;text-align:left;cursor:pointer}.adm-never-btn b{margin-left:4px}
 .adm-never-bar{padding:12px 14px;border-radius:var(--r-md);background:#FEF2F2;border:1.5px solid #FCA5A5}
 .adm-never-back{border:0;background:none;color:#B91C1C;font:inherit;font-weight:700;font-size:13px;padding:0;margin-bottom:6px;cursor:pointer}
@@ -1580,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-1910';
+var APP_VERSION = '20261108-2010';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1822,7 +1830,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -2592,7 +2600,7 @@ var ci = orderCatInfo(o);
 pmap[pk] = { name:o.product_name, productId:o.product_id || '', store: productBuyStore(o.product_id), cat: ci.label, catKey: ci.key, catInfo: ci, qty:0, vmap:{}, vorder:[] };
 porder.push(pk);
 }
-var P = pmap[pk], vk = o.variant || '';
+var P = pmap[pk], vk = stripSwapSeg(o.variant || '');
 if(!P.vmap[vk]){ P.vmap[vk] = { variant:vk, qty:0, amount:0, orders:[] }; P.vorder.push(vk); }
 var V = P.vmap[vk], q = Number(o.quantity || 1);
 V.qty += q; V.amount += Number(o.price || 0) * q; P.qty += q;
@@ -2622,8 +2630,14 @@ var fb = opts.filter(function(x){ return /不指定|隨機/.test(x); })[0];
 if(!fb) return false;
 return String(o.variant || '').split('・').some(function(x){ x = x.trim(); return x !== fb && opts.indexOf(x) >= 0; });
 }
+function orderSwapBtnHTML(o){
+if(!o || o.orig_variant || o.settlement_id || o.status === '缺貨已幫您取消') return '';
+var sw = swapSegOf(o.variant);
+if(!sw || sw === '沒貨不用') return '';
+return '<button type="button" class="admin-swap-btn adm-p-btn is-swap" data-order-id="'+o.id+'" data-alt="'+escAttr(sw.slice(3))+'">🔁 沒貨・改'+escHtml(sw.slice(3))+'</button>';
+}
 function orderRandomBtnHTML(o, cls, style){
-if(o.orig_variant) return '<button type="button" class="admin-random-undo-btn '+cls+'" data-order-id="'+o.id+'"'+(style?' style="'+style+'"':'')+'>復原指定</button>';
+if(o.orig_variant) return '<button type="button" class="admin-random-undo-btn '+cls+'" data-order-id="'+o.id+'"'+(style?' style="'+style+'"':'')+'>'+(/(^|・)沒貨改/.test(String(o.orig_variant)) ? '復原原規格' : '復原指定')+'</button>';
 if(orderCanRandom(o)) return '<button type="button" class="admin-random-btn '+cls+'" data-order-id="'+o.id+'"'+(style?' style="'+style+'"':'')+'>🔄 指定沒貨・改隨機</button>';
 return '';
 }
@@ -3311,12 +3325,16 @@ actions = (needDep ? '<input type="number" min="0" class="admin-deposit-input ad
 + '<button type="button" class="admin-confirm-btn adm-p-btn is-ok" data-order-id="'+o.id+'">確認</button>';
 }
 actions += orderRandomBtnHTML(o, 'adm-p-btn is-rand', '');
+actions += orderSwapBtnHTML(o);
 if(o.status === '待確認' && Number(o.quantity) > 1) actions += '<button type="button" class="admin-partial-btn adm-p-btn is-ok" data-order-id="'+o.id+'" data-qty="'+o.quantity+'">部分確認</button>';
 if(o.status === '已確認'){
 actions = costChipHTML(o) + '<button type="button" class="admin-unconfirm-btn adm-p-undo" data-order-id="'+o.id+'">退回</button>' + actions;
 }
 actions += '<button type="button" class="admin-cancel-btn adm-p-btn is-x" data-order-id="'+o.id+'">缺貨</button>';
-var rand = o.orig_variant ? '<span class="adm-p-st is-rand">🔄已改隨機</span>' : '';
+var swapped = o.orig_variant && /(^|・)沒貨改/.test(String(o.orig_variant));
+var rand = o.orig_variant ? (swapped ? '<span class="adm-p-st is-swap">🔁已改「'+escHtml(String(o.orig_variant).split('・').map(function(x){ return x.trim(); }).filter(function(x){ return /^沒貨改/.test(x); })[0].slice(3))+'」</span>' : '<span class="adm-p-st is-rand">🔄已改隨機</span>') : '';
+var swSeg = o.orig_variant ? '' : swapSegOf(o.variant);
+if(swSeg) rand += swSeg === '沒貨不用' ? '<span class="adm-p-st is-swapno">沒貨→取消</span>' : '<span class="adm-p-st is-swap">沒貨→改'+escHtml(swSeg.slice(3))+'</span>';
 return '<div class="adm-p-row">'
 + '<div class="adm-p-row-top"><span class="adm-p-idx">'+(idx+1)+'</span><span class="adm-p-nick">'+escHtml(o._nick)+'</span><span class="adm-p-rq">×'+q+'</span>'+st+dep+rand
 + '<span class="adm-p-time">'+formatDate(o.created_at)+'</span></div>'
@@ -4145,6 +4163,7 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
 + (s.credit_deducted > 0 ? '<div class="settle-total-row"><span>↪ 缺貨退款扣抵</span><span>-NT$'+s.credit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ (Number(s.overpaid) > 0 ? '<div class="settle-total-row" style="color:#B91C1C;font-weight:800;"><span>⚠️ 客人多付，要退</span><span>NT$'+s.overpaid+'</span></div>' : '')
 + '</div>'
 + (isPaid ? '' : '<button type="button" class="admin-settle-discount" data-settlement-id="'+s.id+'" data-subtotal="'+s.subtotal+'" data-cur="'+(s.extra_discount||0)+'" style="margin-top:6px;border:1.5px solid #B45309;background:#FFF7E6;color:#92400E;border-radius:999px;padding:5px 14px;font-size:12.5px;font-weight:800;font-family:var(--font-body);">🎁 '+(s.extra_discount > 0 ? '修改特別折扣' : '給特別折扣（打折）')+'</button>')
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
@@ -4308,6 +4327,10 @@ unconfirmBtns[uc].addEventListener('click', (function(btn){ return function(){ h
 var randBtns = container.querySelectorAll('.admin-random-btn');
 for(var rb=0;rb<randBtns.length;rb++){
 randBtns[rb].addEventListener('click', (function(btn){ return function(){ handleAdminRandomOrder(btn, false); }; })(randBtns[rb]));
+}
+var swapBtns = container.querySelectorAll('.admin-swap-btn');
+for(var swb=0;swb<swapBtns.length;swb++){
+swapBtns[swb].addEventListener('click', (function(btn){ return function(){ handleAdminSwapOrder(btn); }; })(swapBtns[swb]));
 }
 var randUndoBtns = container.querySelectorAll('.admin-random-undo-btn');
 for(var ru=0;ru<randUndoBtns.length;ru++){
@@ -4637,9 +4660,23 @@ alert('退回失敗：' + e.message);
 btn.disabled = false; btn.textContent = '按錯了，退回待確認';
 }
 }
+async function handleAdminSwapOrder(btn){
+var alt = btn.getAttribute('data-alt') || '';
+if(!window.confirm('這筆原本的規格沒貨，要照客人的選擇改成「'+alt+'」嗎？\n\n價格會改成「'+alt+'」的價格，客人在喊單頁會看到說明，結單時照新價格算。')) return;
+var old = btn.textContent;
+btn.disabled = true; btn.textContent = '處理中...';
+try{
+await callMemberApi('admin-order-swap', { orderId: btn.getAttribute('data-order-id') });
+showToast('已改成「'+alt+'」');
+await loadAdminGroups();
+}catch(e){
+alert('操作失敗：' + e.message);
+btn.disabled = false; btn.textContent = old;
+}
+}
 async function handleAdminRandomOrder(btn, undo){
 var msg = undo
-? '要復原成客人原本指定的規格和價格嗎？客人那邊的提醒字句也會拿掉。'
+? '要復原成客人原本選的規格和價格嗎？客人那邊的提醒字句也會拿掉。'
 : '這筆指定的款式沒貨，要改成隨機出貨嗎？\n\n價格會改回「不指定」的價格，客人在喊單頁會看到提醒。';
 if(!window.confirm(msg)) return;
 var old = btn.textContent;
@@ -5418,7 +5455,7 @@ adminProductOrderCounts = results[0].orderCounts || {};
 adminShareSold = results[0].shareSold || {};
 adminStockIn = results[0].stockIn || {};
 if(results[0].partners && results[0].partners.length) COST_PARTNERS = results[0].partners;
-if(!ADMIN_FX) loadAdminFx();
+if(!ADMIN_FX || !ADMIN_FX.loaded) loadAdminFx();
 rememberImageVersions(adminProductsCache);
 adminProductsCache.forEach(function(p){ if(p.is_private) PRIVATE_IDS[p.id] = true; else delete PRIVATE_IDS[p.id]; });
 registerCategories(adminProductsCache);
@@ -6927,6 +6964,7 @@ out.base = Number(it.price) || 0;
 out.optionPrices = {};
 if(it.optionPrices && typeof it.optionPrices === 'object'){ Object.keys(it.optionPrices).forEach(function(k){ var v = Number(it.optionPrices[k]); if(v > 0 && out.options.indexOf(k) !== -1) out.optionPrices[k] = v; }); }
 // 每個規格的日幣（例如 5入 ¥900／10入 ¥1,750）：匯入時用今天匯率×上次倍數，自動算好每個規格的台幣
+out.optionSwap = !!it.optionSwap;
 out.optionJpy = {};
 if(it.optionJpy && typeof it.optionJpy === 'object'){ Object.keys(it.optionJpy).forEach(function(k){ var v = Number(it.optionJpy[k]); if(v > 0 && out.options.indexOf(k) !== -1) out.optionJpy[k] = v; }); }
 out.fx = null;
@@ -7099,6 +7137,7 @@ optionLabel: x.optionLabel, options: x.options.join(', '),
 optionLabel2: x.optionLabel2, options2: x.options2.join(', '),
 optionPrices: Object.keys(x.optionPrices).length ? JSON.stringify(x.optionPrices) : '',
 optionJpy: Object.keys(x.optionJpy || {}).length ? JSON.stringify(x.optionJpy) : '',
+optionSwap: !!x.optionSwap,
 fxRate: x.jpy && ADMIN_FX ? ADMIN_FX.rate : '', multiplier: x.jpy ? (lastJpyMult() || '') : ''
 }));
 } else {
@@ -7989,7 +8028,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<input type="number" class="gate-input admin-price-input" data-product-id="'+p.id+'" value="'+(Number(p.price) > 0 ? p.price : '')+'" placeholder="'+(p.is_hidden ? '台幣價格（隱藏中可以先不填）' : '台幣價格')+'" style="margin-bottom:8px;">'
 + adminJpyBoxHTML('row-'+p.id, p.cost || null)
 + priceCheckHTML('row-'+p.id)
-+ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '')
++ adminOptionsEditorHTML('row-'+p.id, p.option_label || '', p.options || '', p.option2_label || '', p.options2 || '', p.option_prices || '', p.option_photos || '', !!p.option_swap)
 + '<button type="button" class="btn btn--dark btn--full admin-save-info-btn" data-product-id="'+p.id+'" style="margin-bottom:10px;">儲存商品資訊</button>'
 + adminPrivatePanelHTML(p)
 + adminAreaSelectHTML(p)
@@ -8462,13 +8501,17 @@ return '<div class="admin-opt-group" data-g="'+g+'" style="margin-top:'+(g===1?'
 + '</div>';
 }
 // ---------- 日幣換算：日幣 × 匯率 × 倍數 = 台幣，換算時的匯率一起記下來 ----------
-var ADMIN_FX = null;   // { rate, date }
+// 固定匯率：換算一律先用這個（預設 0.21），要改再按「改固定匯率」；今日匯率只顯示參考
+var FIXED_FX_DEFAULT = 0.21;
+function fixedFxRate(){ try{ var v = Number(localStorage.getItem('fixedFxRate')); if(v > 0) return v; }catch(e){} return FIXED_FX_DEFAULT; }
+var ADMIN_FX = { rate: fixedFxRate(), today: null, date: '', stale: false, loaded: false };   // rate = 固定匯率；today = 今日匯率（參考）
 function todayTW(){ return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
 function lastJpyMult(){ try{ return localStorage.getItem('lastJpyMult') || ''; }catch(e){ return ''; } }
 async function loadAdminFx(force){
 try{
 var d = await callMemberApi('admin-get-fx-rate', force ? { force: true } : {});
-if(d && d.rate){ ADMIN_FX = { rate: Number(d.rate), date: d.date || '', stale: !!d.stale }; }
+if(d && d.rate){ ADMIN_FX.today = Number(d.rate); ADMIN_FX.date = d.date || ''; ADMIN_FX.stale = !!d.stale; }
+ADMIN_FX.loaded = true;
 }catch(e){}
 var boxes = document.querySelectorAll('.jpy-box');
 for(var i=0;i<boxes.length;i++) paintJpyToday(boxes[i]);
@@ -8506,10 +8549,11 @@ return '<div class="jpy-box" data-key="'+escAttr(key)+'" data-fxdate="'+escAttr(
 }
 function paintJpyToday(box){
 var el = box.querySelector('.jpy-today'); if(!el) return;
-if(!ADMIN_FX){ el.innerHTML = '今日匯率讀取中…（也可以直接輸入）'; return; }
 var cur = Number(box.querySelector('.jpy-rate').value);
-el.innerHTML = '今日匯率 <b>'+ADMIN_FX.rate+'</b>（'+escHtml(ADMIN_FX.date)+(ADMIN_FX.stale ? '，暫時抓不到最新' : '')+'）'
-+ (cur === ADMIN_FX.rate ? '' : '<button type="button" class="jpy-use-today">套用今日匯率</button>');
+el.innerHTML = '固定匯率 <b>'+ADMIN_FX.rate+'</b>'
++ (cur === ADMIN_FX.rate ? '' : '<button type="button" class="jpy-use-today">套用固定匯率</button>')
++ '<button type="button" class="jpy-set-fixed">改固定匯率</button>'
++ '<span style="flex-basis:100%;">'+(ADMIN_FX.today ? '今日匯率 '+ADMIN_FX.today+'（'+escHtml(ADMIN_FX.date)+(ADMIN_FX.stale ? '，暫時抓不到最新' : '')+'，僅供參考）' : (ADMIN_FX.loaded ? '' : '今日匯率讀取中…'))+'</span>';
 if(!box.querySelector('.jpy-rate').value){ box.querySelector('.jpy-rate').value = ADMIN_FX.rate; recalcJpyBox(box); }
 }
 function jpyPriceInputFor(key){
@@ -8601,6 +8645,17 @@ var ins = box.querySelectorAll('.jpy-price, .jpy-rate, .jpy-mult');
 for(var k=0;k<ins.length;k++){ ins[k].addEventListener('input', function(){ box.setAttribute('data-touched', '1'); recalcJpyBox(box); }); }
 box.addEventListener('click', function(e){
 if(e.target && e.target.classList && e.target.classList.contains('jpy-hist-btn')){ toggleJpyHistory(box, e.target); return; }
+if(e.target && e.target.classList && e.target.classList.contains('jpy-set-fixed')){
+var nv = prompt('新的固定匯率（目前 '+ADMIN_FX.rate+'）\n之後新換算的商品會用這個匯率，已存好的商品價格不會變', String(ADMIN_FX.rate));
+if(nv === null) return;
+nv = Number(String(nv).trim());
+if(!(nv > 0 && nv < 1)){ alert('匯率格式不對，例如 0.21'); return; }
+try{ localStorage.setItem('fixedFxRate', String(nv)); }catch(err){}
+ADMIN_FX.rate = nv;
+var allBoxes = document.querySelectorAll('.jpy-box');
+for(var ab=0; ab<allBoxes.length; ab++) paintJpyToday(allBoxes[ab]);
+return;
+}
 if(e.target && e.target.classList && e.target.classList.contains('jpy-use-today') && ADMIN_FX){
 box.querySelector('.jpy-rate').value = ADMIN_FX.rate;
 box.setAttribute('data-touched', '1');
@@ -8612,7 +8667,7 @@ recalcJpyBox(box);
 })(boxes[i]);
 }
 }
-function adminOptionsEditorHTML(key, label, options, label2, options2, optionPrices, optionPhotos){
+function adminOptionsEditorHTML(key, label, options, label2, options2, optionPrices, optionPhotos, optionSwap){
 var priceMap = parseOptionPrices(optionPrices || '');
 var isRow = String(key).indexOf('row-') === 0;
 var on = Object.keys(priceMap).length > 0;
@@ -8623,6 +8678,7 @@ return '<div class="admin-opt-editor" data-key="'+escAttr(key)+'" style="margin:
 + '<label class="admin-optp-toggle"><input type="checkbox" class="admin-optp-on"'+(on?' checked':'')+'> 規格一每個選項價格不一樣</label>'
 + '<div class="admin-optp-list" style="display:'+(on?'block':'none')+';"></div>'
 + '</div>'
++ '<label class="admin-optp-toggle" style="margin-top:6px;"><input type="checkbox" class="admin-opt-swap"'+(optionSwap?' checked':'')+'> 🔁 缺貨可改另一個規格（例如 10入↔5入，客人下單時先選好；價格照實際買到的算）</label>'
 + (isRow ? '<div class="admin-oph" data-pid="'+escAttr(String(key).slice(4))+'" data-photos="'+escAttr(JSON.stringify(parseOptionPhotos(optionPhotos || '')))+'"></div>' : '')
 + adminOptionGroupHTML(2, label2 || '', options2 || '', '規格名稱，例如：尺寸', '選項用逗號分開，例如：S, M, L')
 + '</div>';
@@ -8711,6 +8767,8 @@ var pbox = ed.querySelector('.admin-optp');
 var pmap = {};
 if(pbox && pbox.querySelector('.admin-optp-on').checked){ try{ pmap = parseOptionPrices(pbox.getAttribute('data-prices') || '{}', parseOptionList(out.options)); }catch(e){} }
 out.optionPrices = Object.keys(pmap).length ? JSON.stringify(pmap) : '';
+var swEl = ed.querySelector('.admin-opt-swap');
+if(swEl) out.optionSwap = !!swEl.checked;
 var phbox = ed.querySelector('.admin-oph');
 if(phbox){
 var phm = {}, phAll = {}; try{ phAll = JSON.parse(phbox.getAttribute('data-photos') || '{}'); }catch(e){}
@@ -8808,7 +8866,7 @@ await callMemberApi('admin-update-product-info', Object.assign({ productId: prod
 for(var cj=0; cj<adminProductsCache.length; cj++){ if(adminProductsCache[cj].id === productId && jpyPayload.fxDate !== undefined){ adminProductsCache[cj].cost = (jpyPayload.jpyPrice || jpyPayload.optionJpy) ? { jpyPrice: jpyPayload.jpyPrice, multiplier: jpyPayload.multiplier, fxRate: jpyPayload.fxRate, fxDate: jpyPayload.fxDate, optionJpy: jpyPayload.optionJpy } : null; } }
 var hName = document.querySelector('.adm-prod-name[data-product-id="'+productId+'"]'); if(hName) hName.textContent = name;
 var hPrice = document.querySelector('.adm-prod-price[data-product-id="'+productId+'"]'); if(hPrice) hPrice.textContent = productPriceText({ price:price, options:parseOptionList(optPayload.options || ''), optionPrices:parseOptionPrices(optPayload.optionPrices || '', parseOptionList(optPayload.options || '')) });
-for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; if(optPayload.optionPhotos !== undefined) adminProductsCache[ci].option_photos = optPayload.optionPhotos; } } }
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === productId){ adminProductsCache[ci].name = name; adminProductsCache[ci].sub = subInput.value.trim(); adminProductsCache[ci].price = price; if(optEd){ adminProductsCache[ci].option_label = optPayload.optionLabel; adminProductsCache[ci].options = parseOptionList(optPayload.options).join(', '); adminProductsCache[ci].option2_label = optPayload.optionLabel2; adminProductsCache[ci].options2 = parseOptionList(optPayload.options2).join(', '); adminProductsCache[ci].option_prices = optPayload.optionPrices || ''; if(optPayload.optionPhotos !== undefined) adminProductsCache[ci].option_photos = optPayload.optionPhotos; if(optPayload.optionSwap !== undefined) adminProductsCache[ci].option_swap = optPayload.optionSwap; } } }
 adminProductsCache.forEach(function(cp){ var el = document.querySelector('.adm-prod-name[data-product-id="'+cp.id+'"]'); if(el) el.innerHTML = escHtml(cp.name) + adminDupTagHTML(cp); var w = document.querySelector('.adm-orig-warn[data-product-id="'+cp.id+'"]'); if(w && !adminOrigWarnHTML(cp)) w.remove(); });
 showToast('已儲存');
 }catch(e){
@@ -9216,7 +9274,8 @@ isCustom: npCustomOn,
 isHidden: npHiddenOn,
 optionLabel: newOpt.optionLabel || '', options: newOpt.options || '',
 optionLabel2: newOpt.optionLabel2 || '', options2: newOpt.options2 || '',
-optionPrices: newOpt.optionPrices || ''
+optionPrices: newOpt.optionPrices || '',
+optionSwap: !!newOpt.optionSwap
 }, readJpyBox('new', newOpt.options)));
 if(fileInput.files && fileInput.files[0]){
 var base64 = await compressImage(fileInput.files[0]);
@@ -10351,6 +10410,31 @@ ov.querySelector('#paSw').addEventListener('click', function(){ done('switch'); 
 ov.querySelector('#paCancel').addEventListener('click', function(){ done('cancel'); });
 });
 }
+// 「缺貨可改另一個規格」的商品（例如 10入↔5入）：下單前一定要選好沒貨時要改買哪個、還是不用
+function swapSegOf(variant){ var m = String(variant || '').split('・').map(function(x){ return x.trim(); }).filter(function(x){ return /^沒貨(改.+|不用)$/.test(x); }); return m[0] || ''; }
+function stripSwapSeg(variant){ return String(variant || '').split('・').filter(function(x){ return !/^沒貨(改.+|不用)$/.test(x.trim()); }).join('・'); }
+function askSwapChoice(product, opt){
+return new Promise(function(resolve){
+var alts = (product.options || []).filter(function(o){ return o !== opt && !/不指定|隨機/.test(o); });
+var ov = document.createElement('div');
+ov.className = 'pick-agree-ov';
+ov.innerHTML = '<div class="pick-agree">'
++ '<p class="sw-title">「'+escHtml(opt)+'」如果現場沒貨？</p>'
++ '<p class="sw-desc">請選一個，沒貨時會照你的選擇處理。<br>改買的話，價格照實際買到的那個算，結單時統一計算。</p>'
++ alts.map(function(o){ var pr = productUnitPrice(product, o); return '<button type="button" class="sw-alt" data-alt="'+escAttr(o)+'"><span>改買「'+escHtml(o)+'」</span>'+(pr ? '<small>NT$'+pr+'</small>' : '')+'</button>'; }).join('')
++ '<button type="button" class="sw-none" data-alt="">不用，沒貨就取消</button>'
++ '<button type="button" class="pa-cancel" data-cancel="1">先不要，回去改</button>'
++ '</div>';
+document.body.appendChild(ov);
+ov.addEventListener('click', function(e){
+var b = e.target.closest('button'); if(!b) return;
+ov.remove();
+if(b.getAttribute('data-cancel')) return resolve(null);
+var a = b.getAttribute('data-alt');
+resolve(a ? '沒貨改' + a : '沒貨不用');
+});
+});
+}
 async function confirmOrder(){
 if(!orderModalProduct) return;
 var btn = document.getElementById('orderModalConfirm');
@@ -10380,8 +10464,14 @@ return;
 }
 finalPrice = productUnitPrice(orderModalProduct, orderModalOption) + extra;
 }
+var swapSeg = '';
+if(hasOpts && orderModalProduct.optionSwap && (orderModalProduct.options || []).length >= 2){
+swapSeg = await askSwapChoice(orderModalProduct, orderModalOption);
+if(!swapSeg){ btn.disabled = false; btn.textContent = '加入喊單'; return; }
+}
 var variantText = orderModalProduct.sub;
 if(hasOpts){ variantText = (variantText ? variantText + '・' : '') + orderModalOption; }
+if(swapSeg){ variantText += '・' + swapSeg; }
 if(hasOpts2){ variantText = (variantText ? variantText + '・' : '') + orderModalOption2; }
 if(isGacha){ variantText += orderModalShell === 'yes' ? '・留蛋殼' : '・不留蛋殼'; }
 try{
@@ -11140,6 +11230,7 @@ return '<div class="order-card" style="margin-top:10px;">'
 + ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
 + (s.credit_deducted > 0 ? '<div class="settle-total-row"><span>↪ 缺貨退款扣抵</span><span>-NT$'+s.credit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ (Number(s.overpaid) > 0 ? '<div class="settle-total-row" style="color:#047857;font-weight:800;"><span>💚 多付的金額會退還給您</span><span>NT$'+s.overpaid+'</span></div>' : '')
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
 + '</div>';
