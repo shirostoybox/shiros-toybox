@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-2320';
+var APP_VERSION = '20261108-2345';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6311,8 +6311,9 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 
 + '<div class="pf-card"><p class="pf-ch">📦 庫存未售出（買了但還沒賣掉的）</p>'
 + '<p class="pf-hint">多買放庫存、還沒人喊單的，成本記在這裡。之後賣掉，收入會算在新的訂單。</p>'
++ '<div id="pfStockSync"></div>'
 + stockRows
-+ '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="adm-link" id="pfAddStock">＋ 新增一項</button><button type="button" class="adm-link" id="pfImportStock">📦 從庫存帶入剩下的</button></div>'
++ '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="adm-link" id="pfAddStock">＋ 新增一項</button><button type="button" class="adm-link" id="pfImportStock">📦 從庫存帶入／更新數量</button></div>'
 + '<div class="pf-line pf-total"><span>庫存成本小計</span><span id="pfStockTotal">'+pfMoney(c.stock)+'</span></div>'
 + '</div>'
 
@@ -6326,6 +6327,60 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<button type="button" class="pf-btn ghost" id="pfDownload">⬇️ 下載</button>'
 + '<button type="button" class="pf-btn" id="pfSave">'+(pfDirty ? '儲存' : '已儲存')+'</button></div>';
 bindProfitSheet(c);
+if((pfData.stockCosts || []).some(function(x){ return x.pid; })) pfCheckStockSync();
+}
+// 庫存成本的數量＝庫存裡的總數，扣掉「賣出時那筆訂單自己有記成本」的那幾個（那幾個的成本已經算在訂單上）
+function pfStockQtyFor(pid, alloc, groups){
+var P = alloc.prod[pid]; if(!P) return null;
+var byId = {};
+(groups || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ byId[o.id] = o; }); (g.settlements || []).forEach(function(st){ (st.items || []).forEach(function(o){ byId[o.id] = o; }); }); });
+var costed = 0;
+Object.keys(INV.a || {}).forEach(function(oid){ var A = INV.a[oid]; if(!A || A.p !== pid) return; var o = byId[oid]; if(o && o.cost_jpy != null && o.cost_jpy !== '') costed += (A.u || []).length; });
+return Math.max(0, P.total - costed);
+}
+function pfStockLabel(pid, P){
+var detail = P ? P.leftOrder.map(function(l){ return invLabelText(l)+'×'+P.leftBy[l]; }).join('、') : '';
+return invProdName(pid) + (detail ? '（剩 '+detail+'）' : '');
+}
+// 比對分潤表「庫存未售出」跟現在的庫存：數量不一樣的列出來（同一件商品分好幾行記的不動，避免算錯）
+function pfStockDiffs(alloc, groups){
+var cnt = {}; (pfData.stockCosts || []).forEach(function(x){ if(x.pid) cnt[x.pid] = (cnt[x.pid] || 0) + 1; });
+var out = [];
+(pfData.stockCosts || []).forEach(function(x, i){
+if(!x.pid || cnt[x.pid] > 1) return;
+var q = pfStockQtyFor(x.pid, alloc, groups);
+if(q == null) q = 0;
+if(String(q) !== String(x.qty).trim()) out.push({ i:i, pid:x.pid, from:x.qty, to:q });
+});
+return out;
+}
+function pfApplyStockDiffs(diffs, alloc){
+diffs.forEach(function(d){ var x = pfData.stockCosts[d.i]; if(!x) return; x.qty = String(d.to); x.label = pfStockLabel(d.pid, alloc.prod[d.pid]); });
+}
+var PF_SYNC_CACHE = null;   // 一分鐘內重畫分潤表就不再重抓庫存
+async function pfCheckStockSync(){
+var box = document.getElementById('pfStockSync'); if(!box) return;
+try{
+var groups, alloc;
+if(PF_SYNC_CACHE && Date.now() - PF_SYNC_CACHE.at < 60000){ groups = PF_SYNC_CACHE.groups; alloc = PF_SYNC_CACHE.alloc; }
+else {
+var lrs = await Promise.all([ callMemberApi('admin-list-order-groups'), callMemberApi('get-site-settings') ]);
+if(lrs[1] && lrs[1].settings){ siteSettings.inventory = lrs[1].settings.inventory; invReload(); }
+groups = lrs[0].groups || []; alloc = invAllocate(groups);
+PF_SYNC_CACHE = { at: Date.now(), groups: groups, alloc: alloc };
+}
+var diffs = pfStockDiffs(alloc, groups);
+box = document.getElementById('pfStockSync'); if(!box) return;
+if(!diffs.length){ box.innerHTML = ''; return; }
+box.innerHTML = '<div class="pf-warn" style="background:#FEF3C7;color:#92400E;">📦 庫存數量有變動：<br>'
++ diffs.map(function(d){ return escHtml(invProdName(d.pid))+'：'+escHtml(String(d.from || 0))+' → <b>'+d.to+'</b>'; }).join('<br>')
++ '<br><button type="button" class="pf-btn" id="pfStockSyncBtn" style="margin-top:8px;">一鍵更新數量</button></div>';
+document.getElementById('pfStockSyncBtn').addEventListener('click', function(){
+pfApplyStockDiffs(diffs, alloc);
+showToast('已更新 '+diffs.length+' 項庫存數量，記得按「儲存」');
+pfMarkDirty(true);
+});
+}catch(e){ if(box) box.innerHTML = ''; }
 }
 function pfMarkDirty(rerender){
 pfDirty = true;
@@ -6442,21 +6497,29 @@ if(lrs[1] && lrs[1].settings){ siteSettings.inventory = lrs[1].settings.inventor
 var alloc = invAllocate(lrs[0].groups || []);
 var inSheet = {}; c.products.forEach(function(p){ if(p.productId) inSheet[p.productId] = true; });
 var have = {}; pfData.stockCosts.forEach(function(x){ if(x.pid) have[x.pid] = true; });
+var diffs = pfStockDiffs(alloc, lrs[0].groups || []);
+if(diffs.length) pfApplyStockDiffs(diffs, alloc);
 var all = Object.keys(alloc.prod).filter(function(pid){ return alloc.prod[pid].left > 0 && !have[pid]; });
 var list = all.filter(function(pid){ return inSheet[pid]; });
-if(!list.length && all.length && confirm('這張分潤表的商品沒有剩下的庫存。\n\n要改成帶入「全部」剩下的庫存（'+all.length+' 項）嗎？')) list = all;
-if(!list.length){ alert('沒有剩下的庫存可以帶入'); btn.disabled = false; btn.textContent = '📦 從庫存帶入剩下的'; return; }
+if(!list.length && all.length && confirm((diffs.length ? '已更新 '+diffs.length+' 項的數量。\n\n' : '')+'這張分潤表的商品沒有其他剩下的庫存。\n\n要改成帶入「全部」剩下的庫存（'+all.length+' 項）嗎？')) list = all;
+if(!list.length){
+btn.disabled = false; btn.textContent = '📦 從庫存帶入／更新數量';
+if(diffs.length){ showToast('已更新 '+diffs.length+' 項庫存數量，記得按「儲存」'); pfMarkDirty(true); }
+else alert('庫存數量都是最新的，也沒有新的庫存可以帶入');
+return;
+}
 var infos = await Promise.all(list.map(function(pid){ return getCostInfo(pid).catch(function(){ return null; }); }));
 var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 list.forEach(function(pid, k){
 var P = alloc.prod[pid];
 var detail = P.leftOrder.map(function(l){ return invLabelText(l)+'×'+P.leftBy[l]; }).join('、');
 var j = costJpyGuess(infos[k], '');
-pfData.stockCosts.push({ pid: pid, label: invProdName(pid) + (detail ? '（'+detail+'）' : ''), qty: String(P.left), jpy: j ? String(j) : '', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
+var q0 = pfStockQtyFor(pid, alloc, lrs[0].groups || []);
+pfData.stockCosts.push({ pid: pid, label: pfStockLabel(pid, P), qty: String(q0 != null ? q0 : P.left), jpy: j ? String(j) : '', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
 });
-showToast('已帶入 '+list.length+' 項，請確認日幣和購買日期');
+showToast((diffs.length ? '已更新 '+diffs.length+' 項數量、' : '')+'已帶入 '+list.length+' 項，請確認日幣和購買日期');
 pfMarkDirty(true);
-}catch(e){ btn.disabled = false; btn.textContent = '📦 從庫存帶入剩下的'; alert('讀取庫存失敗：' + e.message); }
+}catch(e){ btn.disabled = false; btn.textContent = '📦 從庫存帶入／更新數量'; alert('讀取庫存失敗：' + e.message); }
 });
 on('#pfAddExtra', 'click', function(){ pfData.extraCosts.push({ label:'', amount:'', payer: (pfData.partners[0] || {}).id || 'split' }); pfMarkDirty(true); });
 on('.pf-pname', 'input', function(){ pfData.partners[+this.getAttribute('data-i')].name = this.value; pfMarkDirty(false); });
