@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-2235';
+var APP_VERSION = '20261108-2320';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -11438,13 +11438,55 @@ var opt = (!p.isPrivate && orderModalProduct && orderModalProduct.id === p.id &&
 var label = (p.isPrivate ? (p.publicName || '客訂商品') : p.name) + (opt ? '・' + opt : '');
 openShareMenu(label, productShareUrl(p, opt), label + '｜四郎玩具箱');
 }
-async function openShareMenu(label, url, text){
+// 商品卡片（LINE Flex 輪播）：每件商品一張卡（照片＋名稱＋價格＋喊單按鈕），左右滑；
+// 一則最多 12 張，一次最多送 5 則 → 第 1 則是文字＋連結，後面最多 4 則輪播（48 件），更多的放「看全部」
+function flexStr(t, n){ t = String(t || '').trim() || ' '; return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+function productCardBubble(p){
+var uri = productShareUrl(p);
+return { type:'bubble', size:'kilo',
+hero: { type:'image', url: productImageUrl(p.id), size:'full', aspectRatio:'1:1', aspectMode:'cover', action:{ type:'uri', uri: uri } },
+body: { type:'box', layout:'vertical', spacing:'sm', paddingAll:'12px', contents:[
+{ type:'text', text: flexStr(p.name, 80), wrap:true, weight:'bold', size:'sm', maxLines:3 },
+{ type:'text', text: flexStr(productPriceText(p), 30), size:'md', weight:'bold', color:'#E8505B' }
+] },
+footer: { type:'box', layout:'vertical', paddingAll:'10px', contents:[
+{ type:'button', style:'primary', color:'#111827', height:'sm', action:{ type:'uri', label:'看看・喊單', uri: uri } }
+] } };
+}
+function moreCardBubble(n, url){
+return { type:'bubble', size:'kilo', body:{ type:'box', layout:'vertical', justifyContent:'center', paddingAll:'20px', contents:[
+{ type:'text', text:'還有 '+n+' 件', weight:'bold', size:'xl', align:'center' },
+{ type:'text', text:'點下面看全部商品', size:'sm', color:'#888888', align:'center', margin:'md' }
+] }, footer:{ type:'box', layout:'vertical', paddingAll:'10px', contents:[ { type:'button', style:'primary', color:'#E8505B', height:'sm', action:{ type:'uri', label:'看全部', uri: url } } ] } };
+}
+function productCardMessages(products, text, url){
+var list = (products || []).filter(function(p){ return p && p.id && !p.isPrivate && !p.isCustom; });
+var msgs = [{ type:'text', text: text + '\n' + url }];
+if(!list.length) return msgs;
+var MAX = 48, shown = list.slice(0, list.length > MAX ? MAX - 1 : MAX), rest = list.length - shown.length;
+var bubbles = shown.map(productCardBubble);
+if(rest > 0) bubbles.push(moreCardBubble(rest, url));
+for(var i=0; i<bubbles.length; i+=12){
+var chunk = bubbles.slice(i, i+12);
+msgs.push({ type:'flex', altText: flexStr(text, 100) + (bubbles.length > 12 ? '（'+(i/12+1)+'）' : ''), contents:{ type:'carousel', contents: chunk } });
+}
+return msgs;
+}
+async function openShareMenu(label, url, text, cardProducts){
 closeShareMenu();
 var inLine = !!(window.liff && liff.isInClient && liff.isInClient());
 var canPicker = false;
 try{ canPicker = inLine && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }catch(e){}
 var canNative = !!navigator.share;
 var items = [];
+var cardList = (cardProducts || []).filter(function(p){ return p && p.id && !p.isPrivate && !p.isCustom; });
+if(canPicker && cardList.length) items.push({ html: shareMenuButton('🛍️', '商品卡片傳到 LINE 群組（'+cardList.length+' 件）', '每件商品一張照片卡，左右滑，點了直接喊單'), fn: async function(){
+try{ var r = await liff.shareTargetPicker(productCardMessages(cardList, text, url)); if(r) showToast('已分享 ♡'); }
+catch(e){
+// 卡片送不出去（例如照片網址有問題）→ 改傳文字連結
+try{ var r2 = await liff.shareTargetPicker([{ type:'text', text: text + '\n' + url }]); if(r2) showToast('商品卡片傳送失敗，已改傳連結'); }catch(e2){ copyShareLink(url); }
+}
+} });
 if(canPicker) items.push({ html: shareMenuButton('💬', '傳給 LINE 好友・群組', '直接選要傳給誰'), fn: async function(){
 try{ var r = await liff.shareTargetPicker([{ type:'text', text: text + '\n' + url }]); if(r) showToast('已分享 ♡'); }
 catch(e){ copyShareLink(url); }
@@ -11586,12 +11628,13 @@ if(r.ok) str += '|' + (r.headers.get('last-modified') || r.headers.get('etag') |
 }catch(e){}
 // 網址只留必要的：分類＋專區＋版本號（分類名稱由預覽頁自己查）
 var url = window.location.origin + '/c/' + encodeURIComponent(cat) + '?z=' + encodeURIComponent(zoneKey) + '&v=' + shortHash(str).slice(0, 5);
-openShareMenu(label, url, label + '｜' + (isLive ? '限時連線專區' : '現貨・預購'));
+openShareMenu(label, url, label + '｜' + (isLive ? '限時連線專區' : '現貨・預購'), products);
 }
 async function shareZoneLink(zone){
 var title = (zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '');
 var ver = await zoneShareVer(zone);
-openShareMenu(title, zoneShareUrl(zone, ver), '四郎玩具箱・' + title);
+var zoneProds = (PRODUCTS || []).filter(function(p){ return p.liveZoneId === zone.id && p.stock === 'live_limited'; });
+openShareMenu(title, zoneShareUrl(zone, ver), '四郎玩具箱・' + title, zoneProds);
 }
 function showView(name){
 updatePageUrl(name);
