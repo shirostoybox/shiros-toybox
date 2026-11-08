@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-2205';
+var APP_VERSION = '20261108-2215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3607,9 +3607,10 @@ return false;
 function selfCostLineHTML(o){
 if(!o || !(o.is_test || isSelfLine(o.line_uid))) return '';
 var c = selfCostOf(o);
+var canEdit = o.id && (o.status === '已確認' || o.status === '已付款');
 return c == null
-? '<p class="self-cost is-miss">💴 成本：還沒記（採購按確認時填日幣，這裡就會算好）</p>'
-: '<p class="self-cost">💴 成本 ¥'+fmtNum(o.cost_jpy)+' × '+o.cost_rate+(Number(o.quantity) > 1 ? ' × '+o.quantity : '')+' ＝ <b>NT$'+fmtNum(c)+'</b></p>';
+? '<p class="self-cost is-miss">💴 成本：還沒記'+(canEdit ? ' <button type="button" class="adm-p-cost is-todo" data-cost-oid="'+o.id+'" style="margin-left:4px;">💴 點這裡補成本</button>' : '（採購按確認時填日幣，這裡就會算好）')+'</p>'
+: '<p class="self-cost">💴 成本 ¥'+fmtNum(o.cost_jpy)+' × '+o.cost_rate+(Number(o.quantity) > 1 ? ' × '+o.quantity : '')+' ＝ <b>NT$'+fmtNum(c)+'</b>'+(canEdit ? ' <button type="button" class="adm-p-cost" data-cost-oid="'+o.id+'" style="margin-left:4px;">✏️ 改</button>' : '')+'</p>';
 }
 function selfCostSum(list){
 var sum = 0, miss = 0;
@@ -4207,7 +4208,7 @@ return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.v
 }).join('');
 var sm = selfS ? selfSettleMath(s) : null;
 var selfCostBox = selfS
-? '<div class="self-cost-box">🧪 自己人・用成本價計算'+(sm.miss ? '<br><span>還有 '+sm.miss+' 筆沒記成本，記好後會自動加進來（採購按確認時填日幣）</span>' : '')+'</div>'
+? '<div class="self-cost-box">🧪 自己人・用成本價計算'+(sm.miss ? '<br><span>還有 '+sm.miss+' 筆沒記成本，按那件商品的「💴 點這裡補成本」填日幣，就會自動加進來</span>' : '')+'</div>'
 : '';
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
@@ -4503,6 +4504,9 @@ function findAdminOrder(id){
 for(var i=0;i<adminGroupsCache.length;i++){
 var g = adminGroupsCache[i], arr = g.openOrders || [];
 for(var j=0;j<arr.length;j++){ if(String(arr[j].id) === String(id)) return Object.assign({ _nick: g.nickname || '客人' }, arr[j]); }
+// 已結單的商品也找得到（結單卡片裡補成本）
+var sts = g.settlements || [];
+for(var k=0;k<sts.length;k++){ var its = sts[k].items || []; for(var m=0;m<its.length;m++){ if(String(its[m].id) === String(id)) return Object.assign({ _nick: g.nickname || '客人' }, its[m]); } }
 }
 return null;
 }
