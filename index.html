@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-2010';
+var APP_VERSION = '20261108-2120';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2343,6 +2343,7 @@ body = adminAreaChipsHTML() + adminRefundBoxHTML(groups)
 + adminChip('全部', adminOrderFilter==='all', 'data-ofilter="all"')
 + chipDefs.filter(function(d){ return d[2] > 0 || adminOrderFilter === d[0]; }).map(function(d){ return adminChip(d[1]+' '+d[2]+' '+d[3], adminOrderFilter===d[0], 'data-ofilter="'+d[0]+'"'); }).join('')
 + '</div>'
++ '<button type="button" class="admin-add-order-any" style="display:block;width:100%;margin:0 0 10px;padding:11px;border-radius:var(--r-md);border:1.5px dashed #059669;background:#ECFDF5;color:#065F46;font-weight:800;font-size:13px;font-family:var(--font-body);">➕ 幫客人加單（任何客人、任何連線，沒喊過單的也可以）</button>'
 + '<input type="text" class="gate-input" id="adminOrderSearch" value="'+escAttr(adminOrderQuery)+'" placeholder="搜尋：暱稱、商品、單號、小吉…" style="margin-bottom:6px;">'
 + '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;">'
 + '<p id="adminOrderSearchHint" style="font-size:12px;color:var(--muted);margin:0;"></p>'
@@ -3974,7 +3975,7 @@ form.innerHTML = (p.custom
 + '<div class="cm-grid" style="margin-top:10px;"><label class="cm-lab full">款式（可以直接打字）<input class="pf-in" id="aoVar" value=""></label>'
 + '<label class="cm-lab">數量<input class="pf-in" id="aoQty" type="number" inputmode="numeric" min="1" value="1"></label>'
 + '<label class="cm-lab">單價<input class="pf-in" id="aoPrice" type="number" inputmode="numeric" min="0" value="'+escAttr(p.price || 0)+'"></label></div>'
-+ '<label class="ao-confirm"><input type="checkbox" id="aoConfirm" checked> 已經買到了，直接設成「已確認」</label>'
++ '<label class="ao-confirm"><input type="checkbox" id="aoConfirm"> 已經買到了，直接設成「已確認」（還沒買的不要勾，會進採購清單）</label>'
 + '<div class="cm-sum" id="aoSum"></div>'
 + '<div class="cm-acts"><button type="button" class="pf-btn" id="aoOk">加入訂單</button></div>';
 var vIn = form.querySelector('#aoVar'), nIn = form.querySelector('#aoQty'), prIn = form.querySelector('#aoPrice');
@@ -3995,6 +3996,61 @@ finish({ productId: pid, productName: p.custom ? nmIn.value.trim() : '', zoneId:
 }
 });
 }
+// 先搜尋會員（暱稱或 LINE 名稱）→ 選好客人 → 跟「幫她加單」一樣選商品；訂單會自動算進那件商品所在的連線
+function pickMemberModal(){
+return new Promise(function(resolve){
+var ov = document.createElement('div'); ov.className = 'cm-ov';
+ov.innerHTML = '<div class="cm-box"><p class="cm-title">➕ 幫哪位客人加單？</p>'
++ '<label class="cm-lab full">搜尋客人（暱稱或 LINE 名稱都可以）<input class="pf-in" id="pmQ" placeholder="打名字的幾個字"></label>'
++ '<div id="pmList" class="ao-list"><p class="cm-hint">打字搜尋客人</p></div>'
++ '<div class="cm-acts"><button type="button" class="cm-skip" id="pmCancel">取消</button></div></div>';
+document.body.appendChild(ov);
+var done = false; function finish(v){ if(done) return; done = true; ov.remove(); resolve(v); }
+ov.addEventListener('click', function(e){ if(e.target === ov) finish(null); });
+ov.querySelector('#pmCancel').addEventListener('click', function(){ finish(null); });
+var qIn = ov.querySelector('#pmQ'), listEl = ov.querySelector('#pmList'), timer = null, seq = 0;
+qIn.addEventListener('input', function(){
+clearTimeout(timer);
+var q = qIn.value.trim();
+if(!q){ listEl.innerHTML = '<p class="cm-hint">打字搜尋客人</p>'; return; }
+timer = setTimeout(async function(){
+var my = ++seq;
+listEl.innerHTML = '<p class="cm-hint">搜尋中…</p>';
+try{
+var d = await callMemberApi('admin-search-members', { query: q });
+if(my !== seq) return;
+var ms = (d.members || []);
+listEl.innerHTML = ms.length ? ms.map(function(m, i){
+var nm = m.nickname || m.displayName || '（未設定暱稱）';
+var tags = (m.isBlocked ? '・🚫已停用' : '') + (m.orderRestricted ? '・限制下單' : '') + (!m.isVerified ? '・尚未驗證' : '');
+return '<button type="button" class="ao-item" data-i="'+i+'"><span>'+escHtml(nm)+'<small>LINE：'+escHtml(m.displayName || '')+escHtml(tags)+'</small></span></button>';
+}).join('') : '<p class="cm-hint">找不到這位客人，換個字試試</p>';
+var bs = listEl.querySelectorAll('.ao-item');
+for(var k=0;k<bs.length;k++) bs[k].addEventListener('click', function(){
+var m = ms[Number(this.getAttribute('data-i'))];
+if(m.isBlocked && !confirm('這位客人已停用，確定還要幫他加單嗎？')) return;
+finish({ lineUid: m.lineUid, nick: m.nickname || m.displayName || '客人' });
+});
+}catch(err){ if(my === seq) listEl.innerHTML = '<p class="cm-hint">搜尋失敗：'+escHtml(err.message)+'</p>'; }
+}, 300);
+});
+setTimeout(function(){ try{ qIn.focus(); }catch(e){} }, 50);
+});
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-add-order-any') : null;
+if(!b) return;
+e.stopPropagation();
+var m = await pickMemberModal();
+if(!m) return;
+var r = await openAddOrderModal(m.nick, '');
+if(!r) return;
+try{
+await callMemberApi('admin-add-order', Object.assign({ lineUid: m.lineUid }, r));
+showToast('已幫 '+m.nick+' 加單');
+await loadAdminGroups();
+}catch(err){ alert('加單失敗：' + err.message); }
+});
 document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-add-order-btn') : null;
 if(!b) return;
