@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-2355';
+var APP_VERSION = '20261109-0045';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6026,7 +6026,8 @@ var fee = 0, feeBy = {};
 Object.keys(cardBase).forEach(function(k){ var a = Math.round(cardBase[k] * pfCardRate(k) / 100); feeBy[k] = a; fee += a; charge(k, a); });
 var extra = 0, shipCost = 0;
 (pfData.extraCosts || []).forEach(function(x){
-var a = pfNum(x.amount); extra += a; if(x.ship) shipCost += a;
+var a = pfNum(x.amount); if(x.refund) a = -Math.abs(a);   // 回收（朋友買走已分過成本的庫存）：當成負的成本，收錢的人要把別人那份還回去
+extra += a; if(x.ship) shipCost += a;
 charge(x.payer, a);
 });
 var stock = 0;
@@ -6253,6 +6254,7 @@ return '<div class="pf-extra">'
 + '<select class="pf-in pf-xpayer" data-i="'+i+'">'+pfPayerOptions(x.payer, true)+'</select>'
 + '<button type="button" class="pf-x pf-xdel" data-i="'+i+'" aria-label="刪除">✕</button>'
 + (x.ship ? '<p class="pf-extra-hint">向客人收的運費 '+pfMoney(c.inc.ship)+'（已扣運費折扣），這裡填實際付給超商的</p>' : '')
++ (x.refund ? '<p class="pf-extra-hint" style="color:#047857;">↩ 回收：之前已經分攤過成本的庫存，後來朋友買走付的錢。金額填<b>收到多少</b>（正數就好，會自動當成扣回成本）；右邊選<b>收錢的人</b>，系統會算他要還給其他人多少。</p>' : '')
 + '</div>';
 }).join('');
 var stockRows = (pfData.stockCosts || []).map(function(x, i){
@@ -6305,7 +6307,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '</div>'
 
 + '<div class="pf-card"><p class="pf-ch">③ 刷卡手續費・包材・運費</p>' + feeRows + extraRows
-+ '<button type="button" class="adm-link" id="pfAddExtra">＋ 新增一項</button>'
++ '<div style="display:flex;gap:10px;flex-wrap:wrap;"><button type="button" class="adm-link" id="pfAddExtra">＋ 新增一項</button><button type="button" class="adm-link" id="pfAddRefund" style="color:#047857;">↩ 朋友買走庫存（回收成本）</button></div>'
 + '<div class="pf-line pf-total"><span>小計</span><span id="pfExtraTotal">'+pfMoney(c.extra + c.fee)+'</span></div>'
 + '</div>'
 
@@ -6327,7 +6329,8 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<button type="button" class="pf-btn ghost" id="pfDownload">⬇️ 下載</button>'
 + '<button type="button" class="pf-btn" id="pfSave">'+(pfDirty ? '儲存' : '已儲存')+'</button></div>';
 bindProfitSheet(c);
-if((pfData.stockCosts || []).some(function(x){ return x.pid; })) pfCheckStockSync();
+// 已經全部收款完的表（可能已經結算過）不自動提醒改庫存數量，避免動到結算過的帳；要改可以按按鈕
+if(c.inProgress && (pfData.stockCosts || []).some(function(x){ return x.pid; })) pfCheckStockSync();
 }
 // 庫存成本的數量＝庫存裡的總數，扣掉「賣出時那筆訂單自己有記成本」的那幾個（那幾個的成本已經算在訂單上）
 function pfStockQtyFor(pid, alloc, groups){
@@ -6521,6 +6524,7 @@ showToast((diffs.length ? '已更新 '+diffs.length+' 項數量、' : '')+'已�
 pfMarkDirty(true);
 }catch(e){ btn.disabled = false; btn.textContent = '📦 從庫存帶入／更新數量'; alert('讀取庫存失敗：' + e.message); }
 });
+on('#pfAddRefund', 'click', function(){ pfData.extraCosts.push({ label:'朋友買走庫存（回收成本）：', amount:'', payer: (pfData.partners[0] || {}).id || 'split', refund:true }); pfMarkDirty(true); });
 on('#pfAddExtra', 'click', function(){ pfData.extraCosts.push({ label:'', amount:'', payer: (pfData.partners[0] || {}).id || 'split' }); pfMarkDirty(true); });
 on('.pf-pname', 'input', function(){ pfData.partners[+this.getAttribute('data-i')].name = this.value; pfMarkDirty(false); });
 on('.pf-pname', 'blur', function(){ pfMarkDirty(true); });
