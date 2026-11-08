@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261108-2345';
+var APP_VERSION = '20261108-2355';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -11542,6 +11542,8 @@ var canPicker = false;
 try{ canPicker = inLine && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }catch(e){}
 var canNative = !!navigator.share;
 var items = [];
+var cardList0 = (cardProducts || []).filter(function(p){ return p && p.id && !p.isPrivate && !p.isCustom; });
+if(cardList0.length) items.push({ html: shareMenuButton('📸', '存成照片（社群用・'+cardList0.length+' 張）', '每件商品一張照片，存到相簿再發到社群'), fn: function(){ saveProductPhotos(cardList0, text, url); } });
 var cardList = (cardProducts || []).filter(function(p){ return p && p.id && !p.isPrivate && !p.isCustom; });
 if(canPicker && cardList.length) items.push({ html: shareMenuButton('🛍️', '商品卡片傳到 LINE 群組（'+cardList.length+' 件）', '每件商品一張照片卡，左右滑，點了直接喊單'), fn: async function(){
 try{ var r = await liff.shareTargetPicker(productCardMessages(cardList, text, url)); if(r) showToast('已分享 ♡'); }
@@ -11600,6 +11602,77 @@ im.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'cors=1';
 }
 function roundRectPath(ctx, x, y, w, h, r){
 ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+// ---------- 社群用：每件商品做成一張照片（照片＋名稱＋價格），一次存到相簿 ----------
+function wrapLines(ctx, text, maxW, maxLines){
+var out = [], cur = '';
+String(text || '').split('').forEach(function(ch){
+if(ctx.measureText(cur + ch).width > maxW && cur){ out.push(cur); cur = ch; } else cur += ch;
+});
+if(cur) out.push(cur);
+if(out.length > maxLines){ out = out.slice(0, maxLines); var last = out[maxLines-1]; while(ctx.measureText(last + '…').width > maxW && last.length > 1) last = last.slice(0, -1); out[maxLines-1] = last + '…'; }
+return out;
+}
+async function buildProductPhoto(p){
+var W = 1080, PH = 1080, BAR = 250, H = PH + BAR;
+var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+var ctx = cv.getContext('2d');
+ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, PH);
+var im = await loadCorsImage(productImageUrl(p.id));
+if(im){
+var r = Math.min(W / im.width, PH / im.height), dw = im.width * r, dh = im.height * r;
+ctx.drawImage(im, (W - dw) / 2, (PH - dh) / 2, dw, dh);
+}
+var bg = ctx.createLinearGradient(0, PH, W, H); bg.addColorStop(0, '#FFE4EC'); bg.addColorStop(1, '#FFF4E5');
+ctx.fillStyle = bg; ctx.fillRect(0, PH, W, BAR);
+var font = '-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
+ctx.textBaseline = 'top'; ctx.fillStyle = '#1B1E27';
+ctx.font = '800 46px ' + font;
+var lines = wrapLines(ctx, p.name, W - 40 - 340, 2);
+lines.forEach(function(l, i){ ctx.fillText(l, 40, PH + 30 + i * 58); });
+ctx.font = '900 60px ' + font; ctx.fillStyle = '#E8505B';
+ctx.fillText(productPriceText(p), 40, PH + 30 + lines.length * 58 + 12);
+ctx.textAlign = 'right'; ctx.fillStyle = '#1B1E27';
+ctx.font = '800 34px ' + font; ctx.fillText('🧸 四郎玩具箱', W - 36, PH + 70);
+ctx.font = '600 28px ' + font; ctx.fillStyle = '#6B7280'; ctx.fillText('點連結喊單 ♡', W - 36, PH + 122);
+ctx.textAlign = 'left';
+return new Promise(function(res){ cv.toBlob(function(b){ res(b); }, 'image/jpeg', 0.88); });
+}
+async function saveProductPhotos(products, linkText, url){
+var list = (products || []).filter(function(p){ return p && p.id && !p.isPrivate && !p.isCustom; });
+if(!list.length){ alert('沒有可以做成照片的商品'); return; }
+var ov = document.createElement('div'); ov.className = 'pick-agree-ov';
+ov.innerHTML = '<div class="pick-agree" style="max-height:88vh;overflow:auto;"><p class="sw-title">📸 存成照片（社群用）</p><p class="sw-desc" id="ppStatus">製作中… 0 / '+list.length+'</p><div id="ppBody"></div><button type="button" class="pa-cancel" id="ppClose">關閉</button></div>';
+document.body.appendChild(ov);
+var closed = false;
+ov.querySelector('#ppClose').addEventListener('click', function(){ closed = true; ov.remove(); });
+var files = [], urls = [];
+for(var i=0; i<list.length; i++){
+if(closed) return;
+try{
+var b = await buildProductPhoto(list[i]);
+if(b){ files.push(new File([b], 'shiro-' + (i+1) + '.jpg', { type:'image/jpeg' })); urls.push(URL.createObjectURL(b)); }
+}catch(e){}
+var st = ov.querySelector('#ppStatus'); if(st) st.textContent = '製作中… ' + (i+1) + ' / ' + list.length;
+}
+if(closed) return;
+var canShareFiles = false;
+try{ canShareFiles = !!(navigator.canShare && navigator.canShare({ files: files })); }catch(e){}
+var body = ov.querySelector('#ppBody');
+ov.querySelector('#ppStatus').innerHTML = '做好 '+files.length+' 張了！' + (canShareFiles ? '按下面按鈕，選「<b>儲存 '+files.length+' 張影像</b>」就會存到相簿。' : '這裡沒辦法一次存，請<b>長按每張照片 →「加入照片」</b>。<br>想一次存的話：按 LINE 右上角「⋯」→ 用 Safari 開啟，再按一次。');
+body.innerHTML = (canShareFiles ? '<button type="button" class="pa-ok" id="ppSave">📥 全部存到相簿（'+files.length+' 張）</button>' : '')
++ '<button type="button" class="pa-sw" id="ppCopy">🔗 複製連結（發完照片再貼到社群）</button>'
++ '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0;">' + urls.map(function(u){ return '<img src="'+u+'" style="width:100%;border-radius:8px;-webkit-touch-callout:default;">'; }).join('') + '</div>';
+var sv = body.querySelector('#ppSave');
+if(sv) sv.addEventListener('click', async function(){
+try{ await navigator.share({ files: files }); showToast('存好了，到社群選照片發出去吧 ♡'); }
+catch(e){ if(!(e && e.name === 'AbortError')) alert('沒辦法一次存：' + (e.message || e) + '\n\n請長按下面每張照片 →「加入照片」'); }
+});
+body.querySelector('#ppCopy').addEventListener('click', function(){
+var t = linkText + '\n' + url;
+if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function(){ showToast('已複製連結 ♡'); }, function(){ window.prompt('長按複製：', t); });
+else window.prompt('長按複製：', t);
+});
 }
 // 1200×630 拼圖：上方分類名稱，下面每件商品第一張照片（最多 18 張，超過顯示 +N）
 // LINE 預覽會把左右兩邊各裁掉一些，重要的字和照片都放在中間的安全範圍
