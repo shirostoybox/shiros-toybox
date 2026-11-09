@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-0140';
+var APP_VERSION = '20261110-0200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6276,6 +6276,8 @@ return '<div class="pf-stock">'
 + '<label>誰付的<select class="pf-in pf-stpayer" data-i="'+i+'">'+pfPayerOptions(x.payer, true)+'</select></label>'
 + '</div>'
 + '<p class="pf-stw" data-i="'+i+'">'+pfStockCalcHTML(x)+'</p>'
++ (function(){ if(!x.pid) return ''; var sq = 0, sa = 0; (pfData.extraCosts || []).forEach(function(e){ if(e.sale && e.sale.pid === x.pid){ sq += Number(e.sale.qty) || 0; sa += Math.abs(pfNum(e.amount)); } });
+return sq ? '<p class="pf-hint" style="color:#047857;margin:4px 0 0;">💰 其中 '+sq+' 個已經賣給非會員／朋友，收到 '+pfMoney(sa)+'（記在③，已算進收入）。這裡的數量是<b>當初買進幾個</b>，賣掉不用改。</p>' : ''; })()
 + '</div>';
 }).join('');
 var cf = pfData.cardFees || {};
@@ -6319,7 +6321,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '</div>'
 
 + '<div class="pf-card"><p class="pf-ch">📦 庫存未售出（買了但還沒賣掉的）</p>'
-+ '<p class="pf-hint">多買放庫存、還沒人喊單的，成本記在這裡。之後賣掉，收入會算在新的訂單。</p>'
++ '<p class="pf-hint">多買放庫存、還沒人喊單的，成本記在這裡。<b>數量是買進幾個</b>（成本），賣掉也不用改這裡；賣掉的錢會算在訂單或「💰 庫存賣出」。</p>'
 + '<div id="pfStockSync"></div>'
 + stockRows
 + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="adm-link" id="pfAddStock">＋ 新增一項</button><button type="button" class="adm-link" id="pfImportStock">📦 從庫存帶入／更新數量</button><button type="button" class="adm-link" id="pfStockSale" style="color:#047857;">💰 庫存賣給非會員／朋友（記收入）</button></div>'
