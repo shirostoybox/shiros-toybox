@@ -210,6 +210,9 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .opt-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 14px; }
 .opt-chip{ min-width:52px; padding:9px 14px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--paper); font-size:13.5px; font-weight:700; color:var(--text-dark); font-family:var(--font-body); }
 .opt-chip-price{ display:block; margin-top:2px; font-size:11.5px; font-weight:800; color:var(--ignis-deep); }
+.opt-chip.is-off{ opacity:.5; border-style:dashed; }
+.opt-chip.is-off .opt-chip-price{ color:var(--muted); font-weight:700; }
+.opt-off-note{ margin:-6px 0 12px; font-size:12.5px; font-weight:700; color:#7C3AED; }
 .opt-chip.active{ border-color:var(--ignis); background:rgba(255,102,71,.1); color:var(--ignis-deep); }
 .opt-label{ margin:10px 0 0; font-size:12.5px; font-weight:700; color:var(--muted); }
 .admin-optp{ margin:8px 0 2px; }
@@ -1588,7 +1591,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-0210';
+var APP_VERSION = '20261110-0230';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1830,7 +1833,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -5603,6 +5606,11 @@ products = adminLiveZoneFilter === '__none__'
 : products.filter(function(p){ return p.live_zone_id === adminLiveZoneFilter; });
 }
 if(isLiveMode) html += adminQuickFormHTML();
+if((adminProductsCache || []).some(function(p){ return p.cat === 'gacha'; })){
+var gAll = adminProductsCache.filter(function(p){ return p.cat === 'gacha'; }), gOff = gAll.filter(function(p){ return p.pick_off; }).length;
+html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px;padding:10px 12px;border-radius:14px;background:#F5F3FF;border:1px solid #DDD6FE;font-size:13px;font-weight:700;color:#5B21B6;">🎲 扭蛋 '+gAll.length+' 款（'+gOff+' 款只開放不指定）'
++ '<button type="button" class="adm-link" id="gachaOffAll" style="color:#5B21B6;">全部改成只開放不指定</button><button type="button" class="adm-link" id="gachaOnAll" style="color:#6B7280;">全部開放指定</button></div>';
+}
 html += adminImportBoxHTML(isLiveMode);
 html += adminStripJpBarHTML(products);
 html += adminNewProductFormHTML(allProducts, isLiveMode);
@@ -7190,6 +7198,21 @@ return '<div class="admin-cat-group" style="margin-bottom:10px;">'
 + '</div>';
 }).join('');
 }
+// 一鍵：全部扭蛋只開放不指定／全部開放指定
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('#gachaOffAll, #gachaOnAll') : null;
+if(!b) return;
+var off = b.id === 'gachaOffAll';
+if(!window.confirm(off ? '全部扭蛋改成「只開放不指定」嗎？\n\n客人只能選不指定，角色照片照樣看得到。需要開放指定的，之後再到那件商品打開。\n（已經喊的單不受影響）' : '全部扭蛋開放客人選指定角色嗎？')) return;
+b.disabled = true;
+try{
+var d = await callMemberApi('admin-gacha-pickoff-all', { pickOff: off });
+(adminProductsCache || []).forEach(function(p){ if(p.cat === 'gacha') p.pick_off = off; });
+showToast((off ? '已改成只開放不指定：' : '已全部開放指定：') + (d.count || 0) + ' 款');
+loadAdminProducts();
+}catch(err){ alert('更新失敗：' + err.message); }
+b.disabled = false;
+});
 // 改分類名稱：同一個分類底下所有商品一起改（現貨、預購、限時連線都會跟著變）
 document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-cat-rename') : null;
@@ -7478,7 +7501,7 @@ fxRate: x.jpy && ADMIN_FX ? ADMIN_FX.rate : '', multiplier: x.jpy ? (importMult(
 }));
 } else {
 res = await callMemberApi('admin-create-product', Object.assign(common, {
-cat: 'gacha', catLabel: '扭蛋', isLuxury: false, isHidden: hidden,
+cat: 'gacha', catLabel: '扭蛋', isLuxury: false, isHidden: hidden, pickOff: true,
 optionLabel: x.options.length ? '角色' : '', options: x.options.join(', '),
 optionLabel2: '', options2: '', optionPrices: x.options.length ? JSON.stringify(x.optionPrices) : ''
 }));
@@ -8383,6 +8406,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + adminShareBoxHTML(p)
 + (isLiveStock(p.stock_status) ? '' : '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-featured-toggle" data-product-id="'+p.id+'"'+(p.featured?' checked':'')+' style="width:18px;height:18px;"> ⭐ 本週嚴選（顯示在首頁）</label>')
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-luxury-toggle" data-product-id="'+p.id+'"'+(p.is_luxury?' checked':'')+' style="width:18px;height:18px;"> 🏷️ 特選商品（累積到特選商品回饋，限用特選商品回饋券）</label>'
++ (p.cat === 'gacha' ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#7C3AED;margin:0 0 8px;"><input type="checkbox" class="admin-pickoff-toggle" data-product-id="'+p.id+'"'+(p.pick_off?' checked':'')+' style="width:18px;height:18px;"> 🎲 只開放不指定（客人只能選不指定，角色照片照樣看得到）</label>' : '')
 + adminCatSelectHTML(p)
 + '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
@@ -9302,6 +9326,19 @@ showToast(val ? '已加入本週嚴選' : '已從本週嚴選移除');
 alert('更新失敗：' + e.message);
 el.checked = !val;
 }
+el.disabled = false;
+});
+}
+var poToggles = container.querySelectorAll('.admin-pickoff-toggle');
+for(var po=0; po<poToggles.length; po++){
+poToggles[po].addEventListener('change', async function(){
+var el = this, pid = el.getAttribute('data-product-id'), val = el.checked;
+el.disabled = true;
+try{
+await callMemberApi('admin-set-product-pickoff', { productId: pid, pickOff: val });
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === pid) adminProductsCache[ci].pick_off = val; }
+showToast(val ? '這款改成只開放不指定' : '這款開放指定角色了');
+}catch(e){ alert('更新失敗：' + e.message); el.checked = !val; }
 el.disabled = false;
 });
 }
@@ -10248,8 +10285,10 @@ optBox.style.display = 'block';
 optBox.innerHTML = optGroups.map(function(g){
 return '<p class="opt-label">請選擇'+escHtml(g[2] || '規格')+'</p>'
 + '<div class="opt-chips" data-g="'+g[0]+'">' + g[1].map(function(o){
-var pr = (g[0] === 1 && hasOptionPrices(product)) ? '<span class="opt-chip-price">NT$'+productUnitPrice(product, o)+'</span>' : '';
-return '<button type="button" class="opt-chip" data-opt="'+escAttr(o)+'">'+escHtml(o)+pr+'</button>'; }).join('') + '</div>';
+var off = g[0] === 1 && product.pickOff && o !== '不指定';
+var pr = off ? '<span class="opt-chip-price">看照片</span>' : ((g[0] === 1 && hasOptionPrices(product)) ? '<span class="opt-chip-price">NT$'+productUnitPrice(product, o)+'</span>' : '');
+return '<button type="button" class="opt-chip'+(off ? ' is-off' : '')+'" data-opt="'+escAttr(o)+'">'+escHtml(o)+pr+'</button>'; }).join('') + '</div>'
++ (g[0] === 1 && product.pickOff ? '<p class="opt-off-note">🎲 這款目前只開放「不指定」（隨機出貨），點角色可以看照片</p>' : '');
 }).join('');
 var chipRows = optBox.querySelectorAll('.opt-chips');
 for(var cr=0; cr<chipRows.length; cr++){
@@ -10258,6 +10297,8 @@ var g = row.getAttribute('data-g');
 var chips = row.querySelectorAll('.opt-chip');
 for(var oc=0; oc<chips.length; oc++){
 chips[oc].addEventListener('click', function(){
+// 只開放不指定：點角色只換照片，不會選到
+if(this.classList.contains('is-off')){ if(product.optionPhotos && product.optionPhotos[this.getAttribute('data-opt')]) setOrderModalPhoto(product, product.optionPhotos[this.getAttribute('data-opt')]); else showToast('這款目前只開放不指定'); return; }
 if(g === '2') orderModalOption2 = this.getAttribute('data-opt'); else orderModalOption = this.getAttribute('data-opt');
 // 這個選項有設定對應照片 → 大圖自動換成那張
 // 沒設定照片的選項 → 換回封面（避免停在上一個選項的照片）
@@ -10269,6 +10310,7 @@ updateOrderModalSub();
 })(chipRows[cr]);
 }
 // 從分享連結進來、指定了選項 → 直接幫客人選好
+if(product.pickOff) presetOpt = '不指定';
 if(presetOpt){
 var pre = optBox.querySelectorAll('.opt-chips[data-g="1"] .opt-chip');
 for(var pc=0; pc<pre.length; pc++){ if(pre[pc].getAttribute('data-opt') === presetOpt){ pre[pc].click(); break; } }
