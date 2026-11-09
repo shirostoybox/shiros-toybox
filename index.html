@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261109-2330';
+var APP_VERSION = '20261110-0140';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3173,10 +3173,16 @@ function invSetUnits(pid, units){
 var P = INV.p[pid] || { u:[], n:1 };
 invQueue({ k:'pset', pid:pid, v:{ u:units, n:P.n || 1, nm:invProdName(pid) } });
 }
+function invProdZone(pid){
+for(var i=0;i<(adminProductsCache || []).length;i++){ var a = adminProductsCache[i]; if(a.id === pid) return a.stock_status === 'live_limited' ? (a.live_zone_id || '') : ''; }
+for(var j=0;j<(PRODUCTS || []).length;j++){ var b = PRODUCTS[j]; if(b.id === pid) return b.stock === 'live_limited' ? (b.liveZoneId || '') : ''; }
+return '';
+}
 function invAdd(pid, label, n){
 var P = INV.p[pid] || { u:[], n:1 };
 var units = P.u.slice(), next = P.n || 1;
-for(var k=0;k<(n || 1);k++){ units.push({ i:next++, l:label, t:Date.now() }); }
+var zNow = invProdZone(pid);   // 記下這一個是哪一趟（當時商品在哪個專區）買的，之後商品移到別區也不會跑掉
+for(var k=0;k<(n || 1);k++){ var nu = { i:next++, l:label, t:Date.now() }; if(zNow) nu.z = zNow; units.push(nu); }
 invQueue({ k:'pset', pid:pid, v:{ u:units, n:next, nm:invProdName(pid) } });
 invRefreshViews();
 showToast('已加入：'+invLabelText(label)+((n||1) > 1 ? ' ×'+n : '')+'（第 '+units.length+' 個）');
@@ -6329,9 +6335,10 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<div class="pf-actions"><button type="button" class="pf-btn ghost" id="pfCopy">複製</button>'
 + '<button type="button" class="pf-btn ghost" id="pfDownload">⬇️ 下載</button>'
 + '<button type="button" class="pf-btn" id="pfSave">'+(pfDirty ? '儲存' : '已儲存')+'</button></div>';
+PF_LAST_C = c;
 bindProfitSheet(c);
 // 已經全部收款完的表（可能已經結算過）不自動提醒改庫存數量，避免動到結算過的帳；要改可以按按鈕
-if(c.inProgress && (pfData.stockCosts || []).some(function(x){ return x.pid; })) pfCheckStockSync();
+if(c.inProgress) pfCheckStockSync();
 }
 // 💰 庫存賣給非會員／朋友：選商品、款式、數量、收到多少、誰收的錢；可以順便從庫存扣掉
 function pfStockSaleModal(alloc){
@@ -6368,6 +6375,94 @@ var q = parseInt(ov.querySelector('#ssQ').value, 10), a = pfNum(ov.querySelector
 if(!(q > 0)){ alert('數量要大於 0'); return; }
 if(!(a > 0)){ alert('請填客人付多少錢'); return; }
 finish({ pid: pSel.value, label: lSel.value || '', qty: q, amount: Math.round(a), payer: ov.querySelector('#ssPay').value, who: ov.querySelector('#ssW').value.trim(), deduct: ov.querySelector('#ssD').checked });
+});
+});
+}
+// 這張分潤表「算得到」的商品：這張表裡有人買過的，或是商品本身就上架在這個專區（沒人喊單的也算）
+var PF_LAST_C = null;
+function pfSheetPids(c){
+var m = {};
+((c && c.products) || []).forEach(function(p){ if(p.productId) m[p.productId] = true; });
+var zid = (pfKey && pfKey.indexOf('zone:') === 0) ? pfKey.slice(5) : '';
+if(zid){
+(PRODUCTS || []).forEach(function(p){ if(p.liveZoneId === zid) m[p.id] = true; });
+(adminProductsCache || []).forEach(function(p){ if(p.live_zone_id === zid) m[p.id] = true; });
+}
+return m;
+}
+// 這件商品的庫存成本已經記在「別張」分潤表 → 回傳那張的名稱（不要重複記）
+function pfRecordedElsewhere(pid){
+var rows = (pfOverview && pfOverview.sheets) || [];
+for(var i=0;i<rows.length;i++){
+var r = rows[i]; if(r.key === pfKey || r.key === '_defaults') continue;
+if(((r.data && r.data.stockCosts) || []).some(function(x){ return x.pid === pid; })) return pfTitle(r.key);
+}
+return '';
+}
+// 專區的出國日期（例如「11/1～11/6」）→ [開始, 結束+5天]，用來判斷庫存是不是那一趟記的
+function pfZoneRange(zid){
+var z = null, zs = (pfOverview && pfOverview.zones) || [];
+for(var i=0;i<zs.length;i++){ if(zs[i].id === zid) z = zs[i]; }
+var t = String((z && z.trip_date) || '');
+var ms = t.match(/(\d{1,2})\s*[\/.月]\s*(\d{1,2})/g);
+if(!ms || !ms.length) return null;
+var y = new Date().getFullYear();
+function d(x){ var p = x.match(/(\d{1,2})\s*[\/.月]\s*(\d{1,2})/); return new Date(y, Number(p[1]) - 1, Number(p[2])).getTime(); }
+var a = d(ms[0]), b = d(ms[ms.length - 1]);
+var tail = t.match(/[～~〜\-－—至到]\s*(\d{1,2})\s*日?\s*$/);
+if(ms.length === 1 && tail){ var p0 = ms[0].match(/(\d{1,2})\s*[\/.月]/); b = new Date(y, Number(p0[1]) - 1, Number(tail[1])).getTime(); }
+if(a > Date.now() + 60 * 86400000){ a = new Date(new Date(a).setFullYear(y - 1)).getTime(); b = new Date(new Date(b).setFullYear(y - 1)).getTime(); }
+return [a, b + 6 * 86400000];
+}
+// 判斷某件庫存算不算這張表：①記庫存時就記下是哪一趟 ②這張表有人買過 ③商品現在放在這區 ④記庫存的時間落在這趟出國日期
+function pfStockBelongs(pid, c){
+var zid = (pfKey && pfKey.indexOf('zone:') === 0) ? pfKey.slice(5) : '';
+var units = ((INV.p[pid] || {}).u) || [];
+var tagged = units.filter(function(u){ return u.z; });
+if(tagged.length) return { yes: tagged.some(function(u){ return u.z === zid; }), why: tagged.some(function(u){ return u.z === zid; }) ? '記庫存時是這一趟' : '記庫存時是別趟' };
+var inS = {}; ((c && c.products) || []).forEach(function(p){ if(p.productId) inS[p.productId] = true; });
+if(inS[pid]) return { yes: true, why: '這張表有人買過' };
+var rg = zid ? pfZoneRange(zid) : null;
+if(rg){ var tt = units.map(function(u){ return Number(u.t) || 0; }).filter(Boolean); if(tt.length && tt.some(function(x){ return x >= rg[0] && x <= rg[1]; })) return { yes: true, why: '記庫存的時間在這趟出國期間' }; }
+var cur = pfSheetPids(null);
+if(cur[pid]) return { yes: true, why: '商品現在放在這區' };
+return { yes: false, why: '' };
+}
+function pfMissingStock(alloc, c){
+var have = {};
+(pfData.stockCosts || []).forEach(function(x){ if(x.pid) have[x.pid] = true; });
+return Object.keys(alloc.prod).filter(function(pid){ return alloc.prod[pid].left > 0 && !have[pid] && !pfRecordedElsewhere(pid) && pfStockBelongs(pid, c).yes; });
+}
+// 帶入前讓你勾：系統先幫你勾好判斷是這張表的，其他的也列出來可以自己勾
+function pfPickStockModal(alloc, c, cands){
+return new Promise(function(resolve){
+var rows = cands.map(function(pid){
+var A = alloc.prod[pid], el = pfRecordedElsewhere(pid), bl = pfStockBelongs(pid, c);
+var ts = (((INV.p[pid] || {}).u) || []).map(function(u){ return Number(u.t) || 0; }).filter(Boolean);
+var when = ts.length ? (function(d){ return (d.getMonth()+1)+'/'+d.getDate(); })(new Date(Math.min.apply(null, ts))) : '';
+var zNow = invProdZone(pid), zn = '';
+if(zNow){ var zs = (pfOverview && pfOverview.zones) || []; for(var i=0;i<zs.length;i++){ if(zs[i].id === zNow) zn = zs[i].note || zs[i].name; } }
+return { pid: pid, left: A.left, el: el, on: !el && bl.yes, why: bl.why, when: when, zn: zn };
+});
+rows.sort(function(a, b){ return (b.on - a.on) || (a.el ? 1 : 0) - (b.el ? 1 : 0); });
+var ov = document.createElement('div'); ov.className = 'cm-ov';
+ov.innerHTML = '<div class="cm-box" style="max-height:88vh;overflow:auto;"><p class="cm-title">📦 要帶入哪些庫存？</p>'
++ '<p class="cm-hint">已經幫你勾好判斷是「'+escHtml(pfTitle(pfKey))+'」買的，不對的取消、漏掉的勾起來。已經記在別張表的不能再選（避免重複算成本）。</p>'
++ '<div style="display:flex;gap:14px;margin:4px 0 8px;font-size:13px;"><button type="button" class="adm-link" id="psAll">全選</button><button type="button" class="adm-link" id="psNone">全部取消</button></div>'
++ rows.map(function(r, i){ return '<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 4px;border-top:1px solid var(--line);'+(r.el ? 'opacity:.45;' : '')+'"><input type="checkbox" class="ps-chk" data-i="'+i+'"'+(r.on ? ' checked' : '')+(r.el ? ' disabled' : '')+' style="width:20px;height:20px;margin-top:2px;flex:none;"><span style="font-size:13.5px;line-height:1.5;"><b>'+escHtml(invProdName(r.pid))+'</b> ×'+r.left
++ '<br><small style="color:var(--muted);">'+[r.when ? '記庫存 '+r.when : '', r.zn ? '現在放在：'+escHtml(r.zn) : '', r.el ? '已記在「'+escHtml(r.el)+'」' : (r.why ? '✓ '+r.why : '')].filter(Boolean).join('・')+'</small></span></label>'; }).join('')
++ '<div class="cm-acts" style="margin-top:12px;"><button type="button" class="pf-btn" id="psOk">帶入勾選的</button><button type="button" class="cm-skip" id="psX">取消</button></div></div>';
+document.body.appendChild(ov);
+var done = false; function finish(v){ if(done) return; done = true; ov.remove(); resolve(v); }
+ov.addEventListener('click', function(e){ if(e.target === ov) finish(null); });
+ov.querySelector('#psX').addEventListener('click', function(){ finish(null); });
+function setAll(v){ var cs = ov.querySelectorAll('.ps-chk'); for(var k=0;k<cs.length;k++) if(!cs[k].disabled) cs[k].checked = v; }
+ov.querySelector('#psAll').addEventListener('click', function(){ setAll(true); });
+ov.querySelector('#psNone').addEventListener('click', function(){ setAll(false); });
+ov.querySelector('#psOk').addEventListener('click', function(){
+var cs = ov.querySelectorAll('.ps-chk'), out = [];
+for(var k=0;k<cs.length;k++) if(cs[k].checked && !cs[k].disabled) out.push(rows[Number(cs[k].getAttribute('data-i'))].pid);
+finish(out);
 });
 });
 }
@@ -6415,12 +6510,19 @@ groups = lrs[0].groups || []; alloc = invAllocate(groups);
 PF_SYNC_CACHE = { at: Date.now(), groups: groups, alloc: alloc };
 }
 var diffs = pfStockDiffs(alloc, groups);
+var missing = pfMissingStock(alloc, PF_LAST_C);
 box = document.getElementById('pfStockSync'); if(!box) return;
-if(!diffs.length){ box.innerHTML = ''; return; }
-box.innerHTML = '<div class="pf-warn" style="background:#FEF3C7;color:#92400E;">📦 庫存數量有變動：<br>'
+if(!diffs.length && !missing.length){ box.innerHTML = ''; return; }
+box.innerHTML = (missing.length ? '<div class="pf-warn" style="background:#ECFDF5;color:#065F46;margin-bottom:8px;">📦 這區還有 <b>'+missing.length+'</b> 件庫存沒記進來：<br>'
++ missing.slice(0, 8).map(function(pid){ return escHtml(invProdName(pid))+' ×'+alloc.prod[pid].left; }).join('<br>') + (missing.length > 8 ? '<br>…還有 '+(missing.length-8)+' 件' : '')
++ '<br><button type="button" class="pf-btn" id="pfStockAddBtn" style="margin-top:8px;">一鍵帶入</button></div>' : '')
++ (diffs.length ? '<div class="pf-warn" style="background:#FEF3C7;color:#92400E;">📦 庫存數量有變動：<br>'
 + diffs.map(function(d){ return escHtml(invProdName(d.pid))+'：'+escHtml(String(d.from || 0))+' → <b>'+d.to+'</b>'; }).join('<br>')
-+ '<br><button type="button" class="pf-btn" id="pfStockSyncBtn" style="margin-top:8px;">一鍵更新數量</button></div>';
-document.getElementById('pfStockSyncBtn').addEventListener('click', function(){
++ '<br><button type="button" class="pf-btn" id="pfStockSyncBtn" style="margin-top:8px;">一鍵更新數量</button></div>' : '');
+var addB = document.getElementById('pfStockAddBtn');
+if(addB) addB.addEventListener('click', function(){ PF_SYNC_CACHE = null; var ib = document.getElementById('pfImportStock'); if(ib) ib.click(); });
+var syncB = document.getElementById('pfStockSyncBtn');
+if(syncB) syncB.addEventListener('click', function(){
 pfApplyStockDiffs(diffs, alloc);
 showToast('已更新 '+diffs.length+' 項庫存數量，記得按「儲存」');
 pfMarkDirty(true);
@@ -6562,17 +6664,20 @@ try{
 var lrs = await Promise.all([ callMemberApi('admin-list-order-groups'), callMemberApi('get-site-settings') ]);
 if(lrs[1] && lrs[1].settings){ siteSettings.inventory = lrs[1].settings.inventory; invReload(); }
 var alloc = invAllocate(lrs[0].groups || []);
-var inSheet = {}; c.products.forEach(function(p){ if(p.productId) inSheet[p.productId] = true; });
 var have = {}; pfData.stockCosts.forEach(function(x){ if(x.pid) have[x.pid] = true; });
 var diffs = pfStockDiffs(alloc, lrs[0].groups || []);
 if(diffs.length) pfApplyStockDiffs(diffs, alloc);
 var all = Object.keys(alloc.prod).filter(function(pid){ return alloc.prod[pid].left > 0 && !have[pid]; });
-var list = all.filter(function(pid){ return inSheet[pid]; });
-if(!list.length && all.length && confirm((diffs.length ? '已更新 '+diffs.length+' 項的數量。\n\n' : '')+'這張分潤表的商品沒有其他剩下的庫存。\n\n要改成帶入「全部」剩下的庫存（'+all.length+' 項）嗎？')) list = all;
+var list = [];
+if(all.length){
+btn.textContent = '📦 從庫存帶入／更新數量';
+var picked = await pfPickStockModal(alloc, c, all);
+list = picked || [];
+}
 if(!list.length){
 btn.disabled = false; btn.textContent = '📦 從庫存帶入／更新數量';
 if(diffs.length){ showToast('已更新 '+diffs.length+' 項庫存數量，記得按「儲存」'); pfMarkDirty(true); }
-else alert('庫存數量都是最新的，也沒有新的庫存可以帶入');
+else if(!all.length) alert('庫存數量都是最新的，也沒有新的庫存可以帶入');
 return;
 }
 var infos = await Promise.all(list.map(function(pid){ return getCostInfo(pid).catch(function(){ return null; }); }));
