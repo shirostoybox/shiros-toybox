@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261109-0045';
+var APP_VERSION = '20261109-1610';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6254,7 +6254,8 @@ return '<div class="pf-extra">'
 + '<select class="pf-in pf-xpayer" data-i="'+i+'">'+pfPayerOptions(x.payer, true)+'</select>'
 + '<button type="button" class="pf-x pf-xdel" data-i="'+i+'" aria-label="刪除">✕</button>'
 + (x.ship ? '<p class="pf-extra-hint">向客人收的運費 '+pfMoney(c.inc.ship)+'（已扣運費折扣），這裡填實際付給超商的</p>' : '')
-+ (x.refund ? '<p class="pf-extra-hint" style="color:#047857;">↩ 回收：之前已經分攤過成本的庫存，後來朋友買走付的錢。金額填<b>收到多少</b>（正數就好，會自動當成扣回成本）；右邊選<b>收錢的人</b>，系統會算他要還給其他人多少。</p>' : '')
++ (x.sale ? '<p class="pf-extra-hint" style="color:#047857;">💰 庫存賣出：金額是客人付的<b>賣價</b>（會算成收入、照比例分）；右邊選<b>收錢的人</b>。這件的成本照樣留在「庫存未售出」，不用動。</p>' : '')
++ (x.refund && !x.sale ? '<p class="pf-extra-hint" style="color:#047857;">↩ 回收：之前已經分攤過成本的庫存，後來朋友買走付的錢。金額填<b>收到多少</b>（正數就好，會自動當成扣回成本）；右邊選<b>收錢的人</b>，系統會算他要還給其他人多少。</p>' : '')
 + '</div>';
 }).join('');
 var stockRows = (pfData.stockCosts || []).map(function(x, i){
@@ -6315,7 +6316,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<p class="pf-hint">多買放庫存、還沒人喊單的，成本記在這裡。之後賣掉，收入會算在新的訂單。</p>'
 + '<div id="pfStockSync"></div>'
 + stockRows
-+ '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="adm-link" id="pfAddStock">＋ 新增一項</button><button type="button" class="adm-link" id="pfImportStock">📦 從庫存帶入／更新數量</button></div>'
++ '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="adm-link" id="pfAddStock">＋ 新增一項</button><button type="button" class="adm-link" id="pfImportStock">📦 從庫存帶入／更新數量</button><button type="button" class="adm-link" id="pfStockSale" style="color:#047857;">💰 庫存賣給非會員／朋友（記收入）</button></div>'
 + '<div class="pf-line pf-total"><span>庫存成本小計</span><span id="pfStockTotal">'+pfMoney(c.stock)+'</span></div>'
 + '</div>'
 
@@ -6332,6 +6333,44 @@ bindProfitSheet(c);
 // 已經全部收款完的表（可能已經結算過）不自動提醒改庫存數量，避免動到結算過的帳；要改可以按按鈕
 if(c.inProgress && (pfData.stockCosts || []).some(function(x){ return x.pid; })) pfCheckStockSync();
 }
+// 💰 庫存賣給非會員／朋友：選商品、款式、數量、收到多少、誰收的錢；可以順便從庫存扣掉
+function pfStockSaleModal(alloc){
+return new Promise(function(resolve){
+var pids = Object.keys(alloc.prod).filter(function(pid){ return (INV.p[pid] && INV.p[pid].u && INV.p[pid].u.length); });
+pids.sort(function(a, b){ var ia = (pfData.stockCosts || []).some(function(x){ return x.pid === a; }) ? 0 : 1, ib = (pfData.stockCosts || []).some(function(x){ return x.pid === b; }) ? 0 : 1; return ia - ib || invProdName(a).localeCompare(invProdName(b)); });
+if(!pids.length){ alert('庫存裡沒有商品'); return resolve(null); }
+var ov = document.createElement('div'); ov.className = 'cm-ov';
+ov.innerHTML = '<div class="cm-box"><p class="cm-title">💰 庫存賣給非會員／朋友</p>'
++ '<p class="cm-hint">客人付的是<b>賣價</b>，會算進利潤照比例分。成本照樣留在「庫存未售出」。</p>'
++ '<div class="cm-grid"><label class="cm-lab full">商品<select class="pf-in" id="ssP">'+pids.map(function(pid){ var A = alloc.prod[pid]; return '<option value="'+escAttr(pid)+'">'+escHtml(invProdName(pid))+'（剩 '+(A ? A.left : 0)+'）</option>'; }).join('')+'</select></label>'
++ '<label class="cm-lab full" id="ssLWrap">款式<select class="pf-in" id="ssL"></select></label>'
++ '<label class="cm-lab">數量<input class="pf-in" id="ssQ" inputmode="numeric" value="1"></label>'
++ '<label class="cm-lab">客人付多少（NT$）<input class="pf-in" id="ssA" inputmode="numeric" placeholder="例如 450"></label>'
++ '<label class="cm-lab">買的人（可不填）<input class="pf-in" id="ssW" placeholder="例如 王小姐"></label>'
++ '<label class="cm-lab">錢是誰收的<select class="pf-in" id="ssPay">'+pfPayerOptions((pfData.partners[0] || {}).id, true)+'</select></label>'
++ '</div><label class="ao-confirm" style="display:block;margin:10px 0 0;"><input type="checkbox" id="ssD" checked> 同時從庫存扣掉（<b>已經自己刪過庫存的不要勾</b>）</label>'
++ '<div class="cm-acts"><button type="button" class="pf-btn" id="ssOk">記下來</button><button type="button" class="cm-skip" id="ssX">取消</button></div></div>';
+document.body.appendChild(ov);
+var done = false; function finish(v){ if(done) return; done = true; ov.remove(); resolve(v); }
+ov.addEventListener('click', function(e){ if(e.target === ov) finish(null); });
+var pSel = ov.querySelector('#ssP'), lSel = ov.querySelector('#ssL');
+function fillLabels(){
+var P = alloc.prod[pSel.value], labels = P ? P.leftOrder.slice() : [];
+var all = {}; ((INV.p[pSel.value] || {}).u || []).forEach(function(u){ all[u.l || ''] = true; });
+Object.keys(all).forEach(function(l){ if(labels.indexOf(l) < 0) labels.push(l); });
+lSel.innerHTML = labels.map(function(l){ return '<option value="'+escAttr(l)+'">'+escHtml(invLabelText(l))+(P && P.leftBy[l] ? '（剩 '+P.leftBy[l]+'）' : '')+'</option>'; }).join('');
+ov.querySelector('#ssLWrap').style.display = labels.length > 1 ? '' : 'none';
+}
+pSel.addEventListener('change', fillLabels); fillLabels();
+ov.querySelector('#ssX').addEventListener('click', function(){ finish(null); });
+ov.querySelector('#ssOk').addEventListener('click', function(){
+var q = parseInt(ov.querySelector('#ssQ').value, 10), a = pfNum(ov.querySelector('#ssA').value);
+if(!(q > 0)){ alert('數量要大於 0'); return; }
+if(!(a > 0)){ alert('請填客人付多少錢'); return; }
+finish({ pid: pSel.value, label: lSel.value || '', qty: q, amount: Math.round(a), payer: ov.querySelector('#ssPay').value, who: ov.querySelector('#ssW').value.trim(), deduct: ov.querySelector('#ssD').checked });
+});
+});
+}
 // 庫存成本的數量＝庫存裡的總數，扣掉「賣出時那筆訂單自己有記成本」的那幾個（那幾個的成本已經算在訂單上）
 function pfStockQtyFor(pid, alloc, groups){
 var P = alloc.prod[pid]; if(!P) return null;
@@ -6339,7 +6378,10 @@ var byId = {};
 (groups || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ byId[o.id] = o; }); (g.settlements || []).forEach(function(st){ (st.items || []).forEach(function(o){ byId[o.id] = o; }); }); });
 var costed = 0;
 Object.keys(INV.a || {}).forEach(function(oid){ var A = INV.a[oid]; if(!A || A.p !== pid) return; var o = byId[oid]; if(o && o.cost_jpy != null && o.cost_jpy !== '') costed += (A.u || []).length; });
-return Math.max(0, P.total - costed);
+// 這張表裡記過「💰 庫存賣出（非會員／朋友）」的，已經從庫存刪掉了，但成本還要留在這裡 → 加回來
+var soldOff = 0;
+((typeof pfData !== 'undefined' && pfData && pfData.extraCosts) || []).forEach(function(x){ if(x && x.sale && x.sale.pid === pid) soldOff += Number(x.sale.qty) || 0; });
+return Math.max(0, P.total - costed + soldOff);
 }
 function pfStockLabel(pid, P){
 var detail = P ? P.leftOrder.map(function(l){ return invLabelText(l)+'×'+P.leftBy[l]; }).join('、') : '';
@@ -6491,6 +6533,28 @@ on('#pfAddStock', 'click', function(){
 var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 pfData.stockCosts.push({ label:'', qty:'', jpy:'', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
 pfMarkDirty(true);
+});
+on('#pfStockSale', 'click', async function(){
+var btn = this; btn.disabled = true; var old = btn.textContent; btn.textContent = '讀取庫存中…';
+try{
+var lrs = await Promise.all([ callMemberApi('admin-list-order-groups'), callMemberApi('get-site-settings') ]);
+if(lrs[1] && lrs[1].settings){ siteSettings.inventory = lrs[1].settings.inventory; invReload(); }
+var groups = lrs[0].groups || [], alloc = invAllocate(groups);
+PF_SYNC_CACHE = null;
+btn.disabled = false; btn.textContent = old;
+var r = await pfStockSaleModal(alloc);
+if(!r) return;
+if(r.deduct){
+var P = INV.p[r.pid], A = alloc.prod[r.pid], owned = (A && A.owner) || {};
+var units = (P && P.u ? P.u.slice() : []), need = r.qty;
+for(var k=units.length-1; k>=0 && need>0; k--){ var u = units[k]; if(owned[u.i]) continue; if(r.label != null && (u.l || '') !== r.label) continue; units.splice(k, 1); need--; }
+if(need > 0){ alert('庫存裡沒有足夠「沒分給人」的這款（還差 '+need+' 個），沒有扣庫存，只記了收入。請到庫存頁確認。'); }
+else { invSetUnits(r.pid, units); invRefreshViews && invRefreshViews(); }
+}
+pfData.extraCosts.push({ label: '💰 庫存賣出：'+invProdName(r.pid)+(r.label ? '（'+r.label+'）' : '')+' ×'+r.qty+(r.who ? '・'+r.who : ''), amount: String(r.amount), payer: r.payer, refund: true, sale: { pid: r.pid, qty: r.qty } });
+showToast('已記收入'+(r.deduct ? '、扣庫存' : '')+'，記得按「儲存」');
+pfMarkDirty(true);
+}catch(e){ btn.disabled = false; btn.textContent = old; alert('讀取失敗：' + e.message); }
 });
 on('#pfImportStock', 'click', async function(){
 var btn = this; btn.disabled = true; btn.textContent = '讀取庫存中…';
