@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261109-1610';
+var APP_VERSION = '20261109-2045';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -11727,14 +11727,32 @@ if(closed) return;
 var canShareFiles = false;
 try{ canShareFiles = !!(navigator.canShare && navigator.canShare({ files: files })); }catch(e){}
 var body = ov.querySelector('#ppBody');
-ov.querySelector('#ppStatus').innerHTML = '做好 '+files.length+' 張了！' + (canShareFiles ? '按下面按鈕，選「<b>儲存 '+files.length+' 張影像</b>」就會存到相簿。' : '這裡沒辦法一次存，請<b>長按每張照片 →「加入照片」</b>。<br>想一次存的話：按 LINE 右上角「⋯」→ 用 Safari 開啟，再按一次。');
-body.innerHTML = (canShareFiles ? '<button type="button" class="pa-ok" id="ppSave">📥 全部存到相簿（'+files.length+' 張）</button>' : '')
+// 可以挑照片：點照片切換勾選（預設全選），只存勾起來的
+var picked = files.map(function(){ return true; });
+ov.querySelector('#ppStatus').innerHTML = '做好 '+files.length+' 張了！<b>點照片可以取消／勾選</b>，' + (canShareFiles ? '挑好按下面按鈕，選「<b>儲存影像</b>」就會存到相簿。' : '這裡沒辦法一次存，請<b>長按照片 →「加入照片」</b>。<br>想一次存的話：按 LINE 右上角「⋯」→ 用 Safari 開啟，再按一次。');
+body.innerHTML = (canShareFiles ? '<button type="button" class="pa-ok" id="ppSave"></button>' : '')
 + '<button type="button" class="pa-sw" id="ppCopy">🔗 複製連結（發完照片再貼到社群）</button>'
-+ '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0;">' + urls.map(function(u){ return '<img src="'+u+'" style="width:100%;border-radius:8px;-webkit-touch-callout:default;">'; }).join('') + '</div>';
++ '<div style="display:flex;gap:14px;margin:8px 2px 0;font-size:13px;"><button type="button" class="adm-link" id="ppAll">全選</button><button type="button" class="adm-link" id="ppNone">全部取消</button></div>'
++ '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0;">' + urls.map(function(u, i){ return '<div class="pp-cell" data-i="'+i+'" style="position:relative;border-radius:10px;border:3px solid #10B981;overflow:hidden;"><img src="'+u+'" style="width:100%;display:block;-webkit-touch-callout:default;"><span class="pp-chk" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:#10B981;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;">✓</span></div>'; }).join('') + '</div>';
 var sv = body.querySelector('#ppSave');
+function paintPick(){
+var n = picked.filter(Boolean).length;
+var cells = body.querySelectorAll('.pp-cell');
+for(var c=0;c<cells.length;c++){ var on = picked[Number(cells[c].getAttribute('data-i'))]; cells[c].style.borderColor = on ? '#10B981' : 'transparent'; cells[c].style.opacity = on ? '1' : '.45'; var ck = cells[c].querySelector('.pp-chk'); ck.style.background = on ? '#10B981' : 'rgba(0,0,0,.35)'; ck.textContent = on ? '✓' : ''; }
+if(sv){ sv.textContent = n ? '📥 存到相簿（'+n+' 張）' : '請先點選要存的照片'; sv.disabled = !n; }
+}
+body.addEventListener('click', function(e){
+var cell = e.target.closest('.pp-cell'); if(!cell) return;
+var i = Number(cell.getAttribute('data-i')); picked[i] = !picked[i]; paintPick();
+});
+body.querySelector('#ppAll').addEventListener('click', function(){ picked = picked.map(function(){ return true; }); paintPick(); });
+body.querySelector('#ppNone').addEventListener('click', function(){ picked = picked.map(function(){ return false; }); paintPick(); });
+paintPick();
 if(sv) sv.addEventListener('click', async function(){
-try{ await navigator.share({ files: files }); showToast('存好了，到社群選照片發出去吧 ♡'); }
-catch(e){ if(!(e && e.name === 'AbortError')) alert('沒辦法一次存：' + (e.message || e) + '\n\n請長按下面每張照片 →「加入照片」'); }
+var sel = files.filter(function(f, i){ return picked[i]; });
+if(!sel.length) return;
+try{ await navigator.share({ files: sel }); showToast('存好了，到社群選照片發出去吧 ♡'); }
+catch(e){ if(!(e && e.name === 'AbortError')) alert('沒辦法一次存：' + (e.message || e) + '\n\n請長按照片 →「加入照片」'); }
 });
 body.querySelector('#ppCopy').addEventListener('click', function(){
 var t = linkText + '\n' + url;
