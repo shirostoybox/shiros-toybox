@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261109-2045';
+var APP_VERSION = '20261109-2300';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4515,7 +4515,7 @@ pid = pid || '';
 if(costInfoCache[pid]) return costInfoCache[pid];
 var d = await callMemberApi('admin-cost-info', { productId: pid });
 costInfoCache[pid] = d;
-if(d && d.partners && d.partners.length) COST_PARTNERS = d.partners;
+if(d && d.partners && d.partners.length && d.partnersFrom !== 'zone') COST_PARTNERS = d.partners;   // 專區自己的夥伴名單只用在那一區，不蓋掉預設
 return d;
 }
 async function getFxOnDate(date){
