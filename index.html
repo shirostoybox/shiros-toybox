@@ -1588,7 +1588,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-0200';
+var APP_VERSION = '20261110-0210';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -11805,7 +11805,7 @@ if(cur) out.push(cur);
 if(out.length > maxLines){ out = out.slice(0, maxLines); var last = out[maxLines-1]; while(ctx.measureText(last + '…').width > maxW && last.length > 1) last = last.slice(0, -1); out[maxLines-1] = last + '…'; }
 return out;
 }
-async function buildProductPhoto(p){
+async function buildProductPhoto(p, noPrice){
 var W = 1080, PH = 1080, BAR = 250, H = PH + BAR;
 var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
 var ctx = cv.getContext('2d');
@@ -11820,10 +11820,14 @@ ctx.fillStyle = bg; ctx.fillRect(0, PH, W, BAR);
 var font = '-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
 ctx.textBaseline = 'top'; ctx.fillStyle = '#1B1E27';
 ctx.font = '800 46px ' + font;
-var lines = wrapLines(ctx, p.name, W - 40 - 340, 2);
-lines.forEach(function(l, i){ ctx.fillText(l, 40, PH + 30 + i * 58); });
+var lines = wrapLines(ctx, p.name, W - 40 - 340, noPrice ? 3 : 2);
+// 沒有價格的版本：名稱放在中間
+var top0 = noPrice ? PH + Math.round((BAR - lines.length * 58) / 2) + 4 : PH + 30;
+lines.forEach(function(l, i){ ctx.fillText(l, 40, top0 + i * 58); });
+if(!noPrice){
 ctx.font = '900 60px ' + font; ctx.fillStyle = '#E8505B';
 ctx.fillText(productPriceText(p), 40, PH + 30 + lines.length * 58 + 12);
+}
 ctx.textAlign = 'right'; ctx.fillStyle = '#1B1E27';
 ctx.font = '800 34px ' + font; ctx.fillText('🧸 四郎玩具箱', W - 36, PH + 70);
 ctx.font = '600 28px ' + font; ctx.fillStyle = '#6B7280'; ctx.fillText('點連結喊單 ♡', W - 36, PH + 122);
@@ -11833,26 +11837,50 @@ return new Promise(function(res){ cv.toBlob(function(b){ res(b); }, 'image/jpeg'
 async function saveProductPhotos(products, linkText, url){
 var list = (products || []).filter(function(p){ return p && p.id && !p.isPrivate && !p.isCustom; });
 if(!list.length){ alert('沒有可以做成照片的商品'); return; }
+var noPrice = false;
+try{ noPrice = localStorage.getItem('ppNoPrice') === '1'; }catch(e){}
 var ov = document.createElement('div'); ov.className = 'pick-agree-ov';
-ov.innerHTML = '<div class="pick-agree" style="max-height:88vh;overflow:auto;"><p class="sw-title">📸 存成照片（社群用）</p><p class="sw-desc" id="ppStatus">製作中… 0 / '+list.length+'</p><div id="ppBody"></div><button type="button" class="pa-cancel" id="ppClose">關閉</button></div>';
+ov.innerHTML = '<div class="pick-agree" style="max-height:88vh;overflow:auto;"><p class="sw-title">📸 存成照片（社群用）</p>'
++ '<div id="ppMode" style="display:flex;gap:6px;background:#F3F4F6;border-radius:999px;padding:4px;margin:0 0 10px;"><button type="button" data-np="0" style="flex:1;border:0;border-radius:999px;padding:9px;font:inherit;font-size:14px;font-weight:800;">💰 有價格</button><button type="button" data-np="1" style="flex:1;border:0;border-radius:999px;padding:9px;font:inherit;font-size:14px;font-weight:800;">🙈 沒有價格</button></div>'
++ '<p class="sw-desc" id="ppStatus"></p><div id="ppBody"></div><button type="button" class="pa-cancel" id="ppClose">關閉</button></div>';
 document.body.appendChild(ov);
-var closed = false;
+var closed = false, run = 0;
 ov.querySelector('#ppClose').addEventListener('click', function(){ closed = true; ov.remove(); });
-var files = [], urls = [];
-for(var i=0; i<list.length; i++){
-if(closed) return;
-try{
-var b = await buildProductPhoto(list[i]);
-if(b){ files.push(new File([b], 'shiro-' + (i+1) + '.jpg', { type:'image/jpeg' })); urls.push(URL.createObjectURL(b)); }
-}catch(e){}
-var st = ov.querySelector('#ppStatus'); if(st) st.textContent = '製作中… ' + (i+1) + ' / ' + list.length;
+var files = [], urls = [], picked = list.map(function(){ return true; });
+function paintMode(){
+var bs = ov.querySelectorAll('#ppMode button');
+for(var k=0;k<bs.length;k++){ var on = (bs[k].getAttribute('data-np') === '1') === noPrice; bs[k].style.background = on ? '#111827' : 'transparent'; bs[k].style.color = on ? '#fff' : '#374151'; }
 }
-if(closed) return;
+ov.querySelector('#ppMode').addEventListener('click', function(e){
+var b = e.target.closest('button'); if(!b) return;
+var v = b.getAttribute('data-np') === '1'; if(v === noPrice) return;
+noPrice = v; try{ localStorage.setItem('ppNoPrice', v ? '1' : '0'); }catch(err){}
+paintMode(); build();
+});
+paintMode();
+async function build(){
+var my = ++run;
+urls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} });
+files = []; urls = [];
+var body = ov.querySelector('#ppBody'); body.innerHTML = '';
+var st = ov.querySelector('#ppStatus');
+for(var i=0; i<list.length; i++){
+if(closed || my !== run) return;
+st.textContent = '製作中… ' + i + ' / ' + list.length;
+try{
+var bb = await buildProductPhoto(list[i], noPrice);
+if(my !== run) return;
+if(bb){ files.push(new File([bb], 'shiro-' + (i+1) + '.jpg', { type:'image/jpeg' })); urls.push(URL.createObjectURL(bb)); }
+}catch(e){}
+}
+if(closed || my !== run) return;
+render();
+}
+function render(){
 var canShareFiles = false;
 try{ canShareFiles = !!(navigator.canShare && navigator.canShare({ files: files })); }catch(e){}
 var body = ov.querySelector('#ppBody');
-// 可以挑照片：點照片切換勾選（預設全選），只存勾起來的
-var picked = files.map(function(){ return true; });
+if(picked.length !== files.length) picked = files.map(function(){ return true; });
 ov.querySelector('#ppStatus').innerHTML = '做好 '+files.length+' 張了！<b>點照片可以取消／勾選</b>，' + (canShareFiles ? '挑好按下面按鈕，選「<b>儲存影像</b>」就會存到相簿。' : '這裡沒辦法一次存，請<b>長按照片 →「加入照片」</b>。<br>想一次存的話：按 LINE 右上角「⋯」→ 用 Safari 開啟，再按一次。');
 body.innerHTML = (canShareFiles ? '<button type="button" class="pa-ok" id="ppSave"></button>' : '')
 + '<button type="button" class="pa-sw" id="ppCopy">🔗 複製連結（發完照片再貼到社群）</button>'
@@ -11863,12 +11891,12 @@ function paintPick(){
 var n = picked.filter(Boolean).length;
 var cells = body.querySelectorAll('.pp-cell');
 for(var c=0;c<cells.length;c++){ var on = picked[Number(cells[c].getAttribute('data-i'))]; cells[c].style.borderColor = on ? '#10B981' : 'transparent'; cells[c].style.opacity = on ? '1' : '.45'; var ck = cells[c].querySelector('.pp-chk'); ck.style.background = on ? '#10B981' : 'rgba(0,0,0,.35)'; ck.textContent = on ? '✓' : ''; }
-if(sv){ sv.textContent = n ? '📥 存到相簿（'+n+' 張）' : '請先點選要存的照片'; sv.disabled = !n; }
+if(sv){ sv.textContent = n ? '📥 存到相簿（'+n+' 張'+(noPrice ? '・沒有價格' : '')+'）' : '請先點選要存的照片'; sv.disabled = !n; }
 }
-body.addEventListener('click', function(e){
+body.onclick = function(e){
 var cell = e.target.closest('.pp-cell'); if(!cell) return;
 var i = Number(cell.getAttribute('data-i')); picked[i] = !picked[i]; paintPick();
-});
+};
 body.querySelector('#ppAll').addEventListener('click', function(){ picked = picked.map(function(){ return true; }); paintPick(); });
 body.querySelector('#ppNone').addEventListener('click', function(){ picked = picked.map(function(){ return false; }); paintPick(); });
 paintPick();
@@ -11883,6 +11911,8 @@ var t = linkText + '\n' + url;
 if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function(){ showToast('已複製連結 ♡'); }, function(){ window.prompt('長按複製：', t); });
 else window.prompt('長按複製：', t);
 });
+}
+build();
 }
 // 1200×630 拼圖：上方分類名稱，下面每件商品第一張照片（最多 18 張，超過顯示 +N）
 // LINE 預覽會把左右兩邊各裁掉一些，重要的字和照片都放在中間的安全範圍
