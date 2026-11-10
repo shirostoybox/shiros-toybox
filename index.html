@@ -1591,7 +1591,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-1330';
+var APP_VERSION = '20261110-1450';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5609,7 +5609,9 @@ if(isLiveMode) html += adminQuickFormHTML();
 if((adminProductsCache || []).some(function(p){ return p.cat === 'gacha'; })){
 var gAll = adminProductsCache.filter(function(p){ return p.cat === 'gacha'; }), gOff = gAll.filter(function(p){ return p.pick_off; }).length;
 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px;padding:10px 12px;border-radius:14px;background:#F5F3FF;border:1px solid #DDD6FE;font-size:13px;font-weight:700;color:#5B21B6;">🎲 扭蛋 '+gAll.length+' 款（'+gOff+' 款只開放不指定）'
-+ '<button type="button" class="adm-link" id="gachaOffAll" style="color:#5B21B6;">全部改成只開放不指定</button><button type="button" class="adm-link" id="gachaOnAll" style="color:#6B7280;">全部開放指定</button></div>';
++ '<button type="button" class="adm-link" id="gachaOffAll" style="color:#5B21B6;">全部改成只開放不指定</button><button type="button" class="adm-link" id="gachaOnAll" style="color:#6B7280;">全部開放指定</button>'
++ (function(){ var n = gachaDupGroups().length; return '<button type="button" class="adm-link" id="gachaDupBtn" style="color:'+(n ? '#B91C1C' : '#6B7280')+';">🔍 找重複的扭蛋'+(n ? '（'+n+' 組）' : '')+'</button>'; })()
++ '</div>';
 }
 html += adminImportBoxHTML(isLiveMode);
 html += adminStripJpBarHTML(products);
@@ -7198,6 +7200,96 @@ return '<div class="admin-cat-group" style="margin-bottom:10px;">'
 + '</div>';
 }).join('');
 }
+// ---------- 🔍 找重複的扭蛋：名稱一樣（忽略空白、符號、「扭蛋」字樣），或名稱很像＋同價格＋同期數 ----------
+function gachaNormName(n){
+return String(n || '').normalize('NFKC').toLowerCase()
+.replace(/（官網[^）]*）/g, '').replace(/扭蛋|轉蛋|ガチャ|ガシャポン|カプセルトイ/g, '')
+.replace(/[\s・、。，,.!！?？:：~～\-－—_／/|｜()（）\[\]【】「」『』〈〉《》'"“”‘’★☆♡♥♪]/g, '');
+}
+function gachaBigrams(t){ var m = {}; for(var i=0;i<t.length-1;i++) m[t.substr(i, 2)] = true; return m; }
+function gachaSim(a, b){
+var A = gachaBigrams(a), B = gachaBigrams(b), na = Object.keys(A).length, nb = Object.keys(B).length, c = 0;
+if(!na || !nb) return a === b ? 1 : 0;
+Object.keys(A).forEach(function(k){ if(B[k]) c++; });
+return 2 * c / (na + nb);
+}
+function gachaDupGroups(){
+var list = (adminProductsCache || []).filter(function(p){ return p.cat === 'gacha'; });
+var parent = list.map(function(_, i){ return i; });
+function f(i){ while(parent[i] !== i){ parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+function u(a, b){ a = f(a); b = f(b); if(a !== b) parent[b] = a; }
+var norm = list.map(function(p){ return gachaNormName(p.name); });
+var nums = norm.map(function(t){ return (t.match(/\d+/g) || []).join(','); });
+var why = {};
+for(var i=0;i<list.length;i++) for(var j=i+1;j<list.length;j++){
+if(!norm[i] || !norm[j]) continue;
+if(norm[i] === norm[j]){ u(i, j); why[f(i)] = why[f(i)] || '名稱一樣'; continue; }
+// 名稱很像，而且價格一樣、數字（第幾彈／Vol.）一樣 → 可能重複
+if(Number(list[i].price) === Number(list[j].price) && nums[i] === nums[j] && gachaSim(norm[i], norm[j]) >= 0.8){ u(i, j); why[f(i)] = why[f(i)] || '名稱很像、價格一樣'; }
+}
+var g = {};
+list.forEach(function(p, i){ var r = f(i); (g[r] = g[r] || []).push(p); });
+return Object.keys(g).filter(function(r){ return g[r].length > 1; }).map(function(r){
+var items = g[r].slice();
+// 建議保留：有人喊單／有庫存的優先，再來是比較早上架的
+items.sort(function(a, b){ return (prodOrderCnt(b.id) + prodInvCnt(b.id)) - (prodOrderCnt(a.id) + prodInvCnt(a.id)) || String(a.created_at || '').localeCompare(String(b.created_at || '')); });
+var exact = items.every(function(p){ return gachaNormName(p.name) === gachaNormName(items[0].name); });
+return { items: items, why: exact ? '名稱一樣' : '名稱很像、價格一樣（請確認是不是同一款）' };
+});
+}
+function gachaZoneText(p){
+if(p.stock_status !== 'live_limited') return p.stock_status === 'preorder' ? '預購' : '現貨';
+for(var i=0;i<(LIVE_ZONES || []).length;i++){ var z = LIVE_ZONES[i]; if(z.id === p.live_zone_id) return '限時連線・'+(z.note || z.name || ''); }
+return '限時連線';
+}
+function openGachaDupModal(){
+var changed = false;
+var ov = document.createElement('div'); ov.className = 'cm-ov';
+document.body.appendChild(ov);
+function close(){ ov.remove(); if(changed) loadAdminProducts(); }
+function paint(){
+var groups = gachaDupGroups();
+ov.innerHTML = '<div class="cm-box" style="max-height:88vh;overflow:auto;"><p class="cm-title">🔍 重複的扭蛋'+(groups.length ? '（'+groups.length+' 組）' : '')+'</p>'
++ (groups.length ? '<p class="cm-hint">每組第一件是<b>建議保留</b>的（有人喊單／有庫存，或比較早上架）。其他的確認是同一款再刪。有人喊單或有庫存的不能刪。</p>' : '<p class="cm-hint">沒有找到重複的扭蛋 ♡</p>')
++ groups.map(function(g){
+return '<div style="margin:12px 0 0;padding:10px;border-radius:14px;background:#F9FAFB;border:1px solid var(--line);"><p style="margin:0 0 6px;font-size:12px;font-weight:800;color:#B45309;">'+escHtml(g.why)+'</p>'
++ g.items.map(function(p, k){
+var oc = prodOrderCnt(p.id), ic = prodInvCnt(p.id), lock = oc > 0 || ic > 0;
+var d = p.created_at ? new Date(p.created_at) : null;
+return '<div style="display:flex;gap:10px;align-items:center;padding:8px 0;'+(k ? 'border-top:1px dashed var(--line);' : '')+'">'
++ '<img src="'+escAttr(productImageUrl(p.id))+'" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:10px;flex:none;background:#fff;" onerror="this.style.visibility=\'hidden\'">'
++ '<div style="flex:1;min-width:0;font-size:13px;line-height:1.5;"><b>'+escHtml(p.name)+'</b>'
++ '<br><small style="color:var(--muted);">NT$'+(p.price || '?')+'・'+escHtml(gachaZoneText(p))+(d ? '・'+(d.getMonth()+1)+'/'+d.getDate()+' 上架' : '')+(p.is_hidden ? '・隱藏中' : '')+'</small>'
++ '<br><small style="font-weight:700;color:'+(lock ? '#047857' : 'var(--muted)')+';">'+(oc ? '🛒 '+oc+' 筆喊單' : '沒人喊過')+(ic ? '・📦 庫存 '+ic : '')+'</small>'
++ (k === 0 ? '<br><span style="display:inline-block;margin-top:3px;font-size:11.5px;font-weight:800;color:#065F46;background:#D1FAE5;border-radius:999px;padding:1px 8px;">建議保留</span>' : '')
++ '</div>'
++ (lock ? '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap;">不能刪</span>' : '<button type="button" class="gd-del" data-id="'+escAttr(p.id)+'" data-name="'+escAttr(p.name)+'" style="flex:none;border:1.5px solid #FCA5A5;background:#FEF2F2;color:#B91C1C;border-radius:999px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:800;">刪除</button>')
++ '</div>';
+}).join('') + '</div>';
+}).join('')
++ '<div class="cm-acts" style="margin-top:14px;"><button type="button" class="cm-skip" id="gdClose">關閉</button></div></div>';
+ov.querySelector('#gdClose').addEventListener('click', close);
+var ds = ov.querySelectorAll('.gd-del');
+for(var i=0;i<ds.length;i++) ds[i].addEventListener('click', async function(){
+var b = this, pid = b.getAttribute('data-id');
+if(!window.confirm('確定要刪除「'+b.getAttribute('data-name')+'」嗎？\n\n商品和照片都會刪掉，無法復原。')) return;
+b.disabled = true; b.textContent = '刪除中…';
+try{
+await callMemberApi('admin-delete-product', { productId: pid });
+adminProductsCache = adminProductsCache.filter(function(x){ return x.id !== pid; });
+changed = true; showToast('已刪除'); paint();
+}catch(e){ alert('刪除失敗：' + e.message); b.disabled = false; b.textContent = '刪除'; }
+});
+}
+ov.addEventListener('click', function(e){ if(e.target === ov) close(); });
+paint();
+}
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('#gachaDupBtn') : null;
+if(!b) return;
+e.stopPropagation();
+openGachaDupModal();
+});
 // 一鍵：全部扭蛋只開放不指定／全部開放指定
 document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('#gachaOffAll, #gachaOnAll') : null;
