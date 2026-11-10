@@ -1591,7 +1591,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-0230';
+var APP_VERSION = '20261110-1310';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7398,11 +7398,15 @@ return out;
 function renderImportPreview(){
 var box = document.getElementById('impResult');
 if(!box || !adminImportItems) return;
-var bad = adminImportItems.filter(function(x){ return !x.photoOnly && x.warn.length && x.warn.some(function(w){ return w.indexOf('照片') === -1; }); }).length;
-box.innerHTML = '<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:var(--text-dark);">共 '+adminImportItems.length+' 件'+(bad ? '・<span style="color:var(--ignis-deep);">'+bad+' 件要先修正</span>' : '')+'</p>'
+// 上架前可以勾選：沒勾的不會上架（預設全部勾）
+var sel = adminImportItems.filter(function(x){ return !x.skip; });
+var bad = sel.filter(function(x){ return !x.photoOnly && x.warn.length && x.warn.some(function(w){ return w.indexOf('照片') === -1; }); }).length;
+box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><p style="margin:0;font-size:13px;font-weight:700;color:var(--text-dark);">共 '+adminImportItems.length+' 件・<span style="color:#047857;">勾了 '+sel.length+' 件</span>'+(bad ? '・<span style="color:var(--ignis-deep);">'+bad+' 件要先修正（或取消勾選）</span>' : '')+'</p>'
++ '<span style="font-size:12.5px;white-space:nowrap;"><button type="button" class="adm-link" id="impSelAll">全選</button>・<button type="button" class="adm-link" id="impSelNone">全部取消</button></span></div>'
 + adminImportItems.map(function(x, i){
 var nPhotos = x.photoOnly ? x.adds.length : (x.cover ? 1 : 0) + x.options.filter(function(o){ return x.photos[o]; }).length + x.extra.length;
-return '<div class="imp-row" data-i="'+i+'">'
+return '<div class="imp-row" data-i="'+i+'" style="'+(x.skip ? 'opacity:.4;' : '')+'">'
++ '<input type="checkbox" class="imp-sel" data-i="'+i+'"'+(x.skip ? '' : ' checked')+' style="width:22px;height:22px;flex:none;margin-top:18px;accent-color:#10B981;">'
 + (x.photoOnly && x.product ? '<img src="'+escAttr(productImageUrl(x.product.id))+'" alt="" onerror="this.style.visibility=\'hidden\';">' : x.cover ? '<img src="'+escAttr(x.cover)+'" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility=\'hidden\';">' : '<span class="imp-noimg">無圖</span>')
 + '<div style="min-width:0;flex:1;"><b>'+escHtml(x.name || '（沒有名稱）')+'</b>'
 + (x.sub ? '<small>📄 '+escHtml(x.sub)+'</small>' : '')
@@ -7422,7 +7426,7 @@ return '<div class="imp-row" data-i="'+i+'">'
 + x.notes.map(function(w){ return '<small style="color:#B26A00;font-weight:700;">📝 '+escHtml(w)+'</small>'; }).join('')
 + '<span class="imp-st"></span></div></div>';
 }).join('')
-+ (bad ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">'+(adminImportItems.every(function(x){ return x.photoOnly; }) ? '🖼️ 開始補照片（'+adminImportItems.length+' 件）' : '📥 全部上架（'+adminImportItems.length+' 件）')+'</button>');
++ ((bad || !sel.length) ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">'+(sel.every(function(x){ return x.photoOnly; }) ? '🖼️ 開始補照片（'+sel.length+' 件）' : (sel.length === adminImportItems.length ? '📥 全部上架（'+sel.length+' 件）' : '📥 上架勾選的（'+sel.length+' 件）'))+'</button>');
 }
 // 匯入照片：網址就請系統去抓；清單裡直接夾帶的照片（data:image/…，例如從截圖裁下來的）就直接用
 // 匯入照片：抓圖＋壓縮＋上傳，失敗自動重試（官網圖片伺服器偶爾會擋太快的連續下載）
@@ -7452,7 +7456,9 @@ return fr.dataUrl;
 async function runImport(){
 var btn = document.getElementById('impGo');
 if(!btn || !adminImportItems) return;
-if(!window.confirm(adminImportItems.every(function(x){ return x.photoOnly; }) ? '確定要幫這 '+adminImportItems.length+' 件補角色照片嗎？' : '確定要上架這 '+adminImportItems.length+' 件嗎？')) return;
+var selN = adminImportItems.filter(function(x){ return !x.skip; }).length;
+if(!selN) return;
+if(!window.confirm(adminImportItems.every(function(x){ return x.skip || x.photoOnly; }) ? '確定要幫這 '+selN+' 件補角色照片嗎？' : '確定要上架這 '+selN+' 件嗎？'+(selN < adminImportItems.length ? '\n（沒勾的 '+(adminImportItems.length - selN)+' 件不會上架）' : ''))) return;
 btn.disabled = true;
 var zoneEl = document.getElementById('impZone'), stockEl = document.getElementById('impStock');
 var hidden = !!(document.getElementById('impHidden') || {}).checked;
@@ -7460,6 +7466,7 @@ var okCount = 0, failCount = 0, photoFail = 0;
 for(var i=0;i<adminImportItems.length;i++){
 var x = adminImportItems[i];
 var st = document.querySelector('.imp-row[data-i="'+i+'"] .imp-st');
+if(x.skip){ if(st){ st.textContent = '－ 沒勾，跳過'; st.style.color = 'var(--muted)'; } continue; }
 btn.textContent = '上架中… '+(i+1)+' / '+adminImportItems.length;
 if(x.photoOnly){
 if(x.product && x.tagPhoto){
@@ -7582,6 +7589,19 @@ renderImportPreview();
 return;
 }
 if(t.closest('#impGo')){ runImport(); }
+if(t.closest('#impSelAll') || t.closest('#impSelNone')){
+if(!adminImportItems) return;
+var allOn = !!t.closest('#impSelAll');
+adminImportItems.forEach(function(x){ x.skip = !allOn; });
+renderImportPreview();
+return;
+}
+var sc = t.closest('.imp-sel');
+if(sc && adminImportItems){
+var ix = Number(sc.getAttribute('data-i'));
+if(adminImportItems[ix]){ adminImportItems[ix].skip = !sc.checked; renderImportPreview(); }
+return;
+}
 });
 function adminQuickFormHTML(){
 if(!LIVE_ZONES.length) return '';
