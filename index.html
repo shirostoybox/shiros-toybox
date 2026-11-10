@@ -1598,7 +1598,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-2320';
+var APP_VERSION = '20261110-2335';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -8473,11 +8473,14 @@ el.disabled = false;
 });
 // ---------- 勾選多件一起刪除 ----------
 var adminSelected = {};
+function admSelVisible(){ var cs = document.querySelectorAll('.adm-sel'); for(var i=0;i<cs.length;i++){ if(cs[i].offsetParent !== null) return true; } return false; }
+var ADM_DELETING = false;
 function adminSelPaint(){
+if(ADM_DELETING) return;
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
 var bar = document.getElementById('admSelBar');
 if(!bar){ bar = document.createElement('div'); bar.id = 'admSelBar'; document.body.appendChild(bar); }
-var onPage = !!document.querySelector('.adm-sel');
+var onPage = admSelVisible();
 bar.style.display = (ids.length && onPage) ? 'flex' : 'none';
 bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><button type="button" class="sb-del" id="sbDel">🗑 刪除勾選的</button>';
 var cs = document.querySelectorAll('.adm-sel');
@@ -8514,8 +8517,13 @@ if(!window.confirm('只刪沒庫存、沒人喊過的 '+plain.length+' 件嗎？
 list = plain;
 } else if(!window.confirm('確定刪除這 '+ids.length+' 件嗎？\n\n商品和照片都會刪掉，無法復原。')) return;
 } else if(!window.confirm('確定刪除這 '+ids.length+' 件嗎？\n\n商品和照片都會刪掉，無法復原。')) return;
-var bar = document.getElementById('admSelBar');
-var setBar = function(t){ if(bar) bar.innerHTML = '<span>'+t+'</span>'; };
+ADM_DELETING = true;
+var bar = document.getElementById('admSelBar'); if(bar) bar.style.display = 'none';
+// 刪除中蓋一層進度畫面，避免以為沒反應、或中途跑去別的頁面
+var pov = document.createElement('div'); pov.className = 'cm-ov'; pov.style.zIndex = '10060';
+pov.innerHTML = '<div class="cm-box" style="text-align:center;"><p class="cm-title">🗑 刪除中…</p><p id="admDelTxt" style="font-size:15px;font-weight:800;margin:10px 0;">準備中</p><p class="cm-hint">請不要關掉或離開這個畫面</p></div>';
+document.body.appendChild(pov);
+var setBar = function(t){ var el = document.getElementById('admDelTxt'); if(el) el.textContent = t; };
 // 有庫存的先清掉庫存（存好再刪，不然伺服器會擋）
 var clearInv = list.filter(function(id){ return prodInvCnt(id) > 0; });
 if(clearInv.length){
@@ -8523,16 +8531,24 @@ setBar('清空庫存中…');
 clearInv.forEach(function(id){ invQueue({ k:'pdel', pid:id }); });
 await invFlushNow();
 }
-var ok = 0, fail = [];
-for(var i=0;i<list.length;i++){
-setBar('刪除中… '+(i+1)+' / '+list.length);
-try{ await callMemberApi('admin-delete-product', { productId: list[i] }); ok++; delete adminSelected[list[i]]; }
-catch(e){ fail.push(nm(list[i])+'：'+e.message); }
+var ok = 0, fail = [], done = 0, next = 0;
+setBar('0 / '+list.length);
+async function worker(){
+while(next < list.length){
+var id = list[next++];
+try{ await callMemberApi('admin-delete-product', { productId: id }); ok++; delete adminSelected[id]; }
+catch(e){ fail.push(nm(id)+'：'+e.message); }
+done++; setBar(done+' / '+list.length+(fail.length ? '（'+fail.length+' 件沒刪掉）' : ''));
 }
+}
+await Promise.all([worker(), worker(), worker(), worker()]);   // 一次刪 4 件，比較快
+setBar('完成，重新整理中…');
 showToast('已刪除 '+ok+' 件');
 if(fail.length) alert('有 '+fail.length+' 件沒刪掉：\n\n'+fail.slice(0, 8).join('\n\n')+(fail.length > 8 ? '\n…' : ''));
 adminSelected = {};
-await loadAdminProducts();
+try{ await loadAdminProducts(); }catch(e){}
+pov.remove();
+ADM_DELETING = false;
 adminSelPaint();
 }
 document.addEventListener('change', function(e){
@@ -8548,7 +8564,7 @@ if(t.closest('#sbAll')){ var cs = document.querySelectorAll('.adm-sel'); for(var
 if(t.closest('#sbDel')){ adminDeleteSelected(); return; }
 }, true);
 // 離開商品頁（看不到勾選框）時把下面的刪除列藏起來
-setInterval(function(){ var c = document.querySelector('.adm-sel'), vis = !!(c && c.offsetParent !== null), n = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; }).length, bar = document.getElementById('admSelBar'); if(vis && n && (!bar || bar.style.display === 'none')) adminSelPaint(); else if(bar && bar.style.display !== 'none' && !vis) bar.style.display = 'none'; }, 800);
+setInterval(function(){ if(ADM_DELETING) return; var vis = admSelVisible(), n = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; }).length, bar = document.getElementById('admSelBar'); if(vis && n && (!bar || bar.style.display === 'none')) adminSelPaint(); else if(bar && bar.style.display !== 'none' && !vis) bar.style.display = 'none'; }, 800);
 function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
