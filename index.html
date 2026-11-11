@@ -1614,7 +1614,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261111-2340';
+var APP_VERSION = '20261112-1200';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5627,6 +5627,7 @@ if(results[2] && results[2].settings){ siteSettings.inventory = results[2].setti
 adminProductsCache = results[0].products || [];
 adminProductOrderCounts = results[0].orderCounts || {};
 adminShareSold = results[0].shareSold || {};
+adminShareBefore = results[0].shareBefore || {};
 adminStockIn = results[0].stockIn || {};
 if(results[0].partners && results[0].partners.length) COST_PARTNERS = results[0].partners;
 if(!ADMIN_FX || !ADMIN_FX.loaded) loadAdminFx();
@@ -8323,7 +8324,7 @@ return '<div class="adm-never-bar"><button type="button" class="adm-never-back" 
 + '<p class="adm-never-n">這些商品從來沒有任何一筆喊單、也沒有記庫存，刪掉不會影響訂單、庫存或利潤表。'+(invKept ? '<br>📦 有 '+invKept+' 件沒人喊過但<b>有庫存</b>，已經排除，不會出現在這裡。' : '')+'</p></div>';
 }
 // 🤝 賣掉的錢歸誰：一般／共同庫存／寄賣
-var adminShareSold = {}, adminStockIn = {};
+var adminShareSold = {}, adminShareBefore = {}, adminStockIn = {};
 function stockSheetTitle(key){
 key = String(key || '');
 if(key.indexOf('zone:') === 0){ var z = zoneById(key.slice(5)); return z ? (z.note || z.name || '限時連線專區') : '限時連線專區'; }
@@ -8350,6 +8351,19 @@ if(sh.mode === 'consign') return '<span class="u-c">🎁 寄賣：'+escHtml(sh.c
 var sold = Number(adminShareSold[p.id] || 0), left = Math.max(0, (Number(sh.qty) || 0) - sold);
 return '<span class="u-s">🤝 共同：'+escHtml(shareNames(sh.people))+(left ? ' 剩 '+left : ' 已賣完')+'</span>';
 }
+// 共同庫存從哪天算起（台灣日期 YYYY-MM-DD）：有設過用設過的，沒有就今天
+function shareSinceDate(sh){
+var t = (sh && sh.since) ? new Date(sh.since) : new Date();
+if(isNaN(t.getTime())) t = new Date();
+var tw = new Date(t.getTime() + 8*3600*1000);
+return tw.toISOString().slice(0,10);
+}
+// 設定日期之前就有人喊的單（還沒算進共同庫存）：提醒一下
+function shareEarlierHTML(p){
+var b = adminShareBefore[p.id]; if(!b || !(b.qty > 0)) return '';
+var n = b.qty, first = shareSinceDate({ since: b.first });
+return '<p class="adm-share-warn">⚠️ 設定日期前已經有 '+n+' 個喊單（最早 '+escHtml(first)+'），目前<b>沒有</b>算進共同庫存。要算進來，把日期改成 '+escHtml(first)+' 再按儲存。</p>';
+}
 function adminShareBoxHTML(p){
 var sh = p.share || {}, mode = sh.mode || 'normal', ps = costPartnerList();
 var sold = Number(adminShareSold[p.id] || 0);
@@ -8369,7 +8383,9 @@ return '<div class="adm-share" data-product-id="'+p.id+'" data-mode="'+mode+'">'
 + '<p class="adm-share-l">誰一起出錢買的</p><div class="adm-share-cs">'+ps.map(function(x){ return '<label class="adm-share-c"><input type="checkbox" value="'+escAttr(x.id)+'"'+((sh.people||[]).indexOf(x.id)>=0?' checked':'')+'> '+escHtml(x.name||'未命名')+'</label>'; }).join('')+'</div>'
 + '<div class="adm-share-r"><span>共同庫存</span><input type="number" inputmode="numeric" min="1" class="gate-input adm-share-qty" value="'+(sh.qty || (prodInvLeft(p.id) || ''))+'" placeholder="幾個"><span>個'+(mode==='shared' ? '・已賣 '+sold+'・剩 '+Math.max(0,(Number(sh.qty)||0)-sold) : '')+'</span></div>'
 + '<div class="adm-share-r"><span>來源</span><input type="text" class="gate-input adm-share-src" value="'+escAttr(sh.src || '')+'" placeholder="例：10/28 池袋專區（成本已在那張分攤）"></div>'
-+ '<p class="adm-share-n">從設定這天起，照客人喊單先後，前 N 個賣出的錢歸勾選的人平分，成本記 0（不會重複扣）。N 個賣完後再進的貨，照「一般」算。</p></div>'
++ '<div class="adm-share-r"><span>從哪天的喊單算起</span><input type="date" class="gate-input adm-share-since" value="'+escAttr(shareSinceDate(sh))+'"></div>'
++ (mode==='shared' ? shareEarlierHTML(p) : '')
++ '<p class="adm-share-n">從上面這天起，照客人喊單先後，前 N 個賣出的錢歸勾選的人平分，成本記 0（不會重複扣）。N 個賣完後再進的貨，照「一般」算。<br>忘記先設就按了確認也沒關係：把日期改到那批喊單的那天，再按儲存就會算進來。</p></div>'
 + '<div class="adm-share-p" data-for="consign"'+(mode==='consign'?'':' style="display:none;"')+'>'
 + '<div class="adm-share-r"><span>寄賣人</span><input type="text" class="gate-input adm-share-who" list="admConsignors" value="'+escAttr(sh.consignor || '')+'" placeholder="例：小美"></div>'
 + '<datalist id="admConsignors">'+Object.keys(consignors).map(function(k){ return '<option value="'+escAttr(k)+'">'; }).join('')+'</datalist>'
@@ -8395,7 +8411,8 @@ var people = []; bx.querySelectorAll('.adm-share-c input:checked').forEach(funct
 var qty = parseInt(bx.querySelector('.adm-share-qty').value, 10) || 0;
 if(!people.length){ alert('請勾選一起出錢的人'); return; }
 if(!(qty > 0)){ alert('請填共同庫存有幾個'); return; }
-share = { mode:'shared', people:people, qty:qty, src:bx.querySelector('.adm-share-src').value.trim() };
+var sinceEl = bx.querySelector('.adm-share-since');
+share = { mode:'shared', people:people, qty:qty, src:bx.querySelector('.adm-share-src').value.trim(), sinceDate: sinceEl ? sinceEl.value : '' };
 } else if(md === 'consign'){
 var who = bx.querySelector('.adm-share-who').value.trim();
 if(!who){ alert('請填寄賣人'); return; }
