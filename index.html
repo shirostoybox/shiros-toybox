@@ -464,6 +464,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-float-collapse{ position:fixed; right:14px; bottom:calc(104px + env(safe-area-inset-bottom)); z-index:8000; border:none; background:var(--ink); color:#fff; border-radius:999px; padding:11px 16px; font-size:13.5px; font-weight:700; font-family:var(--font-body); box-shadow:0 4px 14px rgba(20,22,30,.3); }
 .admin-settle-freeship{ margin-left:6px; border:1.5px solid #0E7490; background:#ECFEFF; color:#0E7490; border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:700; font-family:var(--font-body); }
 .adm-mb.is-freeship{ background:#CFFAFE; color:#0E7490; }
+.adm-mb.is-nodep{ background:#FEF3C7; color:#B45309; }
 .settle-freeship{ margin:4px 0 10px; padding:10px 12px; background:#ECFEFF; border-radius:12px; font-size:13.5px; color:#0E7490; }
 .adm-mb.is-friend{ background:#E0E7FF; color:#3730A3; }
 .adm-p-catpill{ display:block; margin:0 0 3px; }
@@ -1614,7 +1615,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261112-1200';
+var APP_VERSION = '20261112-0215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4988,6 +4989,7 @@ var ADMIN_MEMBER_FILTERS = [
 ['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }],
 ['friend', '🧪 朋友', function(m){ return !!m.isFriend; }],
 ['freeship', '🚚 永久免運', function(m){ return !!m.freeShipping; }],
+['nodeposit', '💰 免訂金', function(m){ return !!m.noDeposit; }],
 ['fsused', '🎟 用過免運券', function(m){ return (m.freeShipUsed || 0) > 0; }]
 ];
 async function loadAdminMembers(){
@@ -5028,6 +5030,7 @@ if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 �
 if(m.staffRole === 'owner') out += '<span class="adm-mb is-staff">👑 老闆</span>';
 if(m.isFriend) out += '<span class="adm-mb is-friend">🧪 朋友・不算分潤</span>';
 if(m.freeShipping) out += '<span class="adm-mb is-freeship">🚚 永久免運</span>';
+if(m.noDeposit) out += '<span class="adm-mb is-nodep">💰 免訂金</span>';
 return out;
 }
 function renderAdminMemberList(){
@@ -5121,6 +5124,7 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
 + restrictToggleBtn
 + (m.isVerified ? '<button type="button" class="btn btn--full admin-member-freeship-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.freeShipping ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';color:'+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';">'+(m.freeShipping ? '取消永久免運' : '🚚 設為永久免運（結單運費 0）')+'</button>' : '')
++ (m.isVerified ? '<button type="button" class="btn btn--full admin-member-nodep-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.noDeposit ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.noDeposit ? 'var(--muted)' : '#B45309')+';color:'+(m.noDeposit ? 'var(--muted)' : '#B45309')+';">'+(m.noDeposit ? '取消免訂金（之後滿 NT$1,000 要付訂金）' : '💰 設為免訂金（喊單不用付訂金）')+'</button>' : '')
 + (m.staffRole ? '' : '<button type="button" class="btn btn--full admin-member-friend-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-friend="'+(m.isFriend ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';color:'+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';">'+(m.isFriend ? '取消朋友（之後的單算分潤）' : '🧪 設為朋友（不算分潤）')+'</button>')
 + (adminRole === 'owner'
 ? (m.staffRole === 'helper'
@@ -5167,6 +5171,20 @@ showToast(on ? '已設為永久免運' : '已取消永久免運');
 var input = document.getElementById('adminMemberSearch');
 await handleAdminSearchMembers(input ? input.value.trim() : '');
 }catch(e){ alert('操作失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); b.disabled = false; }
+});
+}
+var ndBtns = container.querySelectorAll('.admin-member-nodep-btn');
+for(var ndi=0; ndi<ndBtns.length; ndi++){
+ndBtns[ndi].addEventListener('click', async function(){
+var b = this, on = b.getAttribute('data-on') === '1';
+if(!window.confirm(on ? '把這位設為免訂金嗎？\n\n・之後限時連線喊單滿 NT$1,000 也不用付訂金\n・現在還沒結單、還沒收訂金的喊單，也會一起取消「需訂金」\n・已經收過的訂金不會動，結單時照樣扣掉' : '取消這位的免訂金嗎？\n\n還沒結單的限時連線喊單會重新判斷，滿 NT$1,000 的會變回「需訂金」。')) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-no-deposit', { lineUid: b.getAttribute('data-line-uid'), on: on });
+showToast(on ? '已設為免訂金' : '已取消免訂金');
+var input = document.getElementById('adminMemberSearch');
+await handleAdminSearchMembers(input ? input.value.trim() : '');
+}catch(e){ alert('操作失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : (/no_deposit/.test(e.message) ? '\n\n（要先到 Supabase 跑 SQL）' : ''))); b.disabled = false; }
 });
 }
 var friendBtns = container.querySelectorAll('.admin-member-friend-btn');
@@ -10034,7 +10052,7 @@ orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">私訊�
 orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入喊單</button>';
 }
 // 只有限時連線商品要收訂金：單價滿1000就提示（實際以同商品喊單合計判斷，數量選擇在下一步彈窗）。
-var depositNoteHTML = (p.stock === 'live_limited' && productPriceRange(p).max >= 1000)
+var depositNoteHTML = (!myBalance.noDeposit && p.stock === 'live_limited' && productPriceRange(p).max >= 1000)
 ? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰 喊單總金額滿 NT$1,000，需支付 50% 訂金。</p>'
 : '';
 return '<article class="card">'
@@ -10501,7 +10519,7 @@ var existingSubtotal = 0, existingCount = 0;
 if(o.product_id === orderModalProduct.id && o.product_name === orderModalProduct.name && o.is_live_limited && o.status !== '缺貨已幫您取消'){ existingSubtotal += Number(o.price) * Number(o.quantity || 1); existingCount++; }
 });
 var combined = existingSubtotal + lineSubtotal;
-var needsDeposit = stock === 'live_limited' && combined >= 1000;
+var needsDeposit = !myBalance.noDeposit && stock === 'live_limited' && combined >= 1000;
 if(needsDeposit){
 depositEl.style.display = 'block';
 depositEl.textContent = existingCount > 0
@@ -11234,6 +11252,7 @@ redeemable: data.redeemable || 0,
 couponBalance: data.couponBalance || 0,
 referralCouponBalance: data.referralCouponBalance || 0,
 freeShipping: !!data.freeShipping,
+noDeposit: !!data.noDeposit,
 creditItems: data.creditItems || [],
 canRedeem: !!data.canRedeem,
 luxuryCumulativeSpend: data.luxuryCumulativeSpend || 0,
