@@ -393,6 +393,22 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 /* orders */
 .order-list{ display:flex; flex-direction:column; gap:12px; padding:6px 20px 24px; }
 .adm-prod-head{ display:flex; gap:10px; align-items:center; cursor:pointer; }
+.inv-chips{ display:flex; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 0 8px; padding-bottom:2px; scrollbar-width:none; }
+.inv-chips::-webkit-scrollbar{ display:none; }
+.inv-chip{ flex:none; padding:7px 12px; border-radius:999px; background:#fff; border:1.5px solid var(--line); font:inherit; font-size:13px; font-weight:700; color:var(--text-dark); white-space:nowrap; }
+.inv-chip.on{ background:#111827; color:#fff; border-color:#111827; }
+.inv-bar{ display:flex; justify-content:space-between; align-items:center; margin:2px 2px 8px; font-size:13px; font-weight:800; color:var(--text-dark); }
+.inv-vt{ display:flex; background:#E5E7EB; border-radius:999px; padding:3px; }
+.inv-vt button{ border:0; background:transparent; border-radius:999px; padding:5px 11px; font:inherit; font-size:12.5px; font-weight:800; color:#374151; }
+.inv-vt button.on{ background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+.inv-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.inv-cell{ display:block; width:100%; height:auto; min-height:0; margin:0; border:0 !important; padding:0 !important; background:#fff !important; border-radius:12px !important; overflow:hidden; text-align:left; font:inherit; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.inv-cell-img{ position:relative; aspect-ratio:1; background:#F3F4F6; }
+.inv-cell-img img{ width:100%; height:100%; object-fit:cover; display:block; }
+.inv-badge{ position:absolute; left:5px; bottom:5px; font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px; background:#10B981; color:#fff; max-width:calc(100% - 10px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.inv-badge.is-zero{ background:#6B7280; }
+.inv-badge.is-none{ background:#F59E0B; }
+.inv-cell-nm{ display:-webkit-box; white-space:normal; max-height:calc(2.7em + 11px); box-sizing:border-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:11.5px; line-height:1.35; font-weight:700; color:var(--text-dark); padding:5px 6px 6px; min-height:31px; }
 .adm-sel-wrap{ flex:none; display:flex; align-items:center; justify-content:center; width:30px; height:52px; margin:0 -4px 0 -4px; }
 .adm-sel{ width:22px; height:22px; accent-color:#DC2626; }
 .adm-prod.is-sel{ box-shadow:0 0 0 2px #FCA5A5 inset; background:#FFF5F5; }
@@ -1598,7 +1614,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261110-2335';
+var APP_VERSION = '20261111-2340';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3236,6 +3252,8 @@ return;
 }
 if((b = t.closest('.inv-thumb'))){ var tp = b.getAttribute('data-pid'); try{ openProductGallery(tp, b.src); }catch(ge){ openLightbox(b.src); } return; }
 if((b = t.closest('.inv-back-btn'))){ invBackfill(); return; }
+if((b = t.closest('.inv-chip'))){ var row = b.parentNode.getAttribute('data-row'); if(row === 'f') invFilter = b.getAttribute('data-k'); else invCatF = b.getAttribute('data-k'); renderAdminInventory(); return; }
+if((b = t.closest('.inv-vt button'))){ invView = b.getAttribute('data-v'); try{ localStorage.setItem('invView', invView); }catch(le){} var fa = document.getElementById('invFoldAll'); if(fa) fa.style.display = invView === 'list' ? 'flex' : 'none'; renderAdminInventory(); return; }
 if((b = t.closest('.inv-open'))){ invOpenModal(b.getAttribute('data-pid')); return; }
 if((b = t.closest('button.inv-pick'))){ var pk = b.getAttribute('data-pid'); invPinned[pk] = true; renderAdminInventory(); return; }
 });
@@ -3245,11 +3263,35 @@ ov.className = 'cm-ov';
 invNoFold = true; var mcard = invCardHTML(pid); invNoFold = false;
 ov.innerHTML = '<div class="cm-box">'+mcard+'<button type="button" class="btn btn--primary btn--full inv-done" style="margin-top:14px;">完成</button></div>';
 document.body.appendChild(ov);
-function close(){ ov.remove(); try{ if(document.querySelector('.adm-seg')) renderAdminOrders(); }catch(e){} }
+function close(){ ov.remove(); try{ if(document.querySelector('.adm-seg')) renderAdminOrders(); }catch(e){} try{ if(document.getElementById('invList')) renderAdminInventory(); }catch(e2){} }
 ov.addEventListener('click', function(e){ if(e.target === ov || (e.target.closest && e.target.closest('.inv-done'))) close(); });
 }
 // 📦 庫存分頁
 var invPinned = {}, invQuery = '';
+// 庫存頁：照片牆／清單、快速篩選（記在這支手機）
+var invView = 'grid', invFilter = 'all', invCatF = '';
+try{ invView = localStorage.getItem('invView') || 'grid'; }catch(e){}
+function invLastT(pid){ var P = INV.p[pid]; if(!P || !P.u) return 0; var m = 0; P.u.forEach(function(u){ if(Number(u.t) > m) m = Number(u.t); }); return m; }
+function invWaitCnt(pid){ var n = 0; (adminGroupsCache || []).forEach(function(g){ (g.openOrders || []).forEach(function(o){ if(o.product_id === pid && o.status === '待確認') n += Number(o.quantity || 1); }); }); return n; }
+function invZoneOf(pid){ var p = invProdObj(pid); if(p && p.stock_status === 'live_limited' && p.live_zone_id) return p.live_zone_id; return invProdZone(pid); }
+function invZoneName(zid){ for(var i=0;i<(LIVE_ZONES || []).length;i++){ if(LIVE_ZONES[i].id === zid) return LIVE_ZONES[i].note || LIVE_ZONES[i].name || '限時連線'; } return ''; }
+// 搜尋：名稱、款式（記過的、商品選項）、分類、說明（常有日文）都找得到
+function invSearchText(pid, name){
+var t = [name || '', invProdName(pid)];
+var P = INV.p[pid]; if(P && P.u) P.u.forEach(function(u){ if(u.l) t.push(u.l); });
+try{ t = t.concat(invProdOptions(pid)); }catch(e){}
+var ci = invCatInfo(pid); t.push(ci.label);
+var po = invProdObj(pid); if(po){ t.push(po.sub || ''); }
+for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === pid){ t.push(PRODUCTS[i].sub || ''); break; } }
+var z = invZoneOf(pid); if(z) t.push(invZoneName(z));
+return t.join(' ').toLowerCase();
+}
+function invCellHTML(pid){
+var P = INV_ALLOC.prod[pid], w = invWaitCnt(pid);
+var badge = !P ? '<span class="inv-badge is-none">沒記庫存'+(w ? '・'+w+' 人在等' : '')+'</span>'
+: (P.left > 0 ? '<span class="inv-badge">剩 '+P.left+(w ? '・'+w+' 人在等' : '')+'</span>' : '<span class="inv-badge is-zero">已分完'+(w ? '・'+w+' 人在等' : '')+'</span>');
+return '<button type="button" class="inv-cell inv-open" data-pid="'+escAttr(pid)+'"><div class="inv-cell-img"><img src="'+escAttr(productImageUrl(pid))+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'+badge+'</div><span class="inv-cell-nm">'+escHtml(invProdName(pid))+'</span></button>';
+}
 async function loadAdminInventory(silent){
 var el = document.getElementById('adminTabContent');
 if(!el) return;
@@ -3276,12 +3318,27 @@ if(!want[o.product_id]){ want[o.product_id] = { name:o.product_name, t:o.created
 Object.keys(INV.p).forEach(function(pid){ if(!want[pid]){ want[pid] = { name:invProdName(pid), t:'' }; order.push(pid); } });
 Object.keys(invPinned).forEach(function(pid){ if(!want[pid]){ want[pid] = { name:invProdName(pid), t:'' }; order.unshift(pid); } });
 var q = invQuery.trim().toLowerCase();
-var shown = order.filter(function(pid){ return !q || String(want[pid].name || '').toLowerCase().indexOf(q) >= 0; });
+var base = order.filter(function(pid){ return !q || invSearchText(pid, want[pid].name).indexOf(q) >= 0; });
+// 第二排：分類＋專區（只列有東西的）
+var catSeen = {}, catList = [], zoneSeen = {}, zoneList = [];
+base.forEach(function(pid){ var ci = invCatInfo(pid); if(!catSeen[ci.key]){ catSeen[ci.key] = 1; catList.push(ci); } var z = invZoneOf(pid); if(z && !zoneSeen[z] && invZoneName(z)){ zoneSeen[z] = 1; zoneList.push(z); } });
+catList.sort(function(a, b){ return String(a.label).localeCompare(String(b.label), 'zh-Hant'); });
+if(invCatF && !(invCatF.indexOf('z:') === 0 ? zoneSeen[invCatF.slice(2)] : catSeen[invCatF])) invCatF = '';
+var shown = base.filter(function(pid){
+if(invCatF){ if(invCatF.indexOf('z:') === 0){ if(invZoneOf(pid) !== invCatF.slice(2)) return false; } else if(invCatInfo(pid).key !== invCatF) return false; }
+var P = INV_ALLOC.prod[pid];
+if(invFilter === 'recent') return invLastT(pid) > 0;
+if(invFilter === 'left') return P && P.left > 0;
+if(invFilter === 'wait') return invWaitCnt(pid) > 0;
+if(invFilter === 'zero') return P && P.left <= 0;
+return true;
+});
 // 有庫存但不夠分的排前面，再來是還沒記庫存的，最後是夠分的
 // 剩最多庫存的排最上面（剩一樣多時，總庫存多的在前）；還沒記庫存的放最後
 function leftOf(pid){ var P = INV_ALLOC.prod[pid]; return P ? P.left : -1; }
 function totalOf(pid){ var P = INV_ALLOC.prod[pid]; return P ? P.total : -1; }
 shown.sort(function(a,b){ return leftOf(b) - leftOf(a) || totalOf(b) - totalOf(a) || String(want[a].name).localeCompare(String(want[b].name), 'zh-Hant'); });
+if(invFilter === 'recent') shown.sort(function(a, b){ return invLastT(b) - invLastT(a); });
 var extra = '';
 if(q){
 var have = {}; order.forEach(function(pid){ have[pid] = true; });
@@ -3293,15 +3350,21 @@ var gmap = {}, gorder = [];
 shown.forEach(function(pid){ var ci = invCatInfo(pid); if(!gmap[ci.key]){ gmap[ci.key] = { info:ci, list:[] }; gorder.push(ci.key); } gmap[ci.key].list.push(pid); });
 gorder.sort(function(a,b){ if(a === DONTMISS_CAT) return -1; if(b === DONTMISS_CAT) return 1; if(a === '__other__') return 1; if(b === '__other__') return -1; return String(gmap[a].info.label).localeCompare(String(gmap[b].info.label), 'zh-Hant'); });
 // 不分分類分組，直接照庫存多寡排；分類標籤放在每張卡片上
-var grouped = shown.map(function(pid){ return '<div class="inv-catpill">'+catPillHTML(invCatInfo(pid), '')+'</div>' + invCardHTML(pid); }).join('');
-var listHTML = (shown.length ? grouped : '<p style="font-size:14px;color:var(--muted);">'+(q ? '找不到「'+escHtml(invQuery.trim())+'」' : '目前沒有要記庫存的商品。')+'</p>') + extra;
+var grouped = invView === 'grid'
+? '<div class="inv-grid">' + shown.map(invCellHTML).join('') + '</div>'
+: shown.map(function(pid){ return '<div class="inv-catpill">'+catPillHTML(invCatInfo(pid), '')+'</div>' + invCardHTML(pid); }).join('');
+function chip(k, label, cur){ return '<button type="button" class="inv-chip'+(cur === k ? ' on' : '')+'" data-k="'+escAttr(k)+'">'+label+'</button>'; }
+var chipsHTML = '<div class="inv-chips" data-row="f">' + chip('all', '全部', invFilter) + chip('recent', '🔁 最近記過', invFilter) + chip('left', '有剩的', invFilter) + chip('wait', '有人在等', invFilter) + chip('zero', '已分完', invFilter) + '</div>'
++ ((catList.length + zoneList.length) > 1 ? '<div class="inv-chips" data-row="c">' + chip('', '所有分類', invCatF) + zoneList.map(function(z){ return chip('z:'+z, '⚡'+escHtml(invZoneName(z)), invCatF); }).join('') + catList.map(function(ci){ return chip(ci.key, escHtml(ci.label), invCatF); }).join('') + '</div>' : '')
++ '<div class="inv-bar"><span>'+shown.length+' 件</span><span class="inv-vt"><button type="button" data-v="grid" class="'+(invView === 'grid' ? 'on' : '')+'">🖼️ 照片</button><button type="button" data-v="list" class="'+(invView === 'list' ? 'on' : '')+'">☰ 清單</button></span></div>';
+var listHTML = chipsHTML + (shown.length ? grouped : '<p style="font-size:14px;color:var(--muted);">'+(q ? '找不到「'+escHtml(invQuery.trim())+'」' : '這裡沒有商品。')+'</p>') + extra;
 // 搜尋框已經在畫面上：只換下面的列表，不要重畫搜尋框（注音、選字才不會被打斷）
 var oldList = document.getElementById('invList');
 if(oldList && document.getElementById('invSearch')){ oldList.innerHTML = listHTML; return; }
 el.innerHTML = '<div class="inv-intro">買到或扭到一個，就在那件商品按一下，<b>照扭出來的順序</b>記下來。<br>庫存只給<b>待確認</b>的喊單：每按一筆確認，就扣掉輪到的那一顆（指定款式的拿對應那顆，<b>隨機的依順序拿</b>），客人的喊單頁也會寫隨機抽到哪一款。<br>之前就確認的喊單當作已經出好貨，不會扣庫存。</div>'
 + (function(){ var ol = invOldConfirmed(); if(!ol.length) return ''; var q = ol.reduce(function(a,o){ return a + Number(o.quantity || 1); }, 0); return '<div class="inv-back"><span>之前按確認、還沒算進庫存的：<b>'+ol.length+' 筆・'+q+' 個</b></span><button type="button" class="inv-back-btn">＋ 一次補進庫存</button></div>'; })()
-+ '<input type="text" class="gate-input" id="invSearch" value="'+escAttr(invQuery)+'" placeholder="搜尋商品，也可以找沒人喊單的商品來記庫存" style="margin-bottom:10px;">'
-+ '<div style="display:flex;gap:14px;justify-content:flex-end;margin:0 0 6px;"><button type="button" class="adm-link" data-invfold="1">全部收起 ▲</button><button type="button" class="adm-link" data-invfold="0">全部展開 ▼</button></div>'
++ '<input type="text" class="gate-input" id="invSearch" value="'+escAttr(invQuery)+'" placeholder="🔍 搜尋：名字、角色、款式、分類、日文都可以" style="margin-bottom:10px;">'
++ '<div id="invFoldAll" style="display:'+(invView === 'list' ? 'flex' : 'none')+';gap:14px;justify-content:flex-end;margin:0 0 6px;"><button type="button" class="adm-link" data-invfold="1">全部收起 ▲</button><button type="button" class="adm-link" data-invfold="0">全部展開 ▼</button></div>'
 + '<div id="invList">' + listHTML + '</div>';
 var si = document.getElementById('invSearch');
 var composing = false;
