@@ -466,6 +466,14 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-mb.is-freeship{ background:#CFFAFE; color:#0E7490; }
 .adm-share-b{ border:1px dashed #CBD5E1; border-radius:12px; padding:8px 10px; margin:0 0 8px; background:#FAFCFF; }
 .adm-share-bt{ display:flex; justify-content:space-between; align-items:center; margin:0 0 6px; font-size:12.5px; font-weight:800; color:#1D4E89; }
+.adm-lock{ margin:0 0 10px; padding:8px 10px; border:1.5px dashed #FCA5A5; border-radius:12px; background:#FFF7F7; }
+.adm-lock-t{ margin:0 0 6px; font-size:12.5px; font-weight:800; color:#B91C1C; display:flex; justify-content:space-between; gap:6px; }
+.adm-lock-n{ font-weight:700; color:#991B1B; white-space:nowrap; }
+.adm-lock-cs{ display:flex; flex-wrap:wrap; gap:6px; }
+.adm-lock-chip{ border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:5px 11px; font-size:12.5px; font-weight:700; font-family:inherit; color:var(--text-dark); }
+.adm-lock-chip i{ font-style:normal; }
+.adm-lock-chip.is-locked{ background:#FEE2E2; border-color:#F87171; color:#991B1B; text-decoration:line-through; }
+.opt-chip.is-locked .opt-chip-price{ color:#B91C1C; }
 .adm-share-vs{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 4px; }
 .adm-share-v{ display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; padding:4px 9px; border:1.5px solid var(--line); border-radius:999px; background:#fff; }
 .adm-share-v input{ width:15px; height:15px; margin:0; }
@@ -1622,7 +1630,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261112-1400';
+var APP_VERSION = '20261112-1520';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1864,7 +1872,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), lockedOptions:Array.isArray(p.locked_options) ? p.locked_options.map(String) : [], createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -4623,6 +4631,13 @@ var d = await callMemberApi('admin-fx-on-date', { date: date });
 if(d && d.rate) fxDateCache[date] = d;
 return d;
 }
+// 共同庫存可以勾的人：預設夥伴＋各分潤表出現過的夥伴
+var SHARE_PARTNERS = [];
+function sharePartnerList(){
+var out = costPartnerList().slice();
+(SHARE_PARTNERS || []).forEach(function(x){ if(x && x.id && !out.some(function(y){ return y.id === x.id; })) out.push(x); });
+return out;
+}
 function costPartnerList(){ return (COST_PARTNERS && COST_PARTNERS.length) ? COST_PARTNERS : PF_FALLBACK_PARTNERS; }
 function costPartnerName(id){
 var ps = costPartnerList();
@@ -5671,6 +5686,7 @@ adminShareBefore = results[0].shareBefore || {};
 adminShareSoldBatch = results[0].shareSoldBatch || {};
 adminStockIn = results[0].stockIn || {};
 if(results[0].partners && results[0].partners.length) COST_PARTNERS = results[0].partners;
+SHARE_PARTNERS = results[0].allPartners || [];
 if(!ADMIN_FX || !ADMIN_FX.loaded) loadAdminFx();
 rememberImageVersions(adminProductsCache);
 adminProductsCache.forEach(function(p){ if(p.is_private) PRIVATE_IDS[p.id] = true; else delete PRIVATE_IDS[p.id]; });
@@ -8398,6 +8414,7 @@ function stockInQty(list){ var n = 0; (list || []).forEach(function(r){ n += Num
 function sharePersonName(id){
 var ps = (typeof pfData !== 'undefined' && pfData && pfData.partners) || [];
 for(var i=0;i<ps.length;i++){ if(ps[i].id === id) return ps[i].name || '未命名'; }
+var sp = sharePartnerList(); for(var j=0;j<sp.length;j++){ if(sp[j].id === id) return sp[j].name || '未命名'; }
 return costPartnerName(id);
 }
 function shareNames(ids){ return (ids || []).map(sharePersonName).join('＋'); }
@@ -8424,7 +8441,7 @@ return '<p class="adm-share-warn">⚠️ 設定日期前已經有 '+n+' 個喊�
 }
 // 共同庫存的一批：誰出錢、各自比例、幾個、來源
 function shareBatchHTML(b, i, total, soldN, pid){
-var ps = costPartnerList(), w = shareWeightsOf(b);
+var ps = sharePartnerList(), w = shareWeightsOf(b);
 var vopts = []; try{ vopts = invProdOptions(pid); }catch(e){}
 var vs = b.variants || [];
 return '<div class="adm-share-b">'
@@ -8435,6 +8452,14 @@ return '<div class="adm-share-b">'
 + '<div class="adm-share-r"><span>來源</span><input type="text" class="gate-input adm-share-src" value="'+escAttr(b.src || '')+'" placeholder="例：一針大阪（成本已在那張分攤）"></div>'
 + (vopts.length > 1 ? '<p class="adm-share-l">這批是哪些款式（不勾＝哪款都算）</p><div class="adm-share-vs">'+vopts.map(function(v){ return '<label class="adm-share-v"><input type="checkbox" value="'+escAttr(v)+'"'+(vs.indexOf(v) >= 0 ? ' checked' : '')+'> '+escHtml(v)+'</label>'; }).join('')+'</div>' : '')
 + '</div>';
+}
+// 後台：單獨鎖某個角色／款式（賣完）。點一下鎖、再點一下開放
+function adminLockedOptsHTML(p){
+var opts = parseOptionList(p.options); if(opts.length < 2) return '';
+var locked = Array.isArray(p.locked_options) ? p.locked_options.map(String) : [];
+return '<div class="adm-lock"><p class="adm-lock-t"><span>🔒 賣完的'+escHtml(p.option_label || '款式')+'・點一下鎖起來</span><span class="adm-lock-n">'+(locked.length ? '已鎖 '+locked.length+' 個' : '')+'</span></p><div class="adm-lock-cs">'
++ opts.map(function(o){ var on = locked.indexOf(o) >= 0; return '<button type="button" class="adm-lock-chip'+(on ? ' is-locked' : '')+'" data-product-id="'+escAttr(p.id)+'" data-opt="'+escAttr(o)+'"><i>'+(on ? '🔒' : '')+'</i>'+escHtml(o)+'</button>'; }).join('')
++ '</div></div>';
 }
 function adminShareBoxHTML(p){
 var sh = p.share || {}, mode = sh.mode || 'normal', ps = costPartnerList();
@@ -8774,6 +8799,7 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + (isLiveStock(p.stock_status) ? '' : '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-featured-toggle" data-product-id="'+p.id+'"'+(p.featured?' checked':'')+' style="width:18px;height:18px;"> ⭐ 本週嚴選（顯示在首頁）</label>')
 + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-dark);margin:0 0 8px;"><input type="checkbox" class="admin-luxury-toggle" data-product-id="'+p.id+'"'+(p.is_luxury?' checked':'')+' style="width:18px;height:18px;"> 🏷️ 特選商品（累積到特選商品回饋，限用特選商品回饋券）</label>'
 + (p.cat === 'gacha' ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#7C3AED;margin:0 0 8px;"><input type="checkbox" class="admin-pickoff-toggle" data-product-id="'+p.id+'"'+(p.pick_off?' checked':'')+' style="width:18px;height:18px;"> 🎲 只開放不指定（客人只能選不指定，角色照片照樣看得到）</label>' : '')
++ adminLockedOptsHTML(p)
 + adminCatSelectHTML(p)
 + '<select class="gate-input admin-stock-select" data-product-id="'+p.id+'" style="margin-bottom:8px;">'+options+'</select>'
 + '<div style="display:flex;gap:8px;align-items:center;">'
@@ -9693,6 +9719,26 @@ showToast(val ? '已加入本週嚴選' : '已從本週嚴選移除');
 alert('更新失敗：' + e.message);
 el.checked = !val;
 }
+el.disabled = false;
+});
+}
+var lkChips = container.querySelectorAll('.adm-lock-chip');
+for(var lk=0; lk<lkChips.length; lk++){
+lkChips[lk].addEventListener('click', async function(){
+var el = this, pid = el.getAttribute('data-product-id'), opt = el.getAttribute('data-opt');
+var box = el.closest('.adm-lock'), willLock = !el.classList.contains('is-locked');
+var locked = []; box.querySelectorAll('.adm-lock-chip.is-locked').forEach(function(c){ if(c !== el) locked.push(c.getAttribute('data-opt')); });
+if(willLock) locked.push(opt);
+el.disabled = true;
+try{
+await callMemberApi('admin-set-locked-options', { productId: pid, locked: locked });
+el.classList.toggle('is-locked', willLock);
+el.querySelector('i').textContent = willLock ? '🔒' : '';
+for(var ci=0; ci<adminProductsCache.length; ci++){ if(adminProductsCache[ci].id === pid) adminProductsCache[ci].locked_options = locked; }
+for(var pj=0; pj<PRODUCTS.length; pj++){ if(PRODUCTS[pj].id === pid) PRODUCTS[pj].lockedOptions = locked.slice(); }
+var cnt = box.querySelector('.adm-lock-n'); if(cnt) cnt.textContent = locked.length ? '已鎖 '+locked.length+' 個' : '';
+showToast(willLock ? '「'+opt+'」鎖起來了（客人不能選）' : '「'+opt+'」開放了');
+}catch(e){ alert('更新失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : (/locked_options/.test(e.message) ? '\n\n（要先到 Supabase 跑 SQL）' : ''))); }
 el.disabled = false;
 });
 }
@@ -10654,6 +10700,8 @@ optBox.innerHTML = optGroups.map(function(g){
 return '<p class="opt-label">請選擇'+escHtml(g[2] || '規格')+'</p>'
 + '<div class="opt-chips" data-g="'+g[0]+'">' + g[1].map(function(o){
 var off = g[0] === 1 && product.pickOff && o !== '不指定';
+var lk = g[0] === 1 && (product.lockedOptions || []).indexOf(o) >= 0;
+if(lk) return '<button type="button" class="opt-chip is-off is-locked" data-opt="'+escAttr(o)+'">'+escHtml(o)+'<span class="opt-chip-price">已售完</span></button>';
 var pr = off ? '<span class="opt-chip-price">看照片</span>' : ((g[0] === 1 && hasOptionPrices(product)) ? '<span class="opt-chip-price">NT$'+productUnitPrice(product, o)+'</span>' : '');
 return '<button type="button" class="opt-chip'+(off ? ' is-off' : '')+'" data-opt="'+escAttr(o)+'">'+escHtml(o)+pr+'</button>'; }).join('') + '</div>'
 + (g[0] === 1 && product.pickOff ? '<p class="opt-off-note">🎲 這款目前只開放「不指定」（隨機出貨），點角色可以看照片</p>' : '');
@@ -10666,6 +10714,7 @@ var chips = row.querySelectorAll('.opt-chip');
 for(var oc=0; oc<chips.length; oc++){
 chips[oc].addEventListener('click', function(){
 // 只開放不指定：點角色只換照片，不會選到
+if(this.classList.contains('is-locked')){ if(product.optionPhotos && product.optionPhotos[this.getAttribute('data-opt')]) setOrderModalPhoto(product, product.optionPhotos[this.getAttribute('data-opt')]); showToast('「'+this.getAttribute('data-opt')+'」已經售完了'); return; }
 if(this.classList.contains('is-off')){ if(product.optionPhotos && product.optionPhotos[this.getAttribute('data-opt')]) setOrderModalPhoto(product, product.optionPhotos[this.getAttribute('data-opt')]); else showToast('這款目前只開放不指定'); return; }
 if(g === '2') orderModalOption2 = this.getAttribute('data-opt'); else orderModalOption = this.getAttribute('data-opt');
 // 這個選項有設定對應照片 → 大圖自動換成那張
