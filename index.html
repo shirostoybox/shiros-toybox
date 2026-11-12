@@ -1636,7 +1636,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261112-1545';
+var APP_VERSION = '20261112-1900';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3177,22 +3177,58 @@ return '<div class="inv-card'+(folded ? ' is-folded' : '')+'" data-pid="'+escAtt
 + (P.u.length ? '<button type="button" class="adm-link inv-clear" data-pid="'+escAttr(pid)+'" style="color:var(--ignis-deep);">🗑 清空這件的庫存</button>' : '')
 + '</div></div></div>';
 }
-// 庫存卡：每個的成本台幣（日幣 × 匯率，不乘倍數）＝賣給朋友收這個就打平
+// 庫存卡：每個的成本台幣＝日幣 × 「買的那天」的匯率（不乘倍數）＝賣朋友收這個就打平
+// 庫存是哪天記的就用哪天的匯率；查過的日子存起來，查詢中先顯示「查詢中」，查到再自動更新
 function invCostHTML(pid){
 var p = invProdObj(pid); if(!p) return '';
 var c = p.cost || {};
-var rate = Number(c.fxRate) > 0 ? Number(c.fxRate) : (ADMIN_FX && Number(ADMIN_FX.rate)) || 0;
 var oj = {}; try{ oj = c.optionJpy ? (typeof c.optionJpy === 'string' ? JSON.parse(c.optionJpy) : c.optionJpy) : {}; }catch(e){ oj = {}; }
 var base = Number(c.jpyPrice) || 0;
-var rows = Object.keys(oj || {}).filter(function(k){ return Number(oj[k]) > 0 && Number(oj[k]) !== base; });
-if(!(base > 0) && !rows.length) return '<p class="inv-cost is-todo">💴 成本：這件還沒填日幣價格，到商品後台「日幣換算」補上就會顯示</p>';
-if(!(rate > 0)) return '<p class="inv-cost is-todo">💴 成本：還沒設定匯率</p>';
-var price = Number(p.price) || 0;
-var one = function(j){ return 'NT$'+fmtNum(Math.round(j * rate)); };
-var h = '<div class="inv-cost"><p class="inv-cost-t">💴 成本（賣朋友收這個就打平）</p>';
-if(base > 0) h += '<p class="inv-cost-r"><b>'+one(base)+'</b>／個<small>¥'+fmtNum(base)+' × '+rate+(price ? '・售價 NT$'+fmtNum(price) : '')+'</small></p>';
-rows.forEach(function(k){ h += '<p class="inv-cost-r">'+escHtml(k)+'：<b>'+one(Number(oj[k]))+'</b><small>¥'+fmtNum(oj[k])+' × '+rate+'</small></p>'; });
-return h + '</div>';
+var jpyOf = function(l){ return Number(oj && oj[l]) > 0 ? Number(oj[l]) : base; };
+var P = INV.p[pid] || { u:[] };
+var groups = {}, order = [];
+var units = P.u.length ? P.u : [{ l:'', t:0 }];
+units.forEach(function(u){
+var d = u.t ? new Date(Number(u.t) + 8 * 3600 * 1000).toISOString().slice(0, 10) : todayTW();
+var j = jpyOf(u.l); if(!(j > 0)) return;
+var k = d + '|' + j;
+if(!groups[k]){ groups[k] = { d:d, j:j, n:0, ls:[] }; order.push(k); }
+if(P.u.length) groups[k].n++;
+if(u.l && groups[k].ls.indexOf(u.l) < 0) groups[k].ls.push(u.l);
+});
+if(!order.length) return '<p class="inv-cost is-todo">💴 成本：這件還沒填日幣價格，到商品後台「日幣換算」補上就會顯示</p>';
+var price = Number(p.price) || 0, missing = [];
+var h = '<div class="inv-cost" data-pid="'+escAttr(pid)+'"><p class="inv-cost-t">💴 成本（買的那天的匯率・賣朋友收這個就打平）</p>';
+order.forEach(function(k){
+var g = groups[k], fx = fxDateCache[g.d], dd = g.d.slice(5).replace('-', '/');
+var who = (P.u.length ? dd + ' 買的' + (g.n > 1 ? ' ' + g.n + ' 個' : '') : '還沒記庫存，先用今天的匯率') + (g.ls.length && Object.keys(oj || {}).length ? '（'+g.ls.join('、')+'）' : '');
+if(fx && fx.rate){
+var tw = Math.round(g.j * fx.rate);
+h += '<p class="inv-cost-r"><b>NT$'+fmtNum(tw)+'</b>／個<small>'+escHtml(who)+'・¥'+fmtNum(g.j)+' × '+fx.rate+'（'+escHtml(fx.rateDate || g.d)+' 匯率）・刷卡再加手續費約 NT$'+fmtNum(Math.round(tw * 0.015))+'</small></p>';
+} else {
+missing.push(g.d);
+h += '<p class="inv-cost-r"><b>查詢中…</b><small>'+escHtml(who)+'・¥'+fmtNum(g.j)+'</small></p>';
+}
+});
+if(price) h += '<p class="inv-cost-r"><small>售價 NT$'+fmtNum(price)+'</small></p>';
+h += '</div>';
+if(missing.length) invCostFetch(pid, missing);
+return h;
+}
+var invCostBusy = {};
+function invCostFetch(pid, dates){
+var todo = dates.filter(function(d){ return !invCostBusy[d]; });
+if(!todo.length) return;
+todo.forEach(function(d){ invCostBusy[d] = true; });
+Promise.all(todo.map(function(d){ return getFxOnDate(d).catch(function(){ return null; }); })).then(function(){
+todo.forEach(function(d){ invCostBusy[d] = false; });
+document.querySelectorAll('.inv-cost[data-pid="'+pid+'"]').forEach(function(el){
+var still = dates.some(function(d){ return !(fxDateCache[d] && fxDateCache[d].rate); });
+if(still){ el.querySelectorAll('b').forEach(function(b){ if(b.textContent === '查詢中…') b.textContent = '查不到匯率'; }); return; }
+var tmp = document.createElement('div'); tmp.innerHTML = invCostHTML(pid);
+if(tmp.firstChild) el.replaceWith(tmp.firstChild);
+});
+});
 }
 function invProdObj(pid){
 for(var j=0;j<adminProductsCache.length;j++){ if(adminProductsCache[j].id === pid) return adminProductsCache[j]; }
@@ -9364,8 +9400,10 @@ var touched = box.getAttribute('data-touched') === '1';
 // 還沒有台幣價格的商品（例如批次匯入的草稿）：打開就先幫忙帶入換算好的台幣，按儲存才會存
 if(tw && !touched && key.indexOf('row-') === 0){ var pe = jpyPriceInputFor(key); if(pe && !(Number(pe.value) > 0)){ touched = true; box.setAttribute('data-touched', '1'); } }
 if(tw){
-var cTw = Math.round((Number(jpy) || 0) * (Number(rate) || 0));
-res.textContent = '= NT$' + fmtNum(tw) + (touched ? '（已帶入台幣價格）' : '') + (cTw > 0 ? '　💴 成本約 NT$' + fmtNum(cTw) + '・每個賺約 NT$' + fmtNum(tw - cTw) : '');
+// 成本用「今天的市場匯率」估（定價匯率是拿來算售價的，不是成本）；實際成本看確認喊單時記的當天匯率
+var todayFx = ADMIN_FX && Number(ADMIN_FX.today) || 0;
+var cTw = todayFx > 0 ? Math.round((Number(jpy) || 0) * todayFx) : 0;
+res.textContent = '= NT$' + fmtNum(tw) + (touched ? '（已帶入台幣價格）' : '') + (cTw > 0 ? '　💴 用今天匯率 ' + todayFx + ' 算，成本約 NT$' + fmtNum(cTw) + '・每個賺約 NT$' + fmtNum(tw - cTw) : '');
 if(touched){ var pi = jpyPriceInputFor(key); if(pi) pi.value = tw; }
 } else {
 res.textContent = Number(jpy) > 0 ? '請填匯率和倍數' : '';
