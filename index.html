@@ -414,7 +414,11 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-prod.is-sel{ box-shadow:0 0 0 2px #FCA5A5 inset; background:#FFF5F5; }
 #admSelBar{ position:fixed; left:12px; right:12px; bottom:96px; z-index:900; display:none; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; border-radius:16px; background:#111827; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.3); font-size:13.5px; font-weight:800; }
 #admSelBar button{ border:0; border-radius:999px; padding:8px 12px; font:inherit; font-size:12.5px; font-weight:800; }
-#admSelBar .sb-del{ background:#DC2626; color:#fff; margin-left:auto; }
+#admSelBar .sb-del{ background:#DC2626; color:#fff; }
+#admSelBar .sb-gap{ flex-basis:100%; height:0; }
+#admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; padding:10px 8px; font-size:13.5px; }
+#admSelBar .sb-hide{ background:#FDE68A; color:#78350F; }
+#admSelBar .sb-show{ background:#BBF7D0; color:#14532D; }
 #admSelBar .sb-lt{ background:rgba(255,255,255,.14); color:#fff; }
 .adm-prod-info{ flex:1; min-width:0; }
 .adm-prod-name{ margin:0; font-size:14px; font-weight:800; color:var(--text-dark); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
@@ -1636,7 +1640,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261112-1900';
+var APP_VERSION = '20261112-2030';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3198,10 +3202,21 @@ if(u.l && groups[k].ls.indexOf(u.l) < 0) groups[k].ls.push(u.l);
 });
 if(!order.length) return '<p class="inv-cost is-todo">💴 成本：這件還沒填日幣價格，到商品後台「日幣換算」補上就會顯示</p>';
 var price = Number(p.price) || 0, missing = [];
-var h = '<div class="inv-cost" data-pid="'+escAttr(pid)+'"><p class="inv-cost-t">💴 成本（買的那天的匯率・賣朋友收這個就打平）</p>';
+// 分潤表「庫存成本」記過的：那裡填的日幣、購買日期、匯率才是真的成本，優先用
+var sRows = (adminStockIn[pid] || []).filter(function(r){ return Number(r.jpy) > 0 && Number(r.rate) > 0; });
+if(sRows.length){
+var hs = '<div class="inv-cost"><p class="inv-cost-t">💴 成本（照分潤表記的庫存成本・賣朋友收這個就打平）</p>';
+sRows.forEach(function(r){
+var tw = Math.round(Number(r.jpy) * Number(r.rate));
+hs += '<p class="inv-cost-r"><b>NT$'+fmtNum(tw)+'</b>／個<small>'+escHtml(stockInText([r]).replace(/[「」]/g, ''))+(r.date ? '・'+escHtml(String(r.date).slice(5).replace('-', '/'))+' 買' : '')+'・¥'+fmtNum(r.jpy)+' × '+r.rate+(r.pay !== 'cash' ? '・刷卡再加手續費約 NT$'+fmtNum(Math.round(tw * 0.015)) : '')+'</small></p>';
+});
+if(price) hs += '<p class="inv-cost-r"><small>售價 NT$'+fmtNum(price)+'</small></p>';
+return hs + '</div>';
+}
+var h = '<div class="inv-cost" data-pid="'+escAttr(pid)+'"><p class="inv-cost-t">💴 成本（記庫存那天的匯率・賣朋友收這個就打平）</p>';
 order.forEach(function(k){
 var g = groups[k], fx = fxDateCache[g.d], dd = g.d.slice(5).replace('-', '/');
-var who = (P.u.length ? dd + ' 買的' + (g.n > 1 ? ' ' + g.n + ' 個' : '') : '還沒記庫存，先用今天的匯率') + (g.ls.length && Object.keys(oj || {}).length ? '（'+g.ls.join('、')+'）' : '');
+var who = (P.u.length ? dd + ' 記庫存' + (g.n > 1 ? ' ' + g.n + ' 個' : '') : '還沒記庫存，先用今天的匯率') + (g.ls.length && Object.keys(oj || {}).length ? '（'+g.ls.join('、')+'）' : '');
 if(fx && fx.rate){
 var tw = Math.round(g.j * fx.rate);
 h += '<p class="inv-cost-r"><b>NT$'+fmtNum(tw)+'</b>／個<small>'+escHtml(who)+'・¥'+fmtNum(g.j)+' × '+fx.rate+'（'+escHtml(fx.rateDate || g.d)+' 匯率）・刷卡再加手續費約 NT$'+fmtNum(Math.round(tw * 0.015))+'</small></p>';
@@ -6840,7 +6855,7 @@ catch(e){ if(rin) rin.placeholder = '抓不到，請手動輸入'; }
 });
 on('#pfAddStock', 'click', function(){
 var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
-pfData.stockCosts.push({ label:'', qty:'', jpy:'', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
+pfData.stockCosts.push({ label:'', qty:'', jpy:'', date: today, rate: (ADMIN_FX && (ADMIN_FX.today || ADMIN_FX.rate)) ? String(ADMIN_FX.today || ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
 pfMarkDirty(true);
 });
 on('#pfStockSale', 'click', async function(){
@@ -6894,7 +6909,7 @@ var P = alloc.prod[pid];
 var detail = P.leftOrder.map(function(l){ return invLabelText(l)+'×'+P.leftBy[l]; }).join('、');
 var j = costJpyGuess(infos[k], '');
 var q0 = pfStockQtyFor(pid, alloc, lrs[0].groups || []);
-pfData.stockCosts.push({ pid: pid, label: pfStockLabel(pid, P), qty: String(q0 != null ? q0 : P.left), jpy: j ? String(j) : '', date: today, rate: (ADMIN_FX && ADMIN_FX.rate) ? String(ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
+pfData.stockCosts.push({ pid: pid, label: pfStockLabel(pid, P), qty: String(q0 != null ? q0 : P.left), jpy: j ? String(j) : '', date: today, rate: (ADMIN_FX && (ADMIN_FX.today || ADMIN_FX.rate)) ? String(ADMIN_FX.today || ADMIN_FX.rate) : '', pay:'card', payer: (pfData.partners[0] || {}).id || 'split' });
 });
 showToast((diffs.length ? '已更新 '+diffs.length+' 項數量、' : '')+'已帶入 '+list.length+' 項，請確認日幣和購買日期');
 pfMarkDirty(true);
@@ -8740,7 +8755,7 @@ var bar = document.getElementById('admSelBar');
 if(!bar){ bar = document.createElement('div'); bar.id = 'admSelBar'; document.body.appendChild(bar); }
 var onPage = admSelVisible();
 bar.style.display = (ids.length && onPage) ? 'flex' : 'none';
-bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><button type="button" class="sb-del" id="sbDel">🗑 刪除勾選的</button>';
+bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><span class="sb-gap"></span><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
 var cs = document.querySelectorAll('.adm-sel');
 for(var i=0;i<cs.length;i++){ var on = !!adminSelected[cs[i].getAttribute('data-product-id')]; cs[i].checked = on; var cd = cs[i].closest('.adm-prod'); if(cd) cd.classList.toggle('is-sel', on); }
 }
@@ -8755,6 +8770,39 @@ if(++tries > 60) return res();
 setTimeout(step, 500);
 })();
 });
+}
+// 勾選的一次隱藏／公開（客人看不到、不能喊；已經喊的單不受影響）
+async function adminHideSelected(hide){
+var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
+if(!ids.length) return;
+var cache = {}; adminProductsCache.forEach(function(p){ cache[p.id] = p; });
+var todo = ids.filter(function(id){ var p = cache[id]; return !p || !!p.is_hidden !== hide; });
+var skip = ids.length - todo.length;
+if(!todo.length){ showToast(hide ? '勾的都已經是隱藏的了' : '勾的都已經是公開的了'); return; }
+if(!window.confirm((hide ? '隱藏' : '公開')+'勾選的 '+todo.length+' 件嗎？'+(skip ? '\n（另外 '+skip+' 件本來就'+(hide ? '隱藏' : '公開')+'，跳過）' : '')+(hide ? '\n\n隱藏後客人看不到、不能喊單；已經喊的單不受影響，之後可以再公開。' : '\n\n沒有價格的商品不能公開，會自動跳過。'))) return;
+ADM_DELETING = true;
+var bar = document.getElementById('admSelBar'); if(bar) bar.style.display = 'none';
+var pov = document.createElement('div'); pov.className = 'cm-ov'; pov.style.zIndex = '10060';
+pov.innerHTML = '<div class="cm-box" style="text-align:center;"><p class="cm-title">'+(hide ? '🙈 隱藏中…' : '👀 公開中…')+'</p><p id="admDelTxt" style="font-size:15px;font-weight:800;margin:10px 0;">0 / '+todo.length+'</p><p class="cm-hint">請不要關掉或離開這個畫面</p></div>';
+document.body.appendChild(pov);
+var setBar = function(t){ var el = document.getElementById('admDelTxt'); if(el) el.textContent = t; };
+var ok = 0, fail = [], done = 0, next = 0;
+async function worker(){
+while(next < todo.length){
+var id = todo[next++];
+try{ await callMemberApi('admin-set-product-hidden', { productId: id, hidden: hide }); ok++; if(cache[id]) cache[id].is_hidden = hide; }
+catch(e){ fail.push((cache[id] ? cache[id].name : '（商品）')+'：'+e.message); }
+done++; setBar(done+' / '+todo.length+(fail.length ? '（'+fail.length+' 件沒成功）' : ''));
+}
+}
+await Promise.all([worker(), worker(), worker(), worker()]);
+showToast((hide ? '已隱藏 ' : '已公開 ')+ok+' 件');
+if(fail.length) alert('有 '+fail.length+' 件沒成功：\n\n'+fail.slice(0, 8).join('\n\n')+(fail.length > 8 ? '\n…' : ''));
+adminSelected = {};
+try{ await loadAdminProducts(); }catch(e){}
+pov.remove();
+ADM_DELETING = false;
+adminSelPaint();
 }
 async function adminDeleteSelected(){
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
@@ -8820,6 +8868,8 @@ var t = e.target && e.target.closest ? e.target : null; if(!t) return;
 if(t.closest('#sbNone')){ adminSelected = {}; adminSelPaint(); return; }
 if(t.closest('#sbAll')){ var cs = document.querySelectorAll('.adm-sel'); for(var i=0;i<cs.length;i++){ var cd = cs[i].closest('.adm-prod'); if(cd && cd.offsetParent !== null) adminSelected[cs[i].getAttribute('data-product-id')] = true; } adminSelPaint(); return; }
 if(t.closest('#sbDel')){ adminDeleteSelected(); return; }
+if(t.closest('#sbHide')){ adminHideSelected(true); return; }
+if(t.closest('#sbShow')){ adminHideSelected(false); return; }
 }, true);
 // 離開商品頁（看不到勾選框）時把下面的刪除列藏起來
 setInterval(function(){ if(ADM_DELETING) return; var vis = admSelVisible(), n = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; }).length, bar = document.getElementById('admSelBar'); if(vis && n && (!bar || bar.style.display === 'none')) adminSelPaint(); else if(bar && bar.style.display !== 'none' && !vis) bar.style.display = 'none'; }, 800);
