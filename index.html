@@ -1615,7 +1615,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261112-0215';
+var APP_VERSION = '20261112-1215';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3343,8 +3343,20 @@ if(invFilter === 'recent') shown.sort(function(a, b){ return invLastT(b) - invLa
 var extra = '';
 if(q){
 var have = {}; order.forEach(function(pid){ have[pid] = true; });
-var more = PRODUCTS.filter(function(p){ return !have[p.id] && String(p.name || '').toLowerCase().indexOf(q) >= 0; }).slice(0, 8);
-if(more.length) extra = '<p class="inv-lab" style="margin-top:14px;">其他商品（點一下開始記庫存）</p>' + more.map(function(p){ return '<button type="button" class="inv-pick" data-pid="'+escAttr(p.id)+'">＋ '+escHtml(p.name)+'</button>'; }).join('');
+// 前台商品＋後台全部商品都找；名稱、說明、款式都比對（以前只比名稱、只列 8 個，常常找不到）
+var pool = [], seenP = {};
+(PRODUCTS || []).concat(adminProductsCache || []).forEach(function(p){ if(p && p.id && !seenP[p.id]){ seenP[p.id] = 1; pool.push(p); } });
+var hits = pool.filter(function(p){
+if(have[p.id]) return false;
+var t = [p.name || '', p.sub || '', p.optionLabel || '', p.cat_label || ''];
+try{ t = t.concat(invProdOptions(p.id)); }catch(e){}
+return t.join(' ').toLowerCase().indexOf(q) >= 0;
+});
+// 名稱有中的排前面，再照名稱
+hits.sort(function(a, b){ var an = String(a.name || '').toLowerCase().indexOf(q) >= 0 ? 0 : 1, bn = String(b.name || '').toLowerCase().indexOf(q) >= 0 ? 0 : 1; return an - bn || String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant'); });
+var more = hits.slice(0, 40);
+if(more.length) extra = '<p class="inv-lab" style="margin-top:14px;">其他商品（點一下開始記庫存）・找到 '+hits.length+' 個</p>' + more.map(function(p){ return '<button type="button" class="inv-pick" data-pid="'+escAttr(p.id)+'">＋ '+escHtml(p.name)+'</button>'; }).join('')
++ (hits.length > more.length ? '<p class="inv-lab" style="color:var(--muted);">還有 '+(hits.length - more.length)+' 個沒列出來，多打幾個字縮小範圍（例：絨毛徽章）</p>' : '');
 }
 // 依分類分組：別錯過放最前面，其他照分類名稱
 var gmap = {}, gorder = [];
@@ -4987,9 +4999,9 @@ var ADMIN_MEMBER_FILTERS = [
 ['nocoupon', '🈳 已綁定・沒免運券', function(m){ return m.isVerified && !((m.referralCouponBalance || 0) > 0); }],
 ['restricted', '🚫 限制下單', function(m){ return m.orderRestricted; }],
 ['helper', '🧑‍💼 小幫手', function(m){ return m.staffRole === 'helper' || m.staffRole === 'owner'; }],
-['friend', '🧪 朋友', function(m){ return !!m.isFriend; }],
-['freeship', '🚚 永久免運', function(m){ return !!m.freeShipping; }],
-['nodeposit', '💰 免訂金', function(m){ return !!m.noDeposit; }],
+['friend', '🧪 自己人', function(m){ return !!m.isFriend; }],
+['freeship', '🚚 永久免運', function(m){ return !!m.freeShipping && !m.isFriend && !m.staffRole; }],
+['nodeposit', '💰 免訂金', function(m){ return !!m.noDeposit && !m.isFriend && !m.staffRole; }],
 ['fsused', '🎟 用過免運券', function(m){ return (m.freeShipUsed || 0) > 0; }]
 ];
 async function loadAdminMembers(){
@@ -5028,9 +5040,12 @@ if(m.isBlocked) out += '<span class="adm-mb is-ban">⛔ 已封鎖</span>';
 else if(m.orderRestricted) out += '<span class="adm-mb is-ban">🚫 限制下單</span>';
 if(m.staffRole === 'helper') out += '<span class="adm-mb is-staff">🧑‍💼 小幫手</span>';
 if(m.staffRole === 'owner') out += '<span class="adm-mb is-staff">👑 老闆</span>';
-if(m.isFriend) out += '<span class="adm-mb is-friend">🧪 朋友・不算分潤</span>';
+if(m.isFriend) out += '<span class="adm-mb is-friend">🧪 自己人・不算分潤・免運・免訂金</span>';
+else if(m.staffRole) out += '<span class="adm-mb is-friend">🧪 自己人・免運・免訂金</span>';
+else {
 if(m.freeShipping) out += '<span class="adm-mb is-freeship">🚚 永久免運</span>';
 if(m.noDeposit) out += '<span class="adm-mb is-nodep">💰 免訂金</span>';
+}
 return out;
 }
 function renderAdminMemberList(){
@@ -5123,9 +5138,9 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 + '</div>'
 + '<button type="button" class="btn btn--primary btn--full admin-save-member-btn" data-line-uid="'+escAttr(m.lineUid)+'" style="margin-top:12px;">儲存</button>'
 + restrictToggleBtn
-+ (m.isVerified ? '<button type="button" class="btn btn--full admin-member-freeship-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.freeShipping ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';color:'+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';">'+(m.freeShipping ? '取消永久免運' : '🚚 設為永久免運（結單運費 0）')+'</button>' : '')
-+ (m.isVerified ? '<button type="button" class="btn btn--full admin-member-nodep-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.noDeposit ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.noDeposit ? 'var(--muted)' : '#B45309')+';color:'+(m.noDeposit ? 'var(--muted)' : '#B45309')+';">'+(m.noDeposit ? '取消免訂金（之後滿 NT$1,000 要付訂金）' : '💰 設為免訂金（喊單不用付訂金）')+'</button>' : '')
-+ (m.staffRole ? '' : '<button type="button" class="btn btn--full admin-member-friend-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-friend="'+(m.isFriend ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';color:'+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';">'+(m.isFriend ? '取消朋友（之後的單算分潤）' : '🧪 設為朋友（不算分潤）')+'</button>')
++ (m.isVerified && !m.isFriend && !m.staffRole ? '<button type="button" class="btn btn--full admin-member-freeship-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.freeShipping ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';color:'+(m.freeShipping ? 'var(--muted)' : '#0E7490')+';">'+(m.freeShipping ? '取消永久免運' : '🚚 設為永久免運（結單運費 0）')+'</button>' : '')
++ (m.isVerified && !m.isFriend && !m.staffRole ? '<button type="button" class="btn btn--full admin-member-nodep-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-on="'+(m.noDeposit ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.noDeposit ? 'var(--muted)' : '#B45309')+';color:'+(m.noDeposit ? 'var(--muted)' : '#B45309')+';">'+(m.noDeposit ? '取消免訂金（之後滿 NT$1,000 要付訂金）' : '💰 設為免訂金（喊單不用付訂金）')+'</button>' : '')
++ (m.staffRole ? '' : '<button type="button" class="btn btn--full admin-member-friend-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-friend="'+(m.isFriend ? '0' : '1')+'" style="margin-top:8px;border:1.5px dashed '+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';color:'+(m.isFriend ? 'var(--muted)' : '#4F46E5')+';">'+(m.isFriend ? '取消自己人（之後的單算分潤、照一般運費和訂金）' : '🧪 設為自己人（不算分潤・永久免運・免訂金）')+'</button>')
 + (adminRole === 'owner'
 ? (m.staffRole === 'helper'
 ? '<button type="button" class="btn btn--full admin-member-profit-btn" data-line-uid="'+escAttr(m.lineUid)+'" data-allow="'+(m.profitAccess ? '0' : '1')+'" style="margin-top:8px;border:1.5px solid '+(m.profitAccess ? 'var(--muted)' : '#1E7A4C')+';color:'+(m.profitAccess ? 'var(--muted)' : '#1E7A4C')+';">'+(m.profitAccess ? '💰 取消分潤權限（目前看得到）' : '💰 開放分潤權限（一起看分潤）')+'</button>'
@@ -5192,13 +5207,13 @@ for(var fr=0; fr<friendBtns.length; fr++){
 friendBtns[fr].addEventListener('click', async function(){
 var b = this, toFriend = b.getAttribute('data-friend') === '1';
 var msg = toFriend
-? '確定要把這位設為朋友嗎？\n\n・之後他下的單都會自動標成「測試單」，不算分潤\n・他現在還沒結單的喊單也會一起改成測試單\n・已經結單的不會動\n・客人那邊看不到這個設定'
-: '確定要取消朋友嗎？\n\n・之後他下的單會算分潤\n・他現在還沒結單的喊單也會一起改回正式單';
+? '確定要把這位設為自己人嗎？\n\n・之後他下的單都會自動標成「測試單」，不算分潤\n・結單一律免運、喊單一律免訂金\n・他現在還沒結單的喊單也會一起改（測試單、取消需訂金）\n・已經結單、已經收過的訂金不會動'
+: '確定要取消自己人嗎？\n\n・之後他下的單會算分潤，照一般運費和訂金\n・他現在還沒結單的喊單也會一起改回正式單';
 if(!window.confirm(msg)) return;
 b.disabled = true;
 try{
 var r = await callMemberApi('admin-set-friend', { lineUid: b.getAttribute('data-line-uid'), isFriend: toFriend });
-showToast((toFriend ? '已設為朋友' : '已取消朋友') + (r && r.changed ? '，改了 '+r.changed+' 筆喊單' : ''));
+showToast((toFriend ? '已設為自己人' : '已取消自己人') + (r && r.changed ? '，改了 '+r.changed+' 筆喊單' : ''));
 var input = document.getElementById('adminMemberSearch');
 await handleAdminSearchMembers(input ? input.value.trim() : '');
 }catch(e){ alert('操作失敗：' + e.message + (/未知的操作/.test(e.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : '')); b.disabled = false; }
