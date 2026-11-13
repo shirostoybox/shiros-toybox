@@ -482,6 +482,13 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .cycle-sell-tip{ margin-top:6px !important; color:#065F46 !important; font-weight:700; }
 .settle-cod-row{ font-size:13px; font-weight:700; color:#065F46; }
 .settle-cod-row.is-line{ font-size:15px; font-weight:900; color:#047857; }
+.pf-ab{ margin:8px 0 10px; padding:10px 12px; border-radius:12px; background:#FEF2F2; border:1.5px solid #FCA5A5; }
+.pf-ab-t{ margin:0 0 6px; font-size:13px; font-weight:800; color:#991B1B; }
+.pf-ab-r{ margin:3px 0; font-size:12.5px; color:var(--text-dark); }
+.pf-ab-r small{ display:block; margin-left:12px; font-size:11px; color:var(--muted); }
+.pf-ab-h{ margin:8px 0 6px; font-size:11.5px; color:#7F1D1D; line-height:1.6; }
+.pf-ab-btn{ width:100%; padding:10px; border:none; border-radius:999px; background:#B91C1C; color:#fff; font-size:13.5px; font-weight:800; font-family:inherit; }
+.pf-ab-btn.ghost{ background:transparent; color:#991B1B; border:1.5px solid #FCA5A5; }
 .adm-lock{ margin:0 0 10px; padding:8px 10px; border:1.5px dashed #FCA5A5; border-radius:12px; background:#FFF7F7; }
 .adm-lock-t{ margin:0 0 6px; font-size:12.5px; font-weight:800; color:#B91C1C; display:flex; justify-content:space-between; gap:6px; }
 .adm-lock-n{ font-weight:700; color:#991B1B; white-space:nowrap; }
@@ -1651,7 +1658,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261113-1710';
+var APP_VERSION = '20261113-2340';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6122,11 +6129,28 @@ pfDirty = false;
 renderProfitSheet();
 }
 // 把結單裡的商品依商品合併（每筆喊單留著，才看得到誰買的、成本多少）
+// 棄單結單裡的商品：沒賣出去，東西回到庫存；記過的成本要移到「庫存未售出」才不會不見
+function pfAbandonedItems(){
+var ab = {}; (pfDetail.settlements || []).forEach(function(s){ if(s.abandoned) ab[s.id] = s; });
+var moved = pfData.abMoved || {};
+return (pfDetail.items || []).filter(function(o){ return ab[o.settlement_id] && o.status !== '缺貨已幫您取消'; })
+.map(function(o){ return Object.assign({ _st: ab[o.settlement_id], _moved: !!moved[o.id] }, o); });
+}
+function pfAbandonedHTML(){
+var list = pfAbandonedItems().filter(function(o){ return !o._moved; });
+if(!list.length) return '';
+var withCost = list.filter(pfOrderHasCost);
+return '<div class="pf-ab"><p class="pf-ab-t">🚫 棄單退回 '+list.length+' 筆（沒賣出去，已經不算在銷售裡，東西回到庫存）</p>'
++ list.map(function(o){ var q = Number(o.quantity) || 1; return '<p class="pf-ab-r">・'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(String(o.variant).slice(0, 24))+(String(o.variant).length > 24 ? '…' : '')+'）' : '')+' ×'+q+'<small>'+escHtml(o._st.order_no || '')+(pfOrderHasCost(o) ? '・成本 ¥'+fmtNum(o.cost_jpy)+'×'+o.cost_rate+'＝'+pfMoney(costUnitTwd(o.cost_jpy, o.cost_rate) * q)+'・'+escHtml(pfPartnerName(o.bought_by)) : '・沒記成本')+'</small></p>'; }).join('')
++ (withCost.length ? '<p class="pf-ab-h">這些當初買的錢還是有花，按下面按鈕，成本會照原本記的（誰付、日幣、匯率）加到「庫存未售出」，之後賣掉一樣算進收入。</p><button type="button" class="pf-ab-btn" id="pfAbMove">↩ 加到庫存未售出（'+withCost.length+' 筆）</button>' : '<p class="pf-ab-h">都沒記成本，不用處理；之後要記可以用「＋ 新增一項」。</p><button type="button" class="pf-ab-btn ghost" id="pfAbMove">知道了，不用再提醒</button>')
++ '</div>';
+}
 function pfProducts(){
 var map = {}, order = [];
-var paidIds = {}, nickById = {};
-(pfDetail.settlements || []).forEach(function(s){ if(s.status === '已付款') paidIds[s.id] = true; nickById[s.id] = s.nickname || ''; });
+var paidIds = {}, nickById = {}, abIds = {};
+(pfDetail.settlements || []).forEach(function(s){ if(s.status === '已付款') paidIds[s.id] = true; if(s.abandoned) abIds[s.id] = true; nickById[s.id] = s.nickname || ''; });
 function add(o, isOpen){
+if(!isOpen && abIds[o.settlement_id]) return;   // 棄單的不算賣出（東西回到庫存，成本另外移到「庫存未售出」）
 var pid = o.product_id || ('name:' + o.product_name);
 var p = map[pid];
 if(!p){ p = map[pid] = { pid: pid, productId: o.product_id || '', name: o.product_name || '', qty:0, sales:0, unpaidQty:0, openQty:0, variants:{}, orders:[] }; order.push(pid); }
@@ -6577,6 +6601,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 
 + '<div class="pf-card"><p class="pf-ch">📦 庫存未售出（買了但還沒賣掉的）</p>'
 + '<p class="pf-hint">多買放庫存、還沒人喊單的，成本記在這裡。<b>數量是買進幾個</b>（成本），賣掉也不用改這裡；賣掉的錢會算在訂單或「💰 庫存賣出」。</p>'
++ pfAbandonedHTML()
 + '<div id="pfStockSync"></div>'
 + stockRows
 + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="adm-link" id="pfAddStock">＋ 新增一項</button><button type="button" class="adm-link" id="pfImportStock">📦 從庫存帶入／更新數量</button><button type="button" class="adm-link" id="pfStockSale" style="color:#047857;">💰 庫存賣給非會員／朋友（記收入）</button></div>'
@@ -6741,7 +6766,7 @@ return invProdName(pid) + (detail ? '（剩 '+detail+'）' : '');
 }
 // 比對分潤表「庫存未售出」跟現在的庫存：數量不一樣的列出來（同一件商品分好幾行記的不動，避免算錯）
 function pfStockDiffs(alloc, groups){
-var cnt = {}; (pfData.stockCosts || []).forEach(function(x){ if(x.pid) cnt[x.pid] = (cnt[x.pid] || 0) + 1; });
+var cnt = {}; (pfData.stockCosts || []).forEach(function(x){ if(x.pid) cnt[x.pid] = (cnt[x.pid] || 0) + (x.fromAb ? 2 : 1); });   // 棄單退回的那幾行不自動改數量
 var out = [];
 (pfData.stockCosts || []).forEach(function(x, i){
 if(!x.pid || cnt[x.pid] > 1) return;
@@ -6887,6 +6912,19 @@ if(!date) return;
 var rin = document.querySelector('.pf-strate[data-i="'+i+'"]'); if(rin) rin.placeholder = '讀取匯率中…';
 try{ var d = await getFxOnDate(date); if(d && d.rate){ pfData.stockCosts[i].rate = String(d.rate); if(rin) rin.value = d.rate; pfMarkDirty(false); } }
 catch(e){ if(rin) rin.placeholder = '抓不到，請手動輸入'; }
+});
+on('#pfAbMove', 'click', function(){
+var list = pfAbandonedItems().filter(function(o){ return !o._moved; });
+if(!pfData.abMoved) pfData.abMoved = {};
+var n = 0;
+list.forEach(function(o){
+pfData.abMoved[o.id] = true;
+if(!pfOrderHasCost(o)) return;
+pfData.stockCosts.push({ pid: o.product_id || '', label: (o.product_name || '') + (o.variant ? '（棄單退回・' + String(o.variant).slice(0, 20) + '）' : '（棄單退回）'), qty: String(Number(o.quantity) || 1), jpy: String(o.cost_jpy), date: o.cost_date || '', rate: String(o.cost_rate), pay: o.pay_method === 'cash' ? 'cash' : 'card', payer: o.bought_by || 'split', fromAb: o.id });
+n++;
+});
+pfMarkDirty(true);
+showToast(n ? '已經把 '+n+' 筆加到庫存未售出，記得按儲存' : '好，不再提醒');
 });
 on('#pfAddStock', 'click', function(){
 var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
