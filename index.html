@@ -1651,7 +1651,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261113-1700';
+var APP_VERSION = '20261113-1710';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -5447,6 +5447,28 @@ s.onerror = function(){ reject(new Error('圖片工具載入失敗，請檢查�
 document.head.appendChild(s);
 });
 }
+// 截圖存到相簿：顯示大圖（可長按「加入照片」）＋「存到相簿」按鈕（分享選單→儲存影像）
+function showShotSaveOverlay(blob, fileName){
+var url = URL.createObjectURL(blob);
+var file = null; try{ file = new File([blob], fileName, { type:'image/png' }); }catch(e){}
+var canShare = false; try{ canShare = !!(file && navigator.canShare && navigator.canShare({ files:[file] })); }catch(e){}
+var ov = document.createElement('div'); ov.className = 'cm-ov'; ov.style.zIndex = '10060';
+ov.innerHTML = '<div class="cm-box" style="display:flex;flex-direction:column;gap:10px;max-height:88vh;">'
++ '<p class="cm-title" style="margin:0;">📸 訂單截圖</p>'
++ '<div style="overflow:auto;max-height:52vh;border-radius:12px;background:#f2f2f2;"><img src="'+url+'" alt="" style="width:100%;display:block;-webkit-touch-callout:default;"></div>'
++ '<p style="margin:0;font-size:12px;color:var(--muted);text-align:center;line-height:1.6;">'+(canShare ? '按下面按鈕，選「<b>儲存影像</b>」就會存到相簿<br>也可以長按上面的圖 →「加入照片」' : '請<b>長按上面的圖 →「加入照片」</b>存到相簿')+'</p>'
++ (canShare ? '<button type="button" data-act="save" style="padding:12px;border:none;border-radius:999px;background:var(--ink,#111);color:#fff;font-size:15px;font-weight:800;font-family:inherit;">📥 存到相簿</button>' : '')
++ '<button type="button" data-act="close" style="padding:10px;border:none;background:transparent;color:var(--muted,#888);font-size:14px;font-family:inherit;">關閉</button>'
++ '</div>';
+document.body.appendChild(ov);
+function close(){ ov.remove(); setTimeout(function(){ URL.revokeObjectURL(url); }, 3000); }
+ov.addEventListener('click', function(e){ if(e.target === ov) close(); });
+ov.querySelector('[data-act="close"]').addEventListener('click', close);
+var sv = ov.querySelector('[data-act="save"]');
+if(sv) sv.addEventListener('click', function(){
+navigator.share({ files:[file] }).then(function(){ showToast('存好了 ♡'); close(); }).catch(function(e){ if(e && e.name === 'AbortError') return; alert('沒辦法直接存：' + (e && e.message || e) + '\n\n請長按圖片 →「加入照片」'); });
+});
+}
 async function handleAdminScreenshot(btn){
 var settlementId = btn.getAttribute('data-settlement-id');
 var card = document.querySelector('[data-settlement-card="'+settlementId+'"]');
@@ -5463,10 +5485,9 @@ btn.style.display = '';
 if(delBtn) delBtn.style.display = '';
 var orderNoText = card.querySelector('.order-no');
 var fileLabel = orderNoText ? orderNoText.textContent.replace(/\s+/g,'') : settlementId;
-var link = document.createElement('a');
-link.download = fileLabel+'.png';
-link.href = canvas.toDataURL('image/png');
-link.click();
+// iPhone（LINE 裡）用連結下載會存到「檔案」或根本沒反應，看不到在相簿 → 改成跳出圖片，按鈕叫出分享選單選「儲存影像」
+var blob = await new Promise(function(res){ canvas.toBlob(function(b){ res(b); }, 'image/png'); });
+showShotSaveOverlay(blob, fileLabel + '.png');
 }catch(e){
 btn.style.display = '';
 if(delBtn) delBtn.style.display = '';
