@@ -476,6 +476,12 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .inv-cost-r b{ color:#B26A00; font-size:15px; }
 .inv-cost-r small{ display:block; font-size:11px; color:var(--muted); }
 p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); border-color:var(--line); }
+.settle-ship-news{ margin:0 0 8px; padding:8px 10px; border-radius:10px; background:#FFF7E6; border:1px solid #F5D78E; font-size:12.5px; color:#92400E; line-height:1.6; }
+.settle-radio-sub{ display:inline-block; margin:2px 0 0 24px; font-size:11.5px; color:var(--muted); line-height:1.5; }
+.settle-sell-note{ margin:0 0 10px; padding:9px 11px; border-radius:10px; background:#ECFDF5; border:1px solid #A7F3D0; font-size:12.5px; color:#065F46; line-height:1.65; }
+.cycle-sell-tip{ margin-top:6px !important; color:#065F46 !important; font-weight:700; }
+.settle-cod-row{ font-size:13px; font-weight:700; color:#065F46; }
+.settle-cod-row.is-line{ font-size:15px; font-weight:900; color:#047857; }
 .adm-lock{ margin:0 0 10px; padding:8px 10px; border:1.5px dashed #FCA5A5; border-radius:12px; background:#FFF7F7; }
 .adm-lock-t{ margin:0 0 6px; font-size:12.5px; font-weight:800; color:#B91C1C; display:flex; justify-content:space-between; gap:6px; }
 .adm-lock-n{ font-weight:700; color:#991B1B; white-space:nowrap; }
@@ -1285,14 +1291,15 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="settle-section" id="settleMergeBox" style="display:none;"></div>
 <div class="settle-section" id="settleShipSection">
 <p class="settle-section-title">寄送方式</p>
-<label class="settle-radio"><input type="radio" name="shipMethod" value="7-11" class="ship-method-input"> 7-11（運費NT$60）</label>
-<label class="settle-radio"><input type="radio" name="shipMethod" value="全家" class="ship-method-input"> 全家（運費NT$60）</label>
+<p class="settle-ship-news">📣 為了幫大家節省運費，超商寄送目前統一改成 <b>7-11 賣貨便</b>，運費只要 NT$38！</p>
+<label class="settle-radio"><input type="radio" name="shipMethod" value="賣貨便" class="ship-method-input"> 🏪 7-11 賣貨便（運費NT$38）<br><span class="settle-radio-sub">LINE 轉帳扣掉 NT$60，剩下的 NT$60 取貨時付（開賣貨便單要用）</span></label>
 <label class="settle-radio"><input type="radio" name="shipMethod" value="黑貓宅急便" class="ship-method-input"> 黑貓宅急便（運費NT$130）</label>
 <label class="settle-radio"><input type="radio" name="shipMethod" value="自取" class="ship-method-input"> 🙋 自取（免運費）</label>
 </div>
 <div class="settle-section" id="settleInfoSection">
 <input type="text" class="gate-input" id="settleRecipientName" placeholder="收件姓名" style="margin-bottom:10px;">
 <input type="tel" class="gate-input" id="settlePhone" placeholder="手機號碼" style="margin-bottom:10px;">
+<div id="settleSellFields" style="display:none;"><p class="settle-sell-note">📩 結單後，我們會用 LINE 傳<b>賣貨便下單連結</b>給您。<br>收到後請點連結，<b>選取貨門市、填收件資料並下單</b>（賣貨便金額 NT$60，取貨時付）。<br>這裡只要填姓名，方便我們對單 ♡</p></div>
 <div id="settleConvenienceFields">
 <input type="text" class="gate-input" id="settleStoreInfo" placeholder="門市名稱＋店號">
 </div>
@@ -1315,6 +1322,10 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="settle-total-row" id="settleDepositRow" style="display:none;"><span>💰已付訂金／預付</span><span id="settleDeposit" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row" id="settleCreditRow" style="display:none;"><span>↪ 缺貨退款扣抵</span><span id="settleCredit" style="color:var(--ignis-deep);">-NT$0</span></div>
 <div class="settle-total-row settle-total-final"><span>應付總額</span><span id="settleTotal">NT$0</span></div>
+<div id="settleCodRows" style="display:none;">
+<div class="settle-total-row settle-cod-row"><span>🏪 取貨時付（賣貨便）</span><span id="settleCodAmt">NT$60</span></div>
+<div class="settle-total-row settle-cod-row is-line"><span>💚 現在 LINE 轉帳</span><span id="settleLineAmt">NT$0</span></div>
+</div>
 </div>
 <p id="settleCreditLeft" style="display:none;font-size:13px;font-weight:800;color:#166534;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:8px 10px;margin:8px 0 0;"></p>
 <p id="settleOverflowNote" style="display:none;font-size:12px;color:var(--ignis-deep);margin:8px 0 0;"></p>
@@ -1483,7 +1494,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-item"><p class="qa-q">Q：怎麼結單？</p><p class="qa-a">A：到「喊單」頁，看到「結單倒數」卡片後按「前往結單」，選擇寄送方式、填寫收件資料、選擇要使用的優惠券，送出後就完成結單 ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：喊單後多久要結單？</p><p class="qa-a">A：自第一筆喊單起算，<b>3天內（第3天24:00前）</b>要完成結單。<br>這3天內喊的商品可以一起結單、只付一次運費。<br>例如：10/1喊第一件 → 10/3 24:00前要結單，10/1～10/3喊的商品都可以一起結。</p></div>
 <div class="qa-item"><p class="qa-q">Q：結單後多久要付款？</p><p class="qa-a">A：送出結單後，<b>3天內（第3天24:00前）</b>要完成轉帳。「喊單」頁會顯示付款倒數，提醒您付款期限。</p></div>
-<div class="qa-item"><p class="qa-q">Q：運費怎麼算？</p><p class="qa-a">A：依寄送方式收取，付款時一併支付：<br>・7-11／全家：NT$60<br>・黑貓宅急便：NT$130<br>每筆結單各自計算運費，不與前後訂單合併計算或寄送。</p></div>
+<div class="qa-item"><p class="qa-q">Q：運費怎麼算？</p><p class="qa-a">A：依寄送方式收取，付款時一併支付：<br>・7-11 賣貨便：NT$38（為了幫大家節省運費，超商寄送統一改成賣貨便）<br>・黑貓宅急便：NT$130（用免運券折 NT$38，補差額 NT$92）<br>賣貨便的單：應付總額先扣 NT$60 用 LINE 轉帳，剩下的 NT$60 到門市取貨時付。<br>例：商品 NT$1,000＋運費 NT$38，LINE 轉帳 NT$978、取貨付 NT$60；有用免運券的話 LINE 轉帳 NT$940、取貨付 NT$60。<br>每筆結單各自計算運費，不與前後訂單合併計算或寄送。</p></div>
 <div class="qa-item"><p class="qa-q">Q：結單後又想買其他商品怎麼辦？</p><p class="qa-a">A：結單後再喊的商品，會重新開始新的3天週期，成為「下一筆新訂單」，運費另外計算。</p></div>
 <div class="qa-item"><p class="qa-q">Q：「待確認」的商品可以結單嗎？</p><p class="qa-a">A：不行喔。商品要變成「已確認」才能結單；同一組裡還有「待確認」的商品時，暫時無法送出結單，也可以先按「移除」拿掉該商品再結單。</p></div>
 <div class="qa-item"><p class="qa-q">Q：什麼時候出貨？</p><p class="qa-a">A：預購商品會等該筆訂單的商品全部到齊後，再統一安排寄出；完成付款不代表立即出貨 ♡</p></div>
@@ -1496,7 +1507,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-item"><p class="qa-q">Q：為什麼喊單後顯示「待確認」？</p><p class="qa-a">A：限時連線商品依喊單順序於當地採購，成功購買後將更新為「已確認」。<b>若數量不足，未購得的訂單將顯示「缺貨已幫您取消」，已付訂金將全額退還</b> ♡</p></div>
 <div class="qa-item"><p class="qa-q">Q：限時連線商品要付訂金嗎？</p><p class="qa-a">A：同一件限時連線商品，喊單金額合計<b>滿NT$1,000（含）</b>，需要支付金額一半的訂金，已付的訂金會從應付總額中扣除。</p></div>
 <div class="qa-item"><p class="qa-q">Q：限時連線期間，現貨／預購還能喊單嗎？</p><p class="qa-a">A：可以。限時連線跟現貨／預購是分開的，互不影響。<br>如果店家連線忙碌，可能會暫停現貨／預購喊單，首頁和商品頁會顯示公告；暫停期間，已喊單的現貨／預購<b>結單倒數也會一起暫停</b>，恢復後重新倒數3天。</p></div>
-<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？運費怎麼算？</p><p class="qa-a">A：跟現貨／預購一樣，送出結單後<b>3天內（第3天24:00前）</b>要完成轉帳。<br>運費：7-11／全家 NT$60、黑貓宅急便 NT$130，每個專區的結單各自計算。</p></div>
+<div class="qa-item"><p class="qa-q">Q：結單後多久要付款？運費怎麼算？</p><p class="qa-a">A：跟現貨／預購一樣，送出結單後<b>3天內（第3天24:00前）</b>要完成轉帳。<br>運費：7-11 賣貨便 NT$38（LINE 轉帳扣掉 NT$60，取貨時付 NT$60）、黑貓宅急便 NT$130，每個專區的結單各自計算。</p></div>
 </div>
 </div>
 <h3 style="margin:26px 0 12px;font-size:15px;font-weight:800;color:var(--text-dark);">⚠️ 注意事項（兩種都適用）</h3>
@@ -1546,7 +1557,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <div class="qa-item"><p class="qa-q">Q：回饋券可以換現金嗎？</p><p class="qa-a">A：回饋券僅限折抵商品消費使用，恕不兌換現金。</p></div>
 <div class="qa-item"><p class="qa-q">Q：哪些消費會列入累積？</p><p class="qa-a">A：以實際購買成功並完成付款的「商品金額」計算。運費、缺貨、取消商品皆不列入消費累積。</p></div>
 <div class="qa-item"><p class="qa-q">Q：使用回饋券折抵後，消費金額怎麼累積？</p><p class="qa-a">A：消費累積以「折抵後實際支付的商品金額」計算。<br>例如：商品NT$2,000，使用1張NT$60回饋券折抵商品，本次實際支付NT$1,940，因此本次累積消費金額為NT$1,940。</p></div>
-<div class="qa-item"><p class="qa-q">Q：使用免運券、回饋券或其他優惠後，消費金額怎麼累積？</p><p class="qa-a">A：免運券、回饋券及其他折扣皆屬於優惠回饋，因此已享有優惠折抵的金額，不會再重複計入下一階段的回饋累積。<br>回饋累積將以「商品金額扣除本次實際優惠折抵金額」後的有效消費金額計算 ♡<br>例如：商品金額NT$2,000，使用1張NT$60免運券，本次享有NT$60優惠，回饋累積金額為NT$1,940；使用1張NT$60回饋券折抵商品，回饋累積金額同樣為NT$1,940。<br>也就是說，優惠折抵多少，就從本次回饋累積金額中扣除多少；其餘未折抵的商品金額仍會正常累積，不會歸零，也不會浪費。</p></div>
+<div class="qa-item"><p class="qa-q">Q：使用免運券、回饋券或其他優惠後，消費金額怎麼累積？</p><p class="qa-a">A：免運券、回饋券及其他折扣皆屬於優惠回饋，因此已享有優惠折抵的金額，不會再重複計入下一階段的回饋累積。<br>回饋累積將以「商品金額扣除本次實際優惠折抵金額」後的有效消費金額計算 ♡<br>例如：商品金額NT$2,000，<br>・使用1張免運券（折抵運費NT$38），回饋累積金額為 2,000－38＝<b>NT$1,962</b><br>・使用1張回饋券（每張NT$60，折抵商品），回饋累積金額為 2,000－60＝<b>NT$1,940</b><br>・兩種都用，回饋累積金額為 2,000－38－60＝<b>NT$1,902</b><br>也就是說，優惠折抵多少，就從本次回饋累積金額中扣除多少；其餘未折抵的商品金額仍會正常累積，不會歸零，也不會浪費。</p></div>
 </div>
 </div>
 </section>
@@ -1568,7 +1579,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <p>追蹤四郎玩具箱Instagram和Threads，順手幫近期貼文按個讚，就能更快看到新品和連線消息，也是給我們很大的鼓勵 ♡</p>
 <div style="display:flex;gap:10px;margin-top:12px;"><a href="https://www.instagram.com/shiros_toybox" target="_blank" rel="noopener" class="ext-social" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;border-radius:999px;background:#fff;border:1.5px solid var(--text-dark);color:var(--text-dark);font-weight:700;font-size:15px;text-decoration:none;">📷 Instagram</a><a href="https://www.threads.com/@shiros_toybox" target="_blank" rel="noopener" class="ext-social" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;border-radius:999px;background:#fff;border:1.5px solid var(--text-dark);color:var(--text-dark);font-weight:700;font-size:15px;text-decoration:none;">@ Threads</a></div>
 <h3>免運券使用規則</h3>
-<p>▸ 商品消費金額滿NT$1,000（含）可使用1張<br>▸ 每筆訂單限使用1張<br>▸ 每張最高折抵運費$60<br>▸ 超過$60的運費需補差額<br>▸ 不得與其他免運優惠重複使用<br>▸ 使用免運券時，持券人需仍為社群成員<br>▸ 免運券沒有使用期限<br>▸ 免運券可於四郎玩具箱訂單使用 🇯🇵</p>
+<p>▸ 商品消費金額滿NT$1,000（含）可使用1張<br>▸ 每筆訂單限使用1張<br>▸ 每張折抵運費$38（7-11 賣貨便運費全免）<br>▸ 選黑貓宅急便時，超過$38的運費需補差額<br>▸ 不得與其他免運優惠重複使用<br>▸ 使用免運券時，持券人需仍為社群成員<br>▸ 免運券沒有使用期限<br>▸ 免運券可於四郎玩具箱訂單使用 🇯🇵</p>
 <h3>活動期限</h3>
 <p>活動至社群人數滿150人截止。</p>
 <h3>注意事項</h3>
@@ -1640,7 +1651,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261112-2030';
+var APP_VERSION = '20261113-1700';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4304,7 +4315,7 @@ document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-merge-fs-btn') : null;
 if(!b) return;
 var undo = b.getAttribute('data-undo') === '1';
-if(!window.confirm(undo ? '把免運券還給客人、取消這次的運費折抵嗎？' : '用客人 1 張免運券，從這張扣掉上一張付的運費 NT$'+b.getAttribute('data-fee')+' 嗎？\n\n・客人的免運券會自動少 1 張\n・這張的應付總額會跟著變少')) return;
+if(!window.confirm(undo ? '把免運券還給客人、取消這次的運費折抵嗎？' : '用客人 1 張免運券，從這張扣掉上一張付的運費 NT$'+Math.min(Number(b.getAttribute('data-fee')) || 0, FREESHIP_COUPON_VALUE)+' 嗎？\n\n・客人的免運券會自動少 1 張\n・這張的應付總額會跟著變少')) return;
 b.disabled = true;
 try{
 var r = await callMemberApi('admin-settlement-merge-freeship', { settlementId: b.getAttribute('data-settlement-id'), undo: undo });
@@ -4353,13 +4364,15 @@ if(s.cod){
 lines.push('📦 這筆是 7-11 取貨付款，到門市取貨時付 NT$'+fmtNum(s.total)+' 就好');
 } else if(Number(s.total) > 0){
 var anchor = new Date(s.created_at || s.cycle_deadline); anchor.setDate(anchor.getDate() + 2);
-lines.push('💚 請用 LINE 轉帳 NT$'+fmtNum(s.total));
+lines.push('💚 請用 LINE 轉帳 NT$'+fmtNum(settleLineOf(s)));
+if(settleCodOf(s) > 0) lines.push('🏪 剩下 NT$'+fmtNum(settleCodOf(s))+' 到 7-11 取貨時付（賣貨便）');
 lines.push('⏰ 付款期限：'+(anchor.getMonth()+1)+'/'+anchor.getDate()+' 24:00 前');
 } else {
 lines.push('💚 這筆不用再付款，我們會直接幫您出貨 ♡');
 }
 lines.push('');
-lines.push('寄送：'+(s.shipping_method || '')+(s.shipping_method === '黑貓宅急便' ? '　'+(s.address || '')+'（'+(s.delivery_time || '')+'）' : (s.shipping_method === '自取' ? (s.store_info ? '　留言：'+s.store_info : '') : '　'+(s.store_info || ''))));
+lines.push('寄送：'+(s.shipping_method || '')+(s.shipping_method === '黑貓宅急便' ? '　'+(s.address || '')+'（'+(s.delivery_time || '')+'）' : (s.shipping_method === '自取' ? (s.store_info ? '　留言：'+s.store_info : '') : (s.shipping_method === '賣貨便' && !s.store_info ? '' : '　'+(s.store_info || '')))));
+if(s.shipping_method === '賣貨便' && settleCodOf(s) > 0) lines.push('📩 賣貨便下單連結：（貼上連結）\n收到後請點連結，選取貨門市、填收件資料並下單（金額 NT$'+fmtNum(settleCodOf(s))+'，取貨時付）');
 lines.push('收件人：'+(s.recipient_name || ''));
 if(!s.cod && Number(s.total) > 0) lines.push('轉帳後跟我說一聲就好，謝謝 ♡');
 return lines.join('\n');
@@ -4394,7 +4407,7 @@ var selfCostBox = selfS
 : '';
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
-: (s.shipping_method === '自取' ? '🙋 自取・留言：'+(s.store_info ? escHtml(s.store_info) : '（沒有留言）') : '門市：'+s.store_info);
+: (s.shipping_method === '自取' ? '🙋 自取・留言：'+(s.store_info ? escHtml(s.store_info) : '（沒有留言）') : (s.shipping_method === '賣貨便' && !s.store_info ? '📩 會用 LINE 傳賣貨便下單連結，收到後請點連結選門市並下單' : '門市：'+s.store_info));
 var isPaid = s.status === '已付款';
 if(s.abandoned) isPaid = true;
 var actionBtn = s.abandoned
@@ -4437,6 +4450,7 @@ return '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-4p
 + ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
 + (s.credit_deducted > 0 ? '<div class="settle-total-row"><span>↪ 缺貨退款扣抵</span><span>-NT$'+s.credit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ settleCodRowsHTML(s)
 + (Number(s.overpaid) > 0 ? '<div class="settle-total-row" style="color:#B91C1C;font-weight:800;"><span>⚠️ 客人多付，要退</span><span>NT$'+s.overpaid+'</span></div>' : '')
 + '</div>'
 + (isPaid ? '' : '<button type="button" class="admin-settle-discount" data-settlement-id="'+s.id+'" data-subtotal="'+s.subtotal+'" data-cur="'+(s.extra_discount||0)+'" style="margin-top:6px;border:1.5px solid #B45309;background:#FFF7E6;color:#92400E;border-radius:999px;padding:5px 14px;font-size:12.5px;font-weight:800;font-family:var(--font-body);">🎁 '+(s.extra_discount > 0 ? '修改特別折扣' : '給特別折扣（打折）')+'</button>')
@@ -5248,7 +5262,7 @@ return '<div class="order-card" data-line-uid="'+escAttr(m.lineUid)+'" style="ma
 }
 function adminRedeemableNote(spend, redeemed){
 var diff = spend - redeemed;
-if(diff < 0 && !(redeemed > 0)) return '<span style="color:var(--muted);">累積消費暫時是負的（用了免運券、還沒付款時會先扣 60，付款後會加回來），可以照常儲存</span>';
+if(diff < 0 && !(redeemed > 0)) return '<span style="color:var(--muted);">累積消費暫時是負的（用了免運券、還沒付款時會先扣掉免運券折的運費，付款後會加回來），可以照常儲存</span>';
 if(diff < 0) return '<span style="color:#d9422b;font-weight:700;">⚠️ 已兌換金額比累積消費多 NT$'+(-diff)+'，客人會卡住無法兌換，請調低已兌換金額</span>';
 return '<span style="color:var(--muted);">可兌換進度：NT$'+diff+'（可換 '+Math.floor(diff/REWARD_THRESHOLD)+' 張）</span>';
 }
@@ -5393,7 +5407,7 @@ var referralCouponBalance = parseInt(referralInput.value);
 var redeemedInput = document.querySelector('.admin-member-redeemed-input[data-line-uid="'+lineUid+'"]');
 var cumulativeSpend = parseInt(spendInput.value);
 var redeemedSpend = parseInt(redeemedInput.value);
-// 累積消費可以是負的（用了免運券、還沒付款時會先扣 60，付款後就會加回來）
+// 累積消費可以是負的（用了免運券、還沒付款時會先扣掉免運券折的運費，付款後就會加回來）
 if(!Number.isFinite(couponBalance) || !Number.isFinite(referralCouponBalance) || !Number.isFinite(cumulativeSpend) || !Number.isFinite(redeemedSpend) || couponBalance < 0 || referralCouponBalance < 0 || redeemedSpend < 0){
 alert('請輸入正確的數字（券的張數、已兌換金額不可為負數）');
 return;
@@ -6213,7 +6227,7 @@ var stById = {}; sts.forEach(function(st){ stById[st.id] = st; });
 var bySid = {};
 consignRows.forEach(function(r){ if(!r.sid || !stById[r.sid] || stById[r.sid].abandoned) return; (bySid[r.sid] = bySid[r.sid] || {})[r.who] = (bySid[r.sid][r.who] || 0) + r.a; });
 Object.keys(bySid).forEach(function(sid){
-var st = stById[sid], D = Math.max(0, (Number(st.coupon_discount) || 0) - (Number(st.referral_coupon_used) > 0 ? 60 : 0)) + (Number(st.extra_discount) || 0);   // 免運券抵的是運費，不算
+var st = stById[sid], D = Math.max(0, (Number(st.coupon_discount) || 0) - freeshipDiscountOf(st)) + (Number(st.extra_discount) || 0);   // 免運券抵的是運費，不算
 if(!(D > 0)) return;
 var whos = Object.keys(bySid[sid]), per = D / (n + whos.length);
 whos.forEach(function(w){ var d = Math.min(per, bySid[sid][w]); consignDisc[w] = (consignDisc[w] || 0) + d; consignBy[w] -= d; consignTotal -= d; });
@@ -11790,7 +11804,8 @@ deadline.setDate(deadline.getDate() + 2);
 var deadlineStr = (deadline.getMonth()+1)+'/'+deadline.getDate()+' 24:00';
 var cls = 'cycle-banner--day1', icon = '📦', mainText = '第1天・請盡快完成轉帳';
 var warningHTML = '';
-var subText = '付款期限：'+deadlineStr+'前・'+(s.order_no||'此筆訂單')+'・應付NT$'+s.total;
+var payTxt = settleCodOf(s) > 0 ? 'LINE 轉帳 NT$'+settleLineOf(s)+'（另外 NT$'+settleCodOf(s)+' 取貨時付）' : '應付NT$'+s.total;
+var subText = '付款期限：'+deadlineStr+'前・'+(s.order_no||'此筆訂單')+'・'+payTxt;
 if(day === 2){
 cls = 'cycle-banner--day2'; icon = '⏰';
 mainText = '第2天・明天是付款最後一天！';
@@ -11801,13 +11816,14 @@ mainText = '第3天（最後一天）！請於今天24:00前完成付款';
 cls = 'cycle-banner--overdue'; icon = '⛔';
 mainText = '已逾期';
 warningHTML = '<p class="cycle-warning-text">已逾期，請立即私訊官方LINE說明原因，否則將清空優惠券、移出社團並永久封鎖，恕不再開放加入。</p>';
-subText = (s.order_no||'此筆訂單')+'・應付NT$'+s.total;
+subText = (s.order_no||'此筆訂單')+'・'+payTxt;
 }
 return '<div class="cycle-banner '+cls+' '+gcls+'">'
 + '<div class="cycle-banner-top"><span class="cycle-icon-pulse">'+icon+'</span><p class="cycle-day-label">付款倒數</p></div>'
 + '<p class="cycle-main-text">'+mainText+'</p>'
 + warningHTML
 + '<p class="cycle-sub-text">'+subText+'</p>'
++ (s.shipping_method === '賣貨便' && settleCodOf(s) > 0 ? '<p class="cycle-sub-text cycle-sell-tip">📩 我們會用 LINE 傳賣貨便下單連結給您，收到後記得點進去<b>選門市並下單</b>（NT$'+settleCodOf(s)+'，取貨時付）</p>' : '')
 + '</div>';
 }
 function settlementCouponSectionHTML(){
@@ -11837,7 +11853,7 @@ html += '<label class="settle-radio'+(canR2?'':' settle-radio--disabled')+'">'
 var canReferral = subtotal >= 1000;
 html += '<label class="settle-radio'+(canReferral?'':' settle-radio--disabled')+'">'
 + '<input type="checkbox" id="settleUseReferral"'+(canReferral?'':' disabled')+'>'
-+ '使用1張免運券（-NT$60，持有'+myBalance.referralCouponBalance+'張）'
++ '使用1張免運券（-NT$'+FREESHIP_COUPON_VALUE+'，持有'+myBalance.referralCouponBalance+'張）'
 + (canReferral?'':'<br><span style="font-size:11.5px;">需商品小計滿NT$1,000才能使用</span>')
 + '</label>';
 }
@@ -11868,11 +11884,32 @@ html += '<div style="margin-top:10px;'+(canLux?'':'opacity:.5;')+'">'
 }
 return html;
 }
+// 運費：賣貨便 38；7-11／全家 60（舊單、一起寄沿用）；黑貓 130；自取 0
+var SHIP_FEES = { '賣貨便':38, '7-11':60, '全家':60, '黑貓宅急便':130, '自取':0 };
+var SELL_COD_AMOUNT = 60;   // 賣貨便取貨時付
+var FREESHIP_COUPON_VALUE = 38;   // 免運券每張折 38（2026-11-13 起；之前是 60）
+function shipFeeOf(m){ return m && SHIP_FEES[m] != null ? SHIP_FEES[m] : (m ? 60 : 0); }
+// 這張結單取貨時要付多少、LINE 要轉多少（後台整筆改取貨付款的 s.cod 另外算）
+function settleCodOf(s){ if(!s || s.cod) return 0; return Math.min(Number(s.cod_amount) || 0, Number(s.total) || 0); }
+function settleLineOf(s){ return Math.max(0, (Number(s.total) || 0) - settleCodOf(s)); }
+function settleCodRowsHTML(s){
+var c = settleCodOf(s); if(!(c > 0)) return '';
+return '<div class="settle-total-row settle-cod-row"><span>🏪 取貨時付（賣貨便）</span><span>NT$'+fmtNum(c)+'</span></div>'
++ '<div class="settle-total-row settle-cod-row is-line"><span>💚 LINE 轉帳</span><span>NT$'+fmtNum(settleLineOf(s))+'</span></div>';
+}
+// 這張結單的免運券折了多少運費：抵上一張的看 freeship_offset；賣貨便或 11/13 之後的單折 38；之前的單折 60
+function freeshipDiscountOf(st){
+if(!(Number(st.referral_coupon_used) > 0)) return 0;
+if(Number(st.freeship_offset) > 0) return Number(st.freeship_offset);
+var v = (String(st.created_at || st.cycle_deadline || '') < '2026-11-13T08:00:00Z' && st.shipping_method !== '賣貨便') ? 60 : FREESHIP_COUPON_VALUE;
+var fee = Number(st.shipping_fee) || 0;
+return fee > 0 ? Math.min(fee, v) : v;
+}
 function recalcSettlement(){
 var pcCalc = pendingCycles[settlementState.group] || {};
 var subtotal = pcCalc._confirmedSubtotal != null ? pcCalc._confirmedSubtotal : (pcCalc.subtotal || 0);
 var isPickup = !settlementState.mergeBase && settlementState.shippingMethod === '自取';
-var shipFee = (myBalance.freeShipping || settlementState.mergeBase || isPickup) ? 0 : (settlementState.shippingMethod === '黑貓宅急便' ? 130 : (settlementState.shippingMethod ? 60 : 0));
+var shipFee = (myBalance.freeShipping || settlementState.mergeBase || isPickup) ? 0 : shipFeeOf(settlementState.shippingMethod);
 if(myBalance.freeShipping) settlementState.useReferral = false;
 // 自取不用運費，免運券留著下次用
 var refBox = document.getElementById('settleUseReferral');
@@ -11884,7 +11921,7 @@ var generalSub = subtotal - luxurySub;
 var rewardRaw = settlementState.rewardCount * REWARD_COUPON_VALUE;
 var luxuryRaw = settlementState.luxuryCount * LUXURY_COUPON_VALUE;
 // 一般券最多折到一般商品金額、特選商品券最多折到特選商品金額
-var refAmt = settlementState.useReferral ? (settlementState.mergeBase ? Number(settlementState.mergeBase.shipping_fee || 60) : 60) : 0;
+var refAmt = settlementState.useReferral ? (settlementState.mergeBase ? Math.min(Number(settlementState.mergeBase.shipping_fee || FREESHIP_COUPON_VALUE), FREESHIP_COUPON_VALUE) : FREESHIP_COUPON_VALUE) : 0;
 var discount = refAmt + Math.min(rewardRaw, generalSub) + Math.min(luxuryRaw, luxurySub);
 var payable = subtotal + shipFee;
 var overflow = rewardRaw > generalSub || luxuryRaw > luxurySub || discount > payable;
@@ -11908,6 +11945,10 @@ depositRow.style.display = 'flex';
 document.getElementById('settleDeposit').textContent = '-NT$'+depositTotal;
 } else { depositRow.style.display = 'none'; }
 document.getElementById('settleTotal').textContent = 'NT$'+total;
+// 賣貨便：取貨時付 60，其他 LINE 轉帳（一起寄的加買單不另外預留）
+var codRows = document.getElementById('settleCodRows');
+var codAmt = (settlementState.shippingMethod === '賣貨便' && !settlementState.mergeBase) ? Math.min(SELL_COD_AMOUNT, total) : 0;
+if(codRows){ codRows.style.display = codAmt > 0 ? 'block' : 'none'; document.getElementById('settleCodAmt').textContent = 'NT$'+codAmt; document.getElementById('settleLineAmt').textContent = 'NT$'+(total - codAmt); }
 var creditAll = (myBalance.creditItems || []).reduce(function(a, x){ return a + (Number(x) || 0); }, 0);
 var leftEl = document.getElementById('settleCreditLeft');
 if(leftEl){ var lf = creditAll - creditTotal; leftEl.style.display = lf > 0 ? 'block' : 'none'; leftEl.textContent = '💸 缺貨的錢扣完還剩 NT$'+lf+'，會退還給您 ♡'; }
@@ -12075,7 +12116,9 @@ return;
 var recipientName = document.getElementById('settleRecipientName').value.trim();
 var phone = document.getElementById('settlePhone').value.trim();
 if(!settlementState.shippingMethod){ alert('請選擇寄送方式'); return; }
-if(!recipientName || !phone){ alert(settlementState.shippingMethod === '自取' ? '請填寫取貨人姓名與手機號碼' : '請填寫收件姓名與手機號碼'); return; }
+var isSellM = settlementState.shippingMethod === '賣貨便' && !settlementState.mergeBase;
+if(isSellM){ if(!recipientName){ alert('請填寫姓名（方便我們對賣貨便的單）'); return; } }
+else if(!recipientName || !phone){ alert(settlementState.shippingMethod === '自取' ? '請填寫取貨人姓名與手機號碼' : '請填寫收件姓名與手機號碼'); return; }
 var payload = {
 group: settlementState.group,
 shippingMethod: settlementState.shippingMethod,
@@ -12092,6 +12135,8 @@ if(!timeInput){ alert('請選擇指定收貨時段'); return; }
 payload.address = address; payload.deliveryTime = timeInput.value;
 } else if(settlementState.shippingMethod === '自取'){
 payload.storeInfo = document.getElementById('settlePickupNote').value.trim();
+} else if(settlementState.shippingMethod === '賣貨便'){
+payload.storeInfo = '';
 } else {
 var storeInfo = document.getElementById('settleStoreInfo').value.trim();
 if(!storeInfo){ alert('請填寫門市名稱＋店號'); return; }
@@ -12151,7 +12196,7 @@ return '<div class="settle-item-row"><span>'+o.product_name+(o.variant?'（'+o.v
 }).join('');
 var shipDetail = s.shipping_method === '黑貓宅急便'
 ? '地址：'+s.address+'（'+s.delivery_time+'）'
-: (s.shipping_method === '自取' ? '🙋 自取・留言：'+(s.store_info ? escHtml(s.store_info) : '（沒有留言）') : '門市：'+s.store_info);
+: (s.shipping_method === '自取' ? '🙋 自取・留言：'+(s.store_info ? escHtml(s.store_info) : '（沒有留言）') : (s.shipping_method === '賣貨便' && !s.store_info ? '📩 會用 LINE 傳賣貨便下單連結，收到後請點連結選門市並下單' : '門市：'+s.store_info));
 var statusClass = s.status === '已付款' ? 'order-status order-status--confirmed' : 'order-status';
 return '<div class="order-card" style="margin-top:10px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+'</span><span class="'+statusClass+'">'+(s.shipped_at ? '📦 已出貨' : s.status)+'</span></div>'
@@ -12165,6 +12210,7 @@ return '<div class="order-card" style="margin-top:10px;">'
 + ((s.deposit_deducted - (s.credit_deducted || 0)) > 0 ? '<div class="settle-total-row"><span>💰已付訂金／預付</span><span>-NT$'+(s.deposit_deducted - (s.credit_deducted || 0))+'</span></div>' : '')
 + (s.credit_deducted > 0 ? '<div class="settle-total-row"><span>↪ 缺貨退款扣抵</span><span>-NT$'+s.credit_deducted+'</span></div>' : '')
 + '<div class="settle-total-row settle-total-final"><span>應付總額</span><span>NT$'+s.total+'</span></div>'
++ settleCodRowsHTML(s)
 + (Number(s.overpaid) > 0 ? '<div class="settle-total-row" style="color:#047857;font-weight:800;"><span>💚 多付的金額會退還給您</span><span>NT$'+s.overpaid+'</span></div>' : '')
 + '</div>'
 + '<p class="order-time" style="margin-top:8px;">寄送方式：'+s.shipping_method+'<br>收件人：'+s.recipient_name+' / '+s.phone+'<br>'+shipDetail+'</p>'
@@ -12749,8 +12795,10 @@ var shipInputs = document.querySelectorAll('.ship-method-input');
 for(var si=0;si<shipInputs.length;si++){
 shipInputs[si].addEventListener('change', function(){
 settlementState.shippingMethod = this.value;
-var isHome = this.value === '黑貓宅急便', isPick = this.value === '自取';
-document.getElementById('settleConvenienceFields').style.display = (isHome || isPick) ? 'none' : 'block';
+var isHome = this.value === '黑貓宅急便', isPick = this.value === '自取', isSell = this.value === '賣貨便';
+document.getElementById('settleConvenienceFields').style.display = (isHome || isPick || isSell) ? 'none' : 'block';
+document.getElementById('settleSellFields').style.display = isSell ? 'block' : 'none';
+document.getElementById('settlePhone').style.display = isSell ? 'none' : '';
 document.getElementById('settleHomeDeliveryFields').style.display = isHome ? 'block' : 'none';
 document.getElementById('settlePickupFields').style.display = isPick ? 'block' : 'none';
 document.getElementById('settleRecipientName').placeholder = isPick ? '取貨人姓名' : '收件姓名';
