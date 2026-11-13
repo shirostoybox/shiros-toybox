@@ -487,6 +487,7 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .pf-ab-r{ margin:3px 0; font-size:12.5px; color:var(--text-dark); }
 .pf-ab-r small{ display:block; margin-left:12px; font-size:11px; color:var(--muted); }
 .pf-ab-h{ margin:8px 0 6px; font-size:11.5px; color:#7F1D1D; line-height:1.6; }
+.pf-ab-in{ display:block; color:#047857; font-weight:800; }
 .pf-ab-btn{ width:100%; padding:10px; border:none; border-radius:999px; background:#B91C1C; color:#fff; font-size:13.5px; font-weight:800; font-family:inherit; }
 .pf-ab-btn.ghost{ background:transparent; color:#991B1B; border:1.5px solid #FCA5A5; }
 .adm-lock{ margin:0 0 10px; padding:8px 10px; border:1.5px dashed #FCA5A5; border-radius:12px; background:#FFF7F7; }
@@ -1658,7 +1659,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261113-2340';
+var APP_VERSION = '20261113-2350';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -6139,10 +6140,15 @@ return (pfDetail.items || []).filter(function(o){ return ab[o.settlement_id] && 
 function pfAbandonedHTML(){
 var list = pfAbandonedItems().filter(function(o){ return !o._moved; });
 if(!list.length) return '';
-var withCost = list.filter(pfOrderHasCost);
+var inSheet = {}; (pfData.stockCosts || []).forEach(function(x){ if(x.pid && !x.fromAb) inSheet[x.pid] = true; });
+var withCost = list.filter(function(o){ return pfOrderHasCost(o) && !inSheet[o.product_id]; });
 return '<div class="pf-ab"><p class="pf-ab-t">🚫 棄單退回 '+list.length+' 筆（沒賣出去，已經不算在銷售裡，東西回到庫存）</p>'
-+ list.map(function(o){ var q = Number(o.quantity) || 1; return '<p class="pf-ab-r">・'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(String(o.variant).slice(0, 24))+(String(o.variant).length > 24 ? '…' : '')+'）' : '')+' ×'+q+'<small>'+escHtml(o._st.order_no || '')+(pfOrderHasCost(o) ? '・成本 ¥'+fmtNum(o.cost_jpy)+'×'+o.cost_rate+'＝'+pfMoney(costUnitTwd(o.cost_jpy, o.cost_rate) * q)+'・'+escHtml(pfPartnerName(o.bought_by)) : '・沒記成本')+'</small></p>'; }).join('')
-+ (withCost.length ? '<p class="pf-ab-h">這些當初買的錢還是有花，按下面按鈕，成本會照原本記的（誰付、日幣、匯率）加到「庫存未售出」，之後賣掉一樣算進收入。</p><button type="button" class="pf-ab-btn" id="pfAbMove">↩ 加到庫存未售出（'+withCost.length+' 筆）</button>' : '<p class="pf-ab-h">都沒記成本，不用處理；之後要記可以用「＋ 新增一項」。</p><button type="button" class="pf-ab-btn ghost" id="pfAbMove">知道了，不用再提醒</button>')
++ list.map(function(o){ var q = Number(o.quantity) || 1; return '<p class="pf-ab-r">・'+escHtml(o.product_name || '')+(o.variant ? '（'+escHtml(String(o.variant).slice(0, 24))+(String(o.variant).length > 24 ? '…' : '')+'）' : '')+' ×'+q+'<small>'+escHtml(o._st.order_no || '')+(pfOrderHasCost(o) ? '・成本 ¥'+fmtNum(o.cost_jpy)+'×'+o.cost_rate+'＝'+pfMoney(costUnitTwd(o.cost_jpy, o.cost_rate) * q)+'・'+escHtml(pfPartnerName(o.bought_by)) : '・沒記成本')+(inSheet[o.product_id] ? '<b class="pf-ab-in">・下面「庫存未售出」已經有這件，不會再加</b>' : '')+'</small></p>'; }).join('')
++ '<p class="pf-ab-h"><b>「庫存」頁的數量</b>跟<b>這裡的成本</b>是兩件事：按按鈕只會在這張表加「成本」，不會再動庫存頁的數量（你手動補過的庫存不會變多）。<br>'
++ (withCost.length ? '如果下面「庫存未售出」還沒記這幾件的成本，就按「加到庫存未售出」；已經自己記過了，按「已經記過了」。</p>'
++ '<button type="button" class="pf-ab-btn" id="pfAbMove">↩ 加到庫存未售出（'+withCost.length+' 筆）</button>'
++ '<button type="button" class="pf-ab-btn ghost" id="pfAbSkip" style="margin-top:6px;">已經記過了，不用加</button>'
+: '這幾件不用再加成本。</p><button type="button" class="pf-ab-btn ghost" id="pfAbSkip">知道了，不用再提醒</button>')
 + '</div>';
 }
 function pfProducts(){
@@ -6913,13 +6919,20 @@ var rin = document.querySelector('.pf-strate[data-i="'+i+'"]'); if(rin) rin.plac
 try{ var d = await getFxOnDate(date); if(d && d.rate){ pfData.stockCosts[i].rate = String(d.rate); if(rin) rin.value = d.rate; pfMarkDirty(false); } }
 catch(e){ if(rin) rin.placeholder = '抓不到，請手動輸入'; }
 });
+on('#pfAbSkip', 'click', function(){
+if(!pfData.abMoved) pfData.abMoved = {};
+pfAbandonedItems().forEach(function(o){ pfData.abMoved[o.id] = true; });
+pfMarkDirty(true);
+showToast('好，不再提醒，記得按儲存');
+});
 on('#pfAbMove', 'click', function(){
 var list = pfAbandonedItems().filter(function(o){ return !o._moved; });
+var inSheet = {}; (pfData.stockCosts || []).forEach(function(x){ if(x.pid && !x.fromAb) inSheet[x.pid] = true; });
 if(!pfData.abMoved) pfData.abMoved = {};
 var n = 0;
 list.forEach(function(o){
 pfData.abMoved[o.id] = true;
-if(!pfOrderHasCost(o)) return;
+if(!pfOrderHasCost(o) || inSheet[o.product_id]) return;   // 這張表已經記過這件的庫存成本：不重複加
 pfData.stockCosts.push({ pid: o.product_id || '', label: (o.product_name || '') + (o.variant ? '（棄單退回・' + String(o.variant).slice(0, 20) + '）' : '（棄單退回）'), qty: String(Number(o.quantity) || 1), jpy: String(o.cost_jpy), date: o.cost_date || '', rate: String(o.cost_rate), pay: o.pay_method === 'cash' ? 'cash' : 'card', payer: o.bought_by || 'split', fromAb: o.id });
 n++;
 });
