@@ -582,6 +582,7 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .adm-sum.is-paid{ background:#DCFCE7; color:#166534; }
 .adm-sum.is-dep{ background:#FEF3C7; color:#92400E; }
 .adm-sum.is-pay{ background:#E0E7FF; color:#3730A3; }
+.adm-sum.is-cod{ background:#FFEDD5; color:#9A3412; }
 .adm-sum.is-over{ background:#1B1E27; color:#fff; }
 .adm-sum.is-ban{ background:#1B1E27; color:#fff; }
 .adm-p-cat{ margin:18px 0 8px; display:flex; align-items:center; gap:8px; }
@@ -1659,7 +1660,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261113-2350';
+var APP_VERSION = '20261114-1400';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2284,7 +2285,7 @@ return Object.assign({}, g, { openOrders: oo, cancelledOrders: co, settlements: 
 // 還有事要做（喊單中、待付款、待出貨、要退款…）
 function groupIsActive(g){
 var c = adminGroupCounts(g);
-return !!(c.pending || c.confirmed || c.unpaid || c.paidWait || c.deposit || c.credit > 0);
+return !!(c.pending || c.confirmed || c.unpaid || c.paidWait || c.cod || c.codShipped || c.deposit || c.credit > 0);
 }
 function adminAreaLabel(a){
 if(a === 'all') return '全部';
@@ -2342,6 +2343,8 @@ if(orderNeedsDeposit(o)) c.deposit++;
 c.paidWait = 0; c.shippedRecent = 0;
 (g.settlements || []).forEach(function(st){
 if(st.abandoned) return;
+// 整筆取貨付款：另外算，不算在「待付款」（客人不用 3 天內轉帳）
+if(st.cod && st.status !== '已付款'){ if(st.shipped_at) c.codShipped = (c.codShipped || 0) + 1; else c.cod = (c.cod || 0) + 1; return; }
 if(st.shipped_at){ if(Date.now() - new Date(st.shipped_at).getTime() < 3 * 86400000) c.shippedRecent++; return; }
 if(st.status === '已付款') c.paidWait++; else c.unpaid++;
 });
@@ -2400,7 +2403,7 @@ body = adminPurchaseListHTML(groups);
 } else {
 // 快選：照處理流程排（要買 → 還沒結單 → 逾期 → 等付款 → 要寄），數量是 0 的先藏起來
 var tot = { pending:0, deposit:0, unpaid:0, unsettled:0, overdue:0, toship:0 };
-groups.forEach(function(g){ var c = adminGroupCounts(g); tot.pending += c.pending; tot.deposit += c.deposit; tot.unpaid += c.unpaid; if(c.confirmed) tot.unsettled++; if(c.overdue) tot.overdue++; tot.toship += (c.paidWait || 0); });
+groups.forEach(function(g){ var c = adminGroupCounts(g); tot.pending += c.pending; tot.deposit += c.deposit; tot.unpaid += c.unpaid; if(c.confirmed) tot.unsettled++; if(c.overdue) tot.overdue++; tot.toship += (c.paidWait || 0) + (c.cod || 0); });
 var chipDefs = [
 ['pending', '🛒 待確認（要去買）', tot.pending, '筆'],
 ['unsettled', '🧾 還沒結單', tot.unsettled, '人'],
@@ -4561,6 +4564,8 @@ if(cnt.okAmt - cnt.okPaid >= 1000) sum.push('<span class="adm-sum is-k">💸滿�
 if(cnt.deposit) sum.push('<span class="adm-sum is-dep">💰未付訂 '+cnt.deposit+'</span>');
 if(cnt.paidWait) sum.push('<span class="adm-sum is-paidwait">💰已付款・待出貨 '+cnt.paidWait+'</span>');
 if(cnt.unpaid) sum.push('<span class="adm-sum is-pay">待付款 '+cnt.unpaid+'</span>');
+if(cnt.cod) sum.push('<span class="adm-sum is-cod">📦取貨付款・待出貨 '+cnt.cod+'</span>');
+if(cnt.codShipped) sum.push('<span class="adm-sum is-cod">📦取貨付款・已寄出待撥款 '+cnt.codShipped+'</span>');
 if(cnt.shippedRecent) sum.push('<span class="adm-sum is-shipped">📦已出貨 '+cnt.shippedRecent+'</span>');
 if(g.freeShipUsed > 0) sum.push('<span class="adm-sum is-fsused">🎟用過免運'+g.freeShipUsed+'次</span>');
 if(g.isBlocked) sum.push('<span class="adm-sum is-ban">⛔已封鎖</span>');
@@ -4604,7 +4609,7 @@ if(doneSettlements.length > 0){
 settleHtml += '<details class="adm-extra" style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700;padding:6px 0;">已出貨／已完成 ('+doneSettlements.length+')</summary>'
 + doneSettlements.map(function(s){ return adminSettlementCardHTML(s, color); }).join('') + '</details>';
 }
-return '<div class="order-card admin-group" data-gkey="'+escAttr(key)+'" data-c-pending="'+cnt.pending+'" data-c-deposit="'+cnt.deposit+'" data-c-unpaid="'+cnt.unpaid+'" data-c-unsettled="'+cnt.confirmed+'" data-c-overdue="'+(cnt.overdue?1:0)+'" data-c-toship="'+(cnt.paidWait||0)+'" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:12px;background:'+color.bg+';border-left:4px solid '+color.mid+';">'
+return '<div class="order-card admin-group" data-gkey="'+escAttr(key)+'" data-c-pending="'+cnt.pending+'" data-c-deposit="'+cnt.deposit+'" data-c-unpaid="'+cnt.unpaid+'" data-c-unsettled="'+cnt.confirmed+'" data-c-overdue="'+(cnt.overdue?1:0)+'" data-c-toship="'+((cnt.paidWait||0)+(cnt.cod||0))+'" data-search-text="'+escAttr(buildAdminSearchText(g))+'" style="margin-bottom:12px;background:'+color.bg+';border-left:4px solid '+color.mid+';">'
 + header
 + '<div class="adm-group-body" style="display:none;">' + restrictedBadge + cycleHtml + addOrderHtml + restrictBtnHtml
 + (g.openOrders.length ? '<p style="margin:0 0 2px;font-size:11.5px;color:var(--muted);">🧮 點金額可以加總，再點一次取消</p>' : '')
