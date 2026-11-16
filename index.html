@@ -482,6 +482,9 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .cycle-sell-tip{ margin-top:6px !important; color:#065F46 !important; font-weight:700; }
 .settle-cod-row{ font-size:13px; font-weight:700; color:#065F46; }
 .settle-cod-row.is-line{ font-size:15px; font-weight:900; color:#047857; }
+.pf-lock-bar{ margin:0 0 12px; padding:10px 12px; border-radius:12px; background:#F1F5F9; border:1.5px solid #94A3B8; font-size:13px; font-weight:700; color:#334155; line-height:1.6; }
+.pf-lock-tag{ display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:#334155; color:#fff; font-size:11px; vertical-align:middle; }
+.pf-locked input:disabled, .pf-locked select:disabled, .pf-locked textarea:disabled{ opacity:.75; }
 .pf-ab{ margin:8px 0 10px; padding:10px 12px; border-radius:12px; background:#FEF2F2; border:1.5px solid #FCA5A5; }
 .pf-ab-t{ margin:0 0 6px; font-size:13px; font-weight:800; color:#991B1B; }
 .pf-ab-r{ margin:3px 0; font-size:12.5px; color:var(--text-dark); }
@@ -1660,7 +1663,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261114-1400';
+var APP_VERSION = '20261117-0050';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -4757,7 +4760,11 @@ var oj = {};
 try{ oj = info.optionJpy ? (typeof info.optionJpy === 'string' ? JSON.parse(info.optionJpy) : info.optionJpy) : {}; }catch(e){ oj = {}; }
 var segs = String(variant || '').split('・');
 for(var i=0;i<segs.length;i++){ var k = segs[i].trim(); if(Number(oj[k]) > 0) return Number(oj[k]); }
-return Number(info.jpyPrice) > 0 ? Number(info.jpyPrice) : 0;
+if(Number(info.jpyPrice) > 0) return Number(info.jpyPrice);
+// 商品沒記日幣：用最近一筆喊單記過的成本；再沒有就用款式日幣裡的第一個
+if(Number(info.lastCostJpy) > 0) return Number(info.lastCostJpy);
+var ks = Object.keys(oj).filter(function(k){ return Number(oj[k]) > 0; });
+return ks.length ? Number(oj[ks[0]]) : 0;
 }
 function costUnitTwd(jpy, rate){ return Math.round((Number(jpy) || 0) * (Number(rate) || 0)); }
 function costChipHTML(o){
@@ -6143,6 +6150,7 @@ return (pfDetail.items || []).filter(function(o){ return ab[o.settlement_id] && 
 .map(function(o){ return Object.assign({ _st: ab[o.settlement_id], _moved: !!moved[o.id] }, o); });
 }
 function pfAbandonedHTML(){
+if(pfData.done) return '';
 var list = pfAbandonedItems().filter(function(o){ return !o._moved; });
 if(!list.length) return '';
 var inSheet = {}; (pfData.stockCosts || []).forEach(function(x){ if(x.pid && !x.fromAb) inSheet[x.pid] = true; });
@@ -6161,7 +6169,7 @@ var map = {}, order = [];
 var paidIds = {}, nickById = {}, abIds = {};
 (pfDetail.settlements || []).forEach(function(s){ if(s.status === '已付款') paidIds[s.id] = true; if(s.abandoned) abIds[s.id] = true; nickById[s.id] = s.nickname || ''; });
 function add(o, isOpen){
-if(!isOpen && abIds[o.settlement_id]) return;   // 棄單的不算賣出（東西回到庫存，成本另外移到「庫存未售出」）
+if(!isOpen && abIds[o.settlement_id] && !pfData.done) return;   // 已分完（鎖起來）的表照當時的算法，不再改   // 棄單的不算賣出（東西回到庫存，成本另外移到「庫存未售出」）
 var pid = o.product_id || ('name:' + o.product_name);
 var p = map[pid];
 if(!p){ p = map[pid] = { pid: pid, productId: o.product_id || '', name: o.product_name || '', qty:0, sales:0, unpaidQty:0, openQty:0, variants:{}, orders:[] }; order.push(pid); }
@@ -6318,8 +6326,10 @@ else { unknownPay++; p.unknownPay++; }
 (pfData.stockCosts || []).forEach(function(x){ var k = x.payer || 'split', a = pfStockTwd(x); if(x.pay === 'cash') cashBase[k] = (cashBase[k] || 0) + a; else cardBase[k] = (cardBase[k] || 0) + a; });
 var fee = 0, feeBy = {};
 Object.keys(cardBase).forEach(function(k){ var a = Math.round(cardBase[k] * pfCardRate(k) / 100); feeBy[k] = a; fee += a; charge(k, a); });
-var extra = 0, shipCost = 0;
+var extra = 0, shipCost = 0, saleIncome = 0;
 (pfData.extraCosts || []).forEach(function(x){
+// 💰 庫存賣出：算成「收入」，記在收錢的人「收到」那欄（不再當成負的成本、混在包材運費裡）
+if(x.sale && recBy[x.payer] != null){ var sa = Math.abs(pfNum(x.amount)); saleIncome += sa; recBy[x.payer] += sa; return; }
 var a = pfNum(x.amount); if(x.refund) a = -Math.abs(a);   // 回收（朋友買走已分過成本的庫存）：當成負的成本，收錢的人要把別人那份還回去
 extra += a; if(x.ship) shipCost += a;
 charge(x.payer, a);
@@ -6328,7 +6338,7 @@ var stock = 0;
 (pfData.stockCosts || []).forEach(function(x){ var a = pfStockTwd(x); stock += a; charge(x.payer, a); });
 var totalCost = productCost + fee + extra + stock;
 var final = !inProgress;
-var profit = (final ? inc.paid : estIncome) - totalCost - consignTotal - sharedTotal;
+var profit = (final ? inc.paid : estIncome) + saleIncome - totalCost - consignTotal - sharedTotal;
 var share = profit / n;
 // 分潤比例：每個夥伴的比例（預設 1，大家一樣就是平分）
 var wts = pfWeights(partners), wSum = 0; partners.forEach(function(p){ wSum += wts[p.id]; });
@@ -6363,7 +6373,7 @@ if(give[gi].v < 0.5) gi++;
 if(take[ti].v < 0.5) ti++;
 }
 }
-return { shareBy:shareBy, ratioEqual:ratioEqual, ratioText:partners.map(function(p){ return pfFmtW(wts[p.id]); }).join(' : '), nPartners:n, consignDisc:consignDisc, consignBy:consignBy, consignRows:consignRows, consignTotal:consignTotal, sharedGroups:sharedGroups, sharedRows:sharedRows, sharedTotal:sharedTotal, inc:inc, open:open, inProgress:inProgress, final:final, estIncome:estIncome, cash:cash, cashTotal:cashTotal, products:products, productCost:productCost, fee:fee, feeBy:feeBy, cardBase:cardBase, cashBase:cashBase, unknownPay:unknownPay, extra:extra, stock:stock, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing, missingQty:missingQty, unclaimed:unclaimed };
+return { shareBy:shareBy, ratioEqual:ratioEqual, ratioText:partners.map(function(p){ return pfFmtW(wts[p.id]); }).join(' : '), nPartners:n, consignDisc:consignDisc, consignBy:consignBy, consignRows:consignRows, consignTotal:consignTotal, sharedGroups:sharedGroups, sharedRows:sharedRows, sharedTotal:sharedTotal, inc:inc, open:open, inProgress:inProgress, final:final, estIncome:estIncome, cash:cash, cashTotal:cashTotal, products:products, productCost:productCost, fee:fee, feeBy:feeBy, cardBase:cardBase, cashBase:cashBase, unknownPay:unknownPay, extra:extra, saleIncome:saleIncome, stock:stock, shipCost:shipCost, totalCost:totalCost, profit:profit, share:share, people:people, transfers:transfers, missing:missing, missingQty:missingQty, unclaimed:unclaimed };
 }
 function pfProdSumHTML(p){
 var costedQty = p.qty - p.missingQty;
@@ -6374,7 +6384,10 @@ return '售價 '+pfMoney(p.sales)+'・成本 '+(costedQty > 0 ? pfMoney(p.cost) 
 }
 function pfStockCalcHTML(x){
 var q = Number(x.qty) || 0, j = Number(x.jpy) || 0, r = Number(x.rate) || 0;
-if(!(q && j && r)) return '<span style="color:var(--muted);">填數量、日幣、日期（匯率會自動帶入）就會換成台幣</span>';
+if(!(q && j && r)){
+if(q && !j) return '<span style="color:#B91C1C;font-weight:700;">⚠️ 還沒填日幣，這行成本目前算 0</span>'+(x.pid ? ' <button type="button" class="adm-link pf-sc-fill" data-i="'+(pfData.stockCosts || []).indexOf(x)+'" style="font-size:12px;">🔍 自動帶入日幣</button>' : '');
+return '<span style="color:var(--muted);">填數量、日幣、日期（匯率會自動帶入）就會換成台幣</span>';
+}
 return '¥'+fmtNum(j)+' × '+q+' 個 × 匯率 '+r+' ＝ <b>'+pfMoney(pfStockTwd(x))+'</b>'+(x.pay === 'cash' ? '' : '<span style="color:var(--muted);">（刷卡手續費在③自動算）</span>');
 }
 function pfFeeLineHTML(c, pid){
@@ -6425,12 +6438,32 @@ h += '<p class="pf-hint" style="margin:4px 0 0;">客人在那張結單用了折�
 }
 return h;
 }
+// 🔒 已分完的表：照鎖起來那時存下的數字顯示，之後更新算法也不會變
+function pfLockSnapshot(c){
+return { at: new Date().toISOString(), paid: Math.round(c.final ? c.inc.paid : c.estIncome), sale: Math.round(c.saleIncome || 0), cost: Math.round(c.totalCost), profit: Math.round(c.profit), split: pfSplitText(c),
+people: c.people.map(function(p){ return { name: p.name, paid: Math.round(p.paid), received: Math.round(p.received), gets: Math.round(p.gets) }; }),
+transfers: (c.transfers || []).map(function(t){ return { from: t.from, to: t.to, amount: t.amount }; }) };
+}
+function pfLockedHTML(L){
+var d = String(L.at || '').slice(0, 10);
+return '<p class="pf-ch">④ 利潤・分潤 <span class="pf-lock-tag">🔒 已鎖定</span></p>'
++ '<p class="pf-hint" style="margin:0 0 8px;">這張在 '+escHtml(d)+' 分完錢、鎖起來了，下面是當時的數字，之後網站更新也不會變。</p>'
++ '<div class="pf-line"><span>收入</span><span>'+pfMoney(L.paid)+'</span></div>'
++ (L.sale ? '<div class="pf-line"><span>＋ 庫存賣出（朋友／非會員）</span><span>'+pfMoney(L.sale)+'</span></div>' : '')
++ '<div class="pf-line"><span>− 成本合計</span><span>'+pfMoney(-L.cost)+'</span></div>'
++ '<div class="pf-line pf-big'+(L.profit < 0 ? ' neg' : '')+'"><span>利潤</span><span>'+pfMoney(L.profit)+'</span></div>'
++ (L.split ? '<p class="pf-hint" style="margin:0 0 8px;">'+escHtml(L.split)+'</p>' : '')
++ '<table class="pf-table"><tr><th></th><th>墊付</th><th>收到</th><th>應得</th></tr>'+(L.people || []).map(function(p){ return '<tr><td>'+escHtml(p.name)+'</td><td>'+pfMoney(p.paid)+'</td><td>'+pfMoney(p.received)+'</td><td><b>'+pfMoney(p.gets)+'</b></td></tr>'; }).join('')+'</table>'
++ ((L.transfers || []).length ? L.transfers.map(function(t){ return '<p class="pf-transfer">👉 <b>'+escHtml(t.from)+'</b> 轉給 <b>'+escHtml(t.to)+'</b> <span>'+pfMoney(t.amount)+'</span></p>'; }).join('') : '<p class="pf-transfer" style="color:var(--muted);">不用互相轉帳</p>');
+}
 function pfResultHTML(c){
+if(pfData.done && pfData.lock) return pfLockedHTML(pfData.lock);
 var margin = function(inc){ return inc > 0 ? '（'+Math.round(c.profit / inc * 100)+'%）' : ''; };
 if(!c.final){
 var rows = c.people.filter(function(p){ return !p.ext; }).map(function(p){ return '<tr><td>'+escHtml(p.name)+'</td><td>'+pfMoney(p.paid)+'</td><td>'+pfMoney(p.received)+'</td></tr>'; }).join('');
 return pfShareSectionsHTML(c) + '<p class="pf-ch">④ 目前預估 <span class="pf-prog">進行中</span></p>'
 + '<div class="pf-line"><span>預估收入</span><span>'+pfMoney(c.estIncome)+'</span></div>'
++ (c.saleIncome ? '<div class="pf-line"><span>＋ 庫存賣出（朋友／非會員）</span><span>'+pfMoney(c.saleIncome)+'</span></div>' : '')
 + '<div class="pf-line"><span>− 商品成本</span><span>'+pfMoney(-c.productCost)+'</span></div>'
 + '<div class="pf-line"><span>− 刷卡手續費</span><span>'+pfMoney(-c.fee)+'</span></div>'
 + '<div class="pf-line"><span>− 包材・運費</span><span>'+pfMoney(-c.extra)+'</span></div>'
@@ -6452,6 +6485,7 @@ var transferHTML = c.transfers.length
 : '<p class="pf-transfer" style="color:var(--muted);">不用互相轉帳</p>';
 return pfShareSectionsHTML(c) + '<p class="pf-ch">④ 利潤・分潤</p>'
 + '<div class="pf-line"><span>實收</span><span>'+pfMoney(c.inc.paid)+'</span></div>'
++ (c.saleIncome ? '<div class="pf-line"><span>＋ 庫存賣出（朋友／非會員）</span><span>'+pfMoney(c.saleIncome)+'</span></div>' : '')
 + '<div class="pf-line"><span>− 商品成本</span><span>'+pfMoney(-c.productCost)+'</span></div>'
 + '<div class="pf-line"><span>− 刷卡手續費</span><span>'+pfMoney(-c.fee)+'</span></div>'
 + '<div class="pf-line"><span>− 包材・運費</span><span>'+pfMoney(-c.extra)+'</span></div>'
@@ -6550,7 +6584,7 @@ return '<div class="pf-extra">'
 + '<select class="pf-in pf-xpayer" data-i="'+i+'">'+pfPayerOptions(x.payer, true)+'</select>'
 + '<button type="button" class="pf-x pf-xdel" data-i="'+i+'" aria-label="刪除">✕</button>'
 + (x.ship ? '<p class="pf-extra-hint">向客人收的運費 '+pfMoney(c.inc.ship)+'（已扣運費折扣），這裡填實際付給超商的</p>' : '')
-+ (x.sale ? '<p class="pf-extra-hint" style="color:#047857;">💰 庫存賣出：金額是客人付的<b>賣價</b>（會算成收入、照比例分）；右邊選<b>收錢的人</b>。這件的成本照樣留在「庫存未售出」，不用動。</p>' : '')
++ (x.sale ? '<p class="pf-extra-hint" style="color:#047857;">💰 庫存賣出：金額是客人付的<b>賣價</b>，會算進④的「＋ 庫存賣出」收入、照比例分，也會記在收錢的人「收到」那欄；右邊選<b>收錢的人</b>。這件的成本照樣留在「庫存未售出」，不用動。</p>' : '')
 + (x.refund && !x.sale ? '<p class="pf-extra-hint" style="color:#047857;">↩ 回收：之前已經分攤過成本的庫存，後來朋友買走付的錢。金額填<b>收到多少</b>（正數就好，會自動當成扣回成本）；右邊選<b>收錢的人</b>，系統會算他要還給其他人多少。</p>' : '')
 + '</div>';
 }).join('');
@@ -6580,6 +6614,7 @@ return '<div class="pf-feerow"><div class="pf-fee-top"><span>💳 '+escHtml(p.na
 + (c.feeBy.split ? '<p class="pf-hint">平分買的刷卡商品手續費 '+pfMoney(c.feeBy.split)+'（1.5%）</p>' : '');
 listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列表</button>'
 + '<h3 class="pf-title">'+escHtml(pfTitle(pfKey))+'</h3>'
++ (pfData.done ? '<p class="pf-lock-bar">🔒 這張已經分完錢、鎖起來了：只能看，不能改。要改的話，到最下面取消「這張已經分完錢了」。</p>' : '')
 + (c.inProgress ? '<p class="pf-warn" style="background:#EEF2FF;color:#3730A3;">🔄 進行中：還沒結單的已確認商品也一起算（先用喊單金額預估），收到的訂金、預付也可以先認領。全部結單付款後會變成正式結算。</p>' : '')
 
 + '<div class="pf-card"><p class="pf-ch">① 收入（自動帶入）</p>'
@@ -6624,12 +6659,22 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<div class="pf-card"><p class="pf-ch">夥伴・分潤比例</p>' + pfRatioPresetHTML() + partnersHTML
 + '<button type="button" class="adm-link" id="pfAddPartner">＋ 新增夥伴</button></div>'
 
-+ '<label class="pf-donebox"><input type="checkbox" id="pfDone"'+(pfData.done ? ' checked' : '')+'> 這張已經分完錢了</label>'
++ '<label class="pf-donebox"><input type="checkbox" id="pfDone"'+(pfData.done ? ' checked' : '')+'> 這張已經分完錢了（勾了會鎖起來，數字不再變）</label>'
 + '<div class="pf-actions"><button type="button" class="pf-btn ghost" id="pfCopy">複製</button>'
 + '<button type="button" class="pf-btn ghost" id="pfDownload">⬇️ 下載</button>'
 + '<button type="button" class="pf-btn" id="pfSave">'+(pfDirty ? '儲存' : '已儲存')+'</button></div>';
 PF_LAST_C = c;
 bindProfitSheet(c);
+if(pfData.done){
+// 鎖起來：除了返回、複製、下載、儲存、取消鎖定，其他都不能動
+listEl.querySelectorAll('input, select, textarea, button').forEach(function(el){
+if(el.id === 'pfDone' || el.id === 'pfCopy' || el.id === 'pfDownload' || el.id === 'pfSave' || el.classList.contains('pf-back')) return;
+el.disabled = true;
+});
+listEl.classList.add('pf-locked');
+// 舊版勾過「已分完」但還沒存數字：用現在（同當時的算法）的數字存起來
+if(!pfData.lock){ pfData.lock = pfLockSnapshot(c); saveProfitSheet(null); }
+} else listEl.classList.remove('pf-locked');
 // 已經全部收款完的表（可能已經結算過）不自動提醒改庫存數量，避免動到結算過的帳；要改可以按按鈕
 if(c.inProgress) pfCheckStockSync();
 }
@@ -6924,6 +6969,18 @@ var rin = document.querySelector('.pf-strate[data-i="'+i+'"]'); if(rin) rin.plac
 try{ var d = await getFxOnDate(date); if(d && d.rate){ pfData.stockCosts[i].rate = String(d.rate); if(rin) rin.value = d.rate; pfMarkDirty(false); } }
 catch(e){ if(rin) rin.placeholder = '抓不到，請手動輸入'; }
 });
+// 「🔍 自動帶入日幣」：用事件委派（打字時這行會重畫），只綁一次
+if(!window._pfScFillBound){ window._pfScFillBound = true; document.addEventListener('click', async function(ev){
+var b = ev.target.closest && ev.target.closest('.pf-sc-fill'); if(!b) return;
+var i = Number(b.getAttribute('data-i')), x = pfData.stockCosts[i]; if(!x || !x.pid) return;
+b.disabled = true; b.textContent = '找找看…';
+var info = null; try{ info = await getCostInfo(x.pid); }catch(e){}
+var j = costJpyGuess(info, '');
+if(!(j > 0)){ b.disabled = false; b.textContent = '🔍 自動帶入日幣'; alert('這件商品沒有記過日幣價格，也沒有喊單記過成本，請手動填日幣'); return; }
+x.jpy = String(j);
+pfMarkDirty(true);
+showToast('帶入 ¥'+j+'，確認一下再按儲存');
+}); }
 on('#pfAbSkip', 'click', function(){
 if(!pfData.abMoved) pfData.abMoved = {};
 pfAbandonedItems().forEach(function(o){ pfData.abMoved[o.id] = true; });
@@ -7031,7 +7088,17 @@ pfData.partners.push({ id:id, name:'' });
 pfMarkDirty(true);
 var ins = root.querySelectorAll('.pf-pname'); if(ins.length) ins[ins.length-1].focus();
 });
-on('#pfDone', 'change', function(){ pfData.done = this.checked; pfMarkDirty(false); });
+on('#pfDone', 'change', async function(){
+if(this.checked){
+if(!window.confirm('確定這張已經分完錢了嗎？\n\n勾了之後會把現在的數字（誰墊付、誰轉給誰）存起來鎖住：\n・只能看，不能改\n・之後網站更新算法，這張也不會變')){ this.checked = false; return; }
+pfData.done = true; pfData.lock = pfLockSnapshot(pfCompute());
+} else {
+if(!window.confirm('要解鎖這張嗎？\n\n解鎖後會照最新的算法重新算，數字可能跟當初分的不一樣。')){ this.checked = true; return; }
+pfData.done = false; delete pfData.lock;
+}
+await saveProfitSheet(null);
+var y = window.scrollY; renderProfitSheet(); window.scrollTo(0, y);
+});
 on('#pfCopy', 'click', function(){ pfCopyText(pfCompute()); });
 on('#pfDownload', 'click', function(){ pfDownloadImage(pfCompute(), this); });
 on('#pfSave', 'click', function(){ saveProfitSheet(this); });
@@ -7063,6 +7130,7 @@ var lines = [];
 lines.push('【' + pfTitle(pfKey) + '｜分潤】');
 if(!c.final) lines.push('🔄 進行中・預估（還有沒結單或沒付款的）');
 lines.push((c.final ? '實收 ' + pfMoney(c.inc.paid) + '（' + c.inc.paidCount + ' 筆已付款，已扣優惠券）' : '預估收入 ' + pfMoney(c.estIncome) + '（已付款 ' + pfMoney(c.inc.paid) + '）'));
+if(c.saleIncome) lines.push('＋ 庫存賣出（朋友／非會員）' + pfMoney(c.saleIncome));
 lines.push('成本 ' + pfMoney(c.totalCost) + '（商品 ' + pfMoney(c.productCost) + '・刷卡手續費 ' + pfMoney(c.fee) + '・包材運費 ' + pfMoney(c.extra) + (c.stock ? '・庫存未售出 ' + pfMoney(c.stock) : '') + '）');
 lines.push((c.final ? '利潤 ' : '預估利潤 ') + pfMoney(c.profit) + '，' + pfSplitText(c));
 lines.push('');
@@ -7091,6 +7159,7 @@ var W = 1080, P = 64, FONT = '-apple-system,"PingFang TC","Noto Sans TC","Micros
 var rows = [];   // { t:'title'|'line'|'big'|'gap'|'head'|'person'|'transfer'|'note', ... }
 var now = new Date(Date.now() + 8*3600000).toISOString().slice(0,16).replace('T',' ');
 rows.push(c.final ? { t:'line', a:'實收（'+c.inc.paidCount+' 筆已付款）', b:pfMoney(c.inc.paid) } : { t:'line', a:'預估收入（進行中）', b:pfMoney(c.estIncome) });
+if(c.saleIncome) rows.push({ t:'line', a:'＋ 庫存賣出（朋友／非會員）', b:pfMoney(c.saleIncome) });
 rows.push({ t:'line', a:'− 商品成本', b:pfMoney(-c.productCost) });
 rows.push({ t:'line', a:'− 刷卡手續費', b:pfMoney(-c.fee) });
 rows.push({ t:'line', a:'− 包材・運費', b:pfMoney(-c.extra) });
