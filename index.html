@@ -482,6 +482,9 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .cycle-sell-tip{ margin-top:6px !important; color:#065F46 !important; font-weight:700; }
 .settle-cod-row{ font-size:13px; font-weight:700; color:#065F46; }
 .settle-cod-row.is-line{ font-size:15px; font-weight:900; color:#047857; }
+.jpy-buy{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 8px; margin:6px 0 2px; font-size:12.5px; color:var(--muted); font-weight:700; }
+.jpy-buy-date{ border:1.5px solid var(--line); border-radius:10px; padding:5px 8px; font-size:13px; font-family:inherit; background:#fff; color:var(--text-dark); }
+.jpy-buy-fx{ color:#8A5A00; }
 .pf-lock-bar{ margin:0 0 12px; padding:10px 12px; border-radius:12px; background:#F1F5F9; border:1.5px solid #94A3B8; font-size:13px; font-weight:700; color:#334155; line-height:1.6; }
 .pf-lock-tag{ display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:#334155; color:#fff; font-size:11px; vertical-align:middle; }
 .pf-locked input:disabled, .pf-locked select:disabled, .pf-locked textarea:disabled{ opacity:.75; }
@@ -1663,7 +1666,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261117-0050';
+var APP_VERSION = '20261117-0100';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -9582,6 +9585,7 @@ return '<div class="jpy-box" data-key="'+escAttr(key)+'" data-fxdate="'+escAttr(
 + '<label>倍數<input type="number" min="0" step="0.01" class="gate-input jpy-mult" value="'+(mult || '')+'" placeholder="1.4"></label>'
 + '</div>'
 + '<p class="jpy-result"></p>'
++ '<div class="jpy-buy"><span>成本用哪天的匯率</span><input type="date" class="jpy-buy-date"><span class="jpy-buy-fx">沒選＝今天</span></div>'
 + '<div class="jpy-today"></div>'
 + saved
 + (key.indexOf('row-') === 0 ? '<button type="button" class="jpy-hist-btn">📜 看換算歷史</button><div class="jpy-hist" style="display:none;"></div>' : '')
@@ -9612,8 +9616,11 @@ if(tw && !touched && key.indexOf('row-') === 0){ var pe = jpyPriceInputFor(key);
 if(tw){
 // 成本用「今天的市場匯率」估（定價匯率是拿來算售價的，不是成本）；實際成本看確認喊單時記的當天匯率
 var todayFx = ADMIN_FX && Number(ADMIN_FX.today) || 0;
-var cTw = todayFx > 0 ? Math.round((Number(jpy) || 0) * todayFx) : 0;
-res.textContent = '= NT$' + fmtNum(tw) + (touched ? '（已帶入台幣價格）' : '') + (cTw > 0 ? '　💴 用今天匯率 ' + todayFx + ' 算，成本約 NT$' + fmtNum(cTw) + '・每個賺約 NT$' + fmtNum(tw - cTw) : '');
+// 選了購買日期：用那天的匯率算成本
+var buyFx = Number(box.getAttribute('data-buyfx')) || 0, buyDate = box.getAttribute('data-buydate') || '';
+var cFx = buyFx > 0 ? buyFx : todayFx;
+var cTw = cFx > 0 ? Math.round((Number(jpy) || 0) * cFx) : 0;
+res.textContent = '= NT$' + fmtNum(tw) + (touched ? '（已帶入台幣價格）' : '') + (cTw > 0 ? '　💴 用' + (buyFx > 0 ? ' ' + buyDate.slice(5).replace('-', '/') + ' 的匯率 ' : '今天匯率 ') + cFx + ' 算，成本約 NT$' + fmtNum(cTw) + '・每個賺約 NT$' + fmtNum(tw - cTw) : '');
 if(touched){ var pi = jpyPriceInputFor(key); if(pi) pi.value = tw; }
 } else {
 res.textContent = Number(jpy) > 0 ? '請填匯率和倍數' : '';
@@ -9686,6 +9693,23 @@ var ob = ed && ed.querySelector('.admin-optp');
 if(ob && box.getAttribute('data-optjpy') && !ob.getAttribute('data-jpy')){ ob.setAttribute('data-jpy', box.getAttribute('data-optjpy')); renderAdminOptPrices(ed); }
 var ins = box.querySelectorAll('.jpy-price, .jpy-rate, .jpy-mult');
 for(var k=0;k<ins.length;k++){ ins[k].addEventListener('input', function(){ box.setAttribute('data-touched', '1'); recalcJpyBox(box); }); }
+// 成本用哪天的匯率：選日期 → 查那天匯率（記在這支手機，下次打開同一件商品還在）
+var bd = box.querySelector('.jpy-buy-date'), bfx = box.querySelector('.jpy-buy-fx');
+var bdKey = 'jpyBuyDate:' + box.getAttribute('data-key');
+var applyBuyDate = async function(d){
+if(!d){ box.removeAttribute('data-buyfx'); box.removeAttribute('data-buydate'); bfx.textContent = '沒選＝今天'; recalcJpyBox(box); return; }
+bfx.textContent = '查匯率中…';
+try{
+var r = await getFxOnDate(d);
+if(r && r.rate){ box.setAttribute('data-buyfx', String(r.rate)); box.setAttribute('data-buydate', d); bfx.textContent = '匯率 ' + r.rate + (r.rateDate && r.rateDate !== d ? '（' + r.rateDate + '）' : ''); }
+else bfx.textContent = '查不到那天的匯率';
+}catch(err){ bfx.textContent = '查不到：' + err.message; }
+recalcJpyBox(box);
+};
+if(bd){
+try{ var sv = localStorage.getItem(bdKey); if(sv){ bd.value = sv; applyBuyDate(sv); } }catch(err){}
+bd.addEventListener('change', function(){ try{ if(bd.value) localStorage.setItem(bdKey, bd.value); else localStorage.removeItem(bdKey); }catch(err){} applyBuyDate(bd.value); });
+}
 box.addEventListener('click', function(e){
 if(e.target && e.target.classList && e.target.classList.contains('jpy-hist-btn')){ toggleJpyHistory(box, e.target); return; }
 if(e.target && e.target.classList && e.target.classList.contains('jpy-set-fixed')){
