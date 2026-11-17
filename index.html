@@ -492,6 +492,7 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .inv-buy-g label{ display:flex; flex-direction:column; gap:3px; font-size:11.5px; font-weight:700; color:var(--muted); }
 .inv-buy-g input, .inv-buy-g select{ width:100%; box-sizing:border-box; border:1.5px solid var(--line); border-radius:10px; padding:7px 9px; font-size:14px; font-family:inherit; background:#fff; color:var(--text-dark); min-width:0; -webkit-appearance:none; appearance:none; }
 .inv-bc-save{ margin-top:10px; width:100%; padding:10px; border:none; border-radius:999px; background:#8A5A00; color:#fff; font-size:13.5px; font-weight:800; font-family:inherit; }
+.inv-bc-x{ margin-top:6px; width:100%; padding:8px; border:1.5px dashed #94A3B8; border-radius:999px; background:#F8FAFC; color:#334155; font-size:12.5px; font-weight:700; font-family:inherit; }
 .inv-bc-all{ margin-top:6px; width:100%; padding:8px; border:1.5px solid #F5D78E; border-radius:999px; background:transparent; color:#8A5A00; font-size:12.5px; font-weight:700; font-family:inherit; }
 .jpy-buy{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 8px; margin:6px 0 2px; font-size:12.5px; color:var(--muted); font-weight:700; }
 .jpy-buy-date{ border:1.5px solid var(--line); border-radius:10px; padding:5px 8px; font-size:13px; font-family:inherit; background:#fff; color:var(--text-dark); }
@@ -1677,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261117-0200';
+var APP_VERSION = '20261117-1820';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3228,9 +3229,10 @@ function invBuyHTML(pid){
 var P = INV.p[pid] || { u:[], n:1 }, c = P.c || {};
 var po = invProdObj(pid), gj = 0; try{ gj = costJpyGuess(po && po.cost ? { jpyPrice: po.cost.jpyPrice, optionJpy: po.cost.optionJpy } : null, ''); }catch(e){}
 var ps = costPartnerList();
-var miss = P.u.filter(function(u){ return !(u.c && Number(u.c.j) > 0); }).length, has = P.u.length - miss;
+// u.cx：這顆的成本已經在別張分潤算過（例如上一張一起買下的剩貨），不用填、也不會被填
+var miss = P.u.filter(function(u){ return !u.cx && !(u.c && Number(u.c.j) > 0); }).length, nx = P.u.filter(function(u){ return u.cx; }).length, has = P.u.length - miss - nx;
 var pm = c.pm || 'card', b = c.b || (ps[0] || {}).id || '';
-return '<details class="inv-buy"'+(P.u.length && miss ? ' open' : '')+'><summary>💴 實際買入成本'+(P.u.length ? '<span class="inv-buy-n'+(miss ? ' is-miss' : '')+'">'+(miss ? miss+' 個還沒填' : '全部 '+has+' 個都有填')+'</span>' : '')+'</summary>'
+return '<details class="inv-buy"'+(P.u.length && miss ? ' open' : '')+'><summary>💴 實際買入成本'+(P.u.length ? '<span class="inv-buy-n'+(miss ? ' is-miss' : '')+'">'+(miss ? miss+' 個還沒填' : (has ? '新買的 '+has+' 個都有填' : '成本都在別張分潤算過'))+'</span>' : '')+'</summary>'
 + '<p class="inv-buy-h">填<b>實際買到的價錢</b>（打折、免稅後），之後按「＋」記的每一個都會帶這個成本。分潤「從庫存帶入」、確認喊單時都會用這裡的，不會再用上架時查的價錢。</p>'
 + '<div class="inv-buy-g">'
 + '<label>日幣（1個・含稅）<input type="number" inputmode="numeric" class="inv-bc-j" value="'+escAttr(c.j || '')+'" placeholder="'+(gj ? '上架時查的 ¥'+gj : '¥')+'"></label>'
@@ -3240,6 +3242,8 @@ return '<details class="inv-buy"'+(P.u.length && miss ? ' open' : '')+'><summary
 + '<label>怎麼付的<select class="inv-bc-pm"><option value="card"'+(pm === 'card' ? ' selected' : '')+'>💳 刷卡</option><option value="cash"'+(pm === 'cash' ? ' selected' : '')+'>💵 現金</option></select></label>'
 + '</div>'
 + '<button type="button" class="inv-bc-save" data-pid="'+escAttr(pid)+'">💾 存起來'+(miss && P.u.length ? '（也填進還沒填的 '+miss+' 個）' : '')+'</button>'
++ (miss ? '<button type="button" class="inv-bc-x" data-pid="'+escAttr(pid)+'">📒 這 '+miss+' 個成本已經在別張分潤算過了（不用填）</button>' : '')
++ (nx ? '<p class="inv-buy-h" style="margin:6px 0 0;">📒 有 '+nx+' 個標成「成本在別張分潤算過」，不會被填成本、確認喊單也不會自動帶成本。</p>' : '')
 + (has && P.u.length > 1 ? '<button type="button" class="inv-bc-all" data-pid="'+escAttr(pid)+'">全部 '+P.u.length+' 個都改成這個成本</button>' : '')
 + '</details>';
 }
@@ -3249,7 +3253,7 @@ return { j: j, r: r, d: card.querySelector('.inv-bc-d').value || todayTW(), b: c
 }
 function invSaveBuyCost(pid, c, mode){
 var P = INV.p[pid] || { u:[], n:1 };
-var units = P.u.map(function(u){ var x = Object.assign({}, u); if(mode === 'all' || !(x.c && Number(x.c.j) > 0)) x.c = Object.assign({}, c); return x; });
+var units = P.u.map(function(u){ var x = Object.assign({}, u); if(x.cx) return x; if(mode === 'all' || !(x.c && Number(x.c.j) > 0)) x.c = Object.assign({}, c); return x; });
 var nP = { u:units, n:P.n || 1, nm:invProdName(pid), c:c };
 invQueue({ k:'pset', pid:pid, v:nP });
 invRefreshViews();
@@ -3259,6 +3263,16 @@ var t = e.target; if(!t || !t.classList || !t.classList.contains('inv-bc-d')) re
 var card = t.closest('.inv-card'); if(!card) return;
 var rEl = card.querySelector('.inv-bc-r'); rEl.value = ''; rEl.placeholder = '查詢中…';
 try{ var fx = await getFxOnDate(t.value); if(fx && fx.rate) rEl.value = fx.rate; else rEl.placeholder = '查不到，請手動填'; }catch(err){ rEl.placeholder = '查不到，請手動填'; }
+});
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('.inv-bc-x') : null; if(!b) return;
+var pid = b.getAttribute('data-pid'), P = INV.p[pid] || { u:[], n:1 };
+var n = P.u.filter(function(u){ return !u.cx && !(u.c && Number(u.c.j) > 0); }).length;
+if(!window.confirm('把還沒填成本的 '+n+' 個標成「成本已經在別張分潤算過」嗎？\n\n例如上一張分潤一起買下的剩貨。之後按「存起來」不會填到它們，客人喊單確認時也不會自動帶成本（照提醒按「先確認，成本之後補」）。')) return;
+var units = P.u.map(function(u){ var x = Object.assign({}, u); if(!x.cx && !(x.c && Number(x.c.j) > 0)) x.cx = 1; return x; });
+invQueue({ k:'pset', pid:pid, v:{ u:units, n:P.n || 1, nm:invProdName(pid), c:P.c } });
+invRefreshViews();
+showToast('已標記 '+n+' 個');
 });
 document.addEventListener('click', async function(e){
 var b = e.target && e.target.closest ? e.target.closest('.inv-bc-save, .inv-bc-all') : null; if(!b) return;
@@ -3298,7 +3312,7 @@ var ucs = {}, uorder = [];
 if(uorder.length){
 var hu = '<div class="inv-cost"><p class="inv-cost-t">💴 成本（實際買入・賣朋友收這個就打平）</p>';
 uorder.forEach(function(k){ var g = ucs[k], tw = Math.round(g.c.j * g.c.r); hu += '<p class="inv-cost-r"><b>NT$'+fmtNum(tw)+'</b>／個<small>'+g.n+' 個・'+escHtml(String(g.c.d || '').slice(5).replace('-', '/'))+' 買・¥'+fmtNum(g.c.j)+' × '+g.c.r+'・'+escHtml(costPartnerName(g.c.b))+(g.c.pm !== 'cash' ? '・刷卡再加手續費約 NT$'+fmtNum(Math.round(tw * 0.015)) : '・現金')+'</small></p>'; });
-var nMiss = (INV.p[pid].u || []).filter(function(u){ return !(u.c && Number(u.c.j) > 0); }).length;
+var nMiss = (INV.p[pid].u || []).filter(function(u){ return !u.cx && !(u.c && Number(u.c.j) > 0); }).length;
 if(nMiss) hu += '<p class="inv-cost-r"><small style="color:#B45309;">另外 '+nMiss+' 個還沒填實際成本</small></p>';
 if(price) hu += '<p class="inv-cost-r"><small>售價 NT$'+fmtNum(price)+'</small></p>';
 return hu + '</div>';
