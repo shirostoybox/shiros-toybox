@@ -1678,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261117-1820';
+var APP_VERSION = '20261117-1830';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3224,6 +3224,11 @@ return '<div class="inv-card'+(folded ? ' is-folded' : '')+'" data-pid="'+escAtt
 }
 // 💴 實際買入成本：記在這件商品的庫存上（P.c），之後按「＋」記的每一個都帶這個成本（u.c）
 // 沒人喊單、只放庫存的東西也有成本；分潤「從庫存帶入」、確認喊單時都會優先用這裡的成本
+// 還沒分出去、標成「成本在別張分潤算過」的有幾個（這些不用再帶進分潤）
+function invCxLeft(pid, confirmed){
+if(!confirmed){ confirmed = {}; Object.keys(INV.a || {}).forEach(function(oid){ var A = INV.a[oid]; if(A && A.p === pid) (A.u || []).forEach(function(id){ confirmed[id] = 1; }); }); }
+return ((INV.p[pid] || {}).u || []).filter(function(u){ return u.cx && !confirmed[u.i]; }).length;
+}
 function invUnitCostKey(c){ return c ? [c.j, c.r, c.d || '', c.b || '', c.pm || ''].join('|') : ''; }
 function invBuyHTML(pid){
 var P = INV.p[pid] || { u:[], n:1 }, c = P.c || {};
@@ -6861,7 +6866,7 @@ return { yes: false, why: '' };
 function pfMissingStock(alloc, c){
 var have = {};
 (pfData.stockCosts || []).forEach(function(x){ if(x.pid) have[x.pid] = true; });
-return Object.keys(alloc.prod).filter(function(pid){ return alloc.prod[pid].left > 0 && !have[pid] && !pfRecordedElsewhere(pid) && pfStockBelongs(pid, c).yes; });
+return Object.keys(alloc.prod).filter(function(pid){ return alloc.prod[pid].left - invCxLeft(pid) > 0 && !have[pid] && !pfRecordedElsewhere(pid) && pfStockBelongs(pid, c).yes; });
 }
 // 帶入前讓你勾：系統先幫你勾好判斷是這張表的，其他的也列出來可以自己勾
 function pfPickStockModal(alloc, c, cands){
@@ -6906,7 +6911,9 @@ Object.keys(INV.a || {}).forEach(function(oid){ var A = INV.a[oid]; if(!A || A.p
 // 這張表裡記過「💰 庫存賣出（非會員／朋友）」的，已經從庫存刪掉了，但成本還要留在這裡 → 加回來
 var soldOff = 0;
 ((typeof pfData !== 'undefined' && pfData && pfData.extraCosts) || []).forEach(function(x){ if(x && x.sale && x.sale.pid === pid) soldOff += Number(x.sale.qty) || 0; });
-return Math.max(0, P.total - costed + soldOff);
+// 標成「成本在別張分潤算過」的不算在這張的庫存成本裡
+var cx = ((INV.p[pid] || {}).u || []).filter(function(u){ return u.cx; }).length;
+return Math.max(0, P.total - costed - cx + soldOff);
 }
 function pfStockLabel(pid, P){
 var detail = P ? P.leftOrder.map(function(l){ return invLabelText(l)+'×'+P.leftBy[l]; }).join('、') : '';
@@ -7152,7 +7159,10 @@ var q0 = pfStockQtyFor(pid, alloc, lrs[0].groups || []);
 // 庫存上有填實際買入成本：照成本分成幾行（同一個成本一行），用最後記的那幾個（先記的通常先分給客人）
 var qq = q0 != null ? q0 : P.left;
 var confirmed = {}; Object.keys(INV.a || {}).forEach(function(oid){ var A = INV.a[oid]; if(A && A.p === pid) (A.u || []).forEach(function(id){ confirmed[id] = 1; }); });
-var leftU = ((INV.p[pid] || {}).u || []).filter(function(u){ return !confirmed[u.i]; }).slice(-qq);
+// 標成「成本在別張分潤算過」的不帶進來
+qq = Math.max(0, qq - invCxLeft(pid, confirmed));
+if(!(qq > 0)) return;
+var leftU = ((INV.p[pid] || {}).u || []).filter(function(u){ return !confirmed[u.i] && !u.cx; }).slice(-qq);
 if(qq > 0 && leftU.length && leftU.some(function(u){ return u.c && Number(u.c.j) > 0; })){
 var grp = {}, gord = [];
 leftU.forEach(function(u){ var kk = (u.c && Number(u.c.j) > 0) ? invUnitCostKey(u.c) : '_'; if(!grp[kk]){ grp[kk] = { c: (u.c && Number(u.c.j) > 0) ? u.c : null, n:0 }; gord.push(kk); } grp[kk].n++; });
