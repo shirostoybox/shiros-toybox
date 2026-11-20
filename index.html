@@ -642,6 +642,7 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .adm-p-dep{ flex:1; min-width:0; padding:7px 10px; border:1.5px solid #F5C26B; border-radius:var(--r-full); font-size:13px; background:#FFFBEB; font-family:var(--font-body); }
 .adm-p-btn{ padding:7px 14px; border-radius:var(--r-full); font-size:12.5px; font-weight:700; font-family:var(--font-body); border:1.5px solid transparent; }
 .adm-p-btn.is-ok{ background:var(--ink); color:#fff; }
+.adm-p-btn.is-move{ background:#F5F3FF; color:#6D28D9; border-color:#DDD6FE; }
 .adm-p-btn.is-x{ background:transparent; color:var(--muted); border-color:var(--line); margin-left:auto; }
 .adm-p-all{ width:100%; margin-top:8px; padding:9px; border-radius:var(--r-md); border:1.5px dashed #1E7A3C; background:#F0FAF3; color:#1E7A3C; font-size:13px; font-weight:800; font-family:var(--font-body); }
 .adm-p-amt{ margin-left:auto; font-size:12px; color:var(--muted); font-weight:700; }
@@ -1678,7 +1679,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261120-2300';
+var APP_VERSION = '20261121-0130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3700,6 +3701,7 @@ if(o.status === '待確認' && Number(o.quantity) > 1) actions += '<button type=
 if(o.status === '已確認'){
 actions = costChipHTML(o) + '<button type="button" class="admin-unconfirm-btn adm-p-undo" data-order-id="'+o.id+'">退回</button>' + actions;
 }
+actions += orderMoveZoneBtnHTML(o, 'adm-p-btn is-move');
 actions += '<button type="button" class="admin-cancel-btn adm-p-btn is-x" data-order-id="'+o.id+'">缺貨</button>';
 var swapped = o.orig_variant && /(^|・)沒貨改/.test(String(o.orig_variant));
 var rand = o.orig_variant ? (swapped ? '<span class="adm-p-st is-swap">🔁已改「'+escHtml(String(o.orig_variant).split('・').map(function(x){ return x.trim(); }).filter(function(x){ return /^沒貨改/.test(x); })[0].slice(3))+'」</span>' : '<span class="adm-p-st is-rand">🔄已改隨機</span>') : '';
@@ -3997,6 +3999,7 @@ var confirmBtn = o.status === '待確認'
 ? '<button class="btn btn--primary btn--full admin-confirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;">'+(o.deposit_required && !(Number(o.deposit_amount||0) > 0) ? '輸入訂金後確認' : '確認')+'</button>'
 : '<button class="btn btn--full admin-unconfirm-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px dashed var(--muted);color:var(--muted);font-size:13px;">按錯了，退回待確認</button>';
 var cancelBtn = (o.status === '待確認' && Number(o.quantity) > 1 ? '<button class="btn btn--full admin-partial-btn" data-order-id="'+o.id+'" data-qty="'+o.quantity+'" style="margin-top:8px;background:transparent;border:1.5px dashed var(--ignis);color:var(--ignis-deep);font-weight:700;">🔢 部分確認（喊 '+o.quantity+' 個，先買到幾個先確認）</button>' : '')
++ orderMoveZoneBtnHTML(o, 'btn btn--full', 'margin-top:8px;background:transparent;border:1.5px dashed #7C3AED;color:#6D28D9;')
 + '<button class="btn btn--full admin-cancel-btn" data-order-id="'+o.id+'" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted);">缺貨已幫您取消</button>';
 var orderZone = o.is_live_limited ? zoneById(o.live_zone_id || 'z_default') : null;
 var liveBadge = (o.is_live_limited
@@ -5201,6 +5204,46 @@ alert('操作失敗：' + e.message);
 btn.disabled = false; btn.textContent = old;
 }
 }
+// ↪ 移到別的專區：A 區沒買到、B 區那趟才買到，把這筆改算 B 區（只有還沒結單的限時連線喊單）
+function orderMoveZoneBtnHTML(o, cls, style){
+if(!o || !o.is_live_limited || o.settlement_id || o.status === '缺貨已幫您取消') return '';
+var cur = o.live_zone_id || 'z_default';
+if(!LIVE_ZONES.some(function(z){ return z.id !== cur; })) return '';
+return '<button type="button" class="admin-move-zone-btn '+cls+'" data-order-id="'+escAttr(o.id)+'" data-zone-id="'+escAttr(cur)+'" data-name="'+escAttr(o.product_name || '')+'"'+(style ? ' style="'+style+'"' : '')+'>↪ 移專區</button>';
+}
+function openMoveZonePicker(btn){
+var oid = btn.getAttribute('data-order-id'), cur = btn.getAttribute('data-zone-id'), pname = btn.getAttribute('data-name') || '這件商品';
+var nm = function(z){ return z ? (z.note || z.name || '限時連線專區') : '限時連線專區'; };
+var from = zoneById(cur);
+var others = LIVE_ZONES.filter(function(z){ return z.id !== cur; });
+var ov = document.createElement('div');
+ov.className = 'mz-ov';
+ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+ov.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto;">'
++ '<p style="margin:0 0 4px;font-size:16px;font-weight:900;">↪ 移到哪個專區？</p>'
++ '<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.6;">「'+escHtml(pname)+'」目前在 <b>'+escHtml(nm(from))+'</b>。移過去之後，售價、成本、利潤都改算在新的專區分潤表；客人會跟新專區的商品一起結單。</p>'
++ others.map(function(z){ return '<button type="button" class="mz-pick" data-zone-id="'+escAttr(z.id)+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1.5px solid #E4E4E7;border-radius:14px;background:#fff;font-size:14.5px;font-weight:800;font-family:var(--font-body);">'
++ '<span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+({gold:'#C8962B',blue:'#2F6FE0',purple:'#7C4DDB',green:'#139E72'}[z.color] || '#C8962B')+';"></span>'+escHtml(nm(z))+'<span style="margin-left:auto;font-size:12px;color:var(--muted);font-weight:600;">'+(z.is_open ? '開放中' : '已關閉')+'</span></button>'; }).join('')
++ '<button type="button" class="mz-cancel" style="width:100%;padding:12px;border:none;background:none;color:var(--muted);font-size:14px;font-weight:700;font-family:var(--font-body);">取消</button></div>';
+document.body.appendChild(ov);
+ov.addEventListener('click', async function(e){
+if(e.target === ov || (e.target.closest && e.target.closest('.mz-cancel'))){ ov.remove(); return; }
+var pk = e.target.closest ? e.target.closest('.mz-pick') : null; if(!pk) return;
+var to = zoneById(pk.getAttribute('data-zone-id'));
+if(!window.confirm('把「'+pname+'」從「'+nm(from)+'」移到「'+nm(to)+'」？\n\n・這筆的售價、成本、利潤改算「'+nm(to)+'」的分潤表\n・客人會跟「'+nm(to)+'」的商品一起結單，倒數照那一區\n・已經記的成本「誰付的」如果不是「'+nm(to)+'」分潤表的夥伴，請重新選')) return;
+ov.remove();
+btn.disabled = true; var old = btn.textContent; btn.textContent = '移動中...';
+try{
+await callMemberApi('admin-move-order-zone', { orderId: oid, zoneId: to.id });
+showToast('已移到「'+nm(to)+'」');
+await loadAdminGroups();
+}catch(err){ alert('移不了：'+err.message); btn.disabled = false; btn.textContent = old; }
+});
+}
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-move-zone-btn') : null;
+if(b){ e.preventDefault(); openMoveZonePicker(b); }
+});
 async function handleAdminCancelOrder(btn){
 if(!window.confirm('確定要標記這件商品缺貨、取消這筆訂單嗎？客人會在自己的訂單紀錄看到「缺貨已幫您取消」，不會影響他其他已確認的商品結單。')) return;
 btn.disabled = true; btn.textContent = '處理中...';
