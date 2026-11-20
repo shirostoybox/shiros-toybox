@@ -1678,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261120-1940';
+var APP_VERSION = '20261120-2130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7923,8 +7923,11 @@ return importCatMap[label];
 }
 function toOptArr(v){ return (Array.isArray(v) ? v : parseOptionList(v || '')).map(function(x){ return String(x).trim(); }).filter(Boolean); }
 // 一般商品：日幣原價先帶進換算框，台幣價格可以先不填（先隱藏，之後手動補）
+// 匯入清單的 adminNote（文字或一行一個的陣列）：上架後存成「後台備註」，客人看不到
+function importAdminNote(it){ var v = it.adminNote; if(Array.isArray(v)) v = v.map(String).join('\n'); return String(v || '').trim().slice(0, 5000); }
 function normalizeGeneralItem(it){
 var out = { general: true, name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, tax: String(it.tax || '').trim(), cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
+out.adminNote = importAdminNote(it);
 out.category = String(it.category || '').trim() || '日本選物';
 out.buyStore = String(it.buyStore || '').trim().slice(0, 20);
 out.luxury = !!it.luxury;
@@ -7996,6 +7999,7 @@ function normalizeImportItem(it){
 if(isPhotoOnlyImport(it)) return normalizePhotoOnlyItem(it);
 if(isGeneralImport(it)) return normalizeGeneralItem(it);
 var out = { name: String(it.name || '').trim(), sub: gachaSubText(it.sub), jpy: Number(it.jpy) || 0, cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
+out.adminNote = importAdminNote(it);
 var opts = (Array.isArray(it.options) ? it.options : parseOptionList(it.options || '')).map(function(x){ return String(x).trim(); }).filter(function(x){ return x && x !== '不指定'; });
 var tbl = gachaPrice(out.jpy);
 out.base = Number(it.price) || (tbl ? tbl[0] : 0);
@@ -8034,6 +8038,7 @@ return '<div class="imp-row" data-i="'+i+'">'
 + '<small>📷 '+nPhotos+' 張照片</small>'
 + x.warn.map(function(w){ return '<small style="color:var(--ignis-deep);font-weight:700;">⚠️ '+escHtml(w)+'</small>'; }).join('')
 + x.notes.map(function(w){ return '<small style="color:#B26A00;font-weight:700;">📝 '+escHtml(w)+'</small>'; }).join('')
++ (x.adminNote ? '<small style="color:#3730A3;">🔒 後台備註：'+escHtml(x.adminNote.split('\n')[0]).slice(0, 80)+(x.adminNote.indexOf('\n') !== -1 ? '…' : '')+'</small>' : '')
 + '<span class="imp-st"></span></div></div>';
 }).join('')
 + (bad ? '' : '<button type="button" class="btn btn--primary btn--full" id="impGo" style="margin-top:10px;">'+(adminImportItems.every(function(x){ return x.photoOnly; }) ? '🖼️ 開始補照片（'+adminImportItems.length+' 件）' : '📥 全部上架（'+adminImportItems.length+' 件）')+'</button>');
@@ -8139,6 +8144,7 @@ var optPhotosAll = Object.assign({}, optPhotos);
 Object.keys(optPhotos).forEach(function(o){ if(bad.indexOf(optPhotos[o]) !== -1) delete optPhotos[o]; });
 if(Object.keys(optPhotos).length) await callMemberApi('admin-import-images', { productId: res.productId, images: [], optionPhotos: JSON.stringify(optPhotos) });
 photoFail += bad.length;
+if(x.adminNote){ try{ await callMemberApi('admin-set-product-note', { productId: res.productId, note: x.adminNote }); }catch(eNt){} }
 // 後台「在哪買」：只有後台看得到，採購清單可以照店家分
 if(x.buyStore){
 try{
@@ -9185,6 +9191,34 @@ if(t.closest('#sbShow')){ adminHideSelected(false); return; }
 }, true);
 // 離開商品頁（看不到勾選框）時把下面的刪除列藏起來
 setInterval(function(){ if(ADM_DELETING) return; var vis = admSelVisible(), n = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; }).length, bar = document.getElementById('admSelBar'); if(vis && n && (!bar || bar.style.display === 'none')) adminSelPaint(); else if(bar && bar.style.display !== 'none' && !vis) bar.style.display = 'none'; }, 800);
+// 後台備註：商品卡下面顯示第一行，打開商品可以看全部、改內容（客人看不到）
+function adminNoteHeadHTML(p){
+var n = String(p.admin_note || '').trim(); if(!n) return '';
+return '<p class="adm-prod-note" data-product-id="'+escAttr(p.id)+'" style="margin:3px 0 0;font-size:11.5px;color:#3730A3;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🔒 '+escHtml(n.split('\n')[0])+'</p>';
+}
+function adminNoteBoxHTML(p){
+var n = String(p.admin_note || '');
+return '<details class="adm-note-box"'+(n ? ' open' : '')+' style="margin:10px 0 0;background:#EEF2FF;border-radius:12px;padding:8px 10px;">'
++ '<summary style="font-size:13px;font-weight:800;color:#3730A3;cursor:pointer;">🔒 我的備註（客人看不到）</summary>'
++ '<textarea class="gate-input admin-note-input" data-product-id="'+escAttr(p.id)+'" rows="'+Math.min(14, Math.max(3, n.split('\n').length + 1))+'" placeholder="例如：熱度查核、台灣賣場價格、要注意的地方…" style="margin:8px 0 6px;font-size:13px;line-height:1.5;white-space:pre-wrap;">'+escHtml(n)+'</textarea>'
++ '<button type="button" class="btn admin-note-save" data-product-id="'+escAttr(p.id)+'" style="padding:6px 14px;font-size:13px;background:#3730A3;color:#fff;border:none;">💾 存備註</button>'
++ '</details>';
+}
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-note-save') : null; if(!b) return;
+var pid = b.getAttribute('data-product-id'), ta = document.querySelector('.admin-note-input[data-product-id="'+pid+'"]'); if(!ta) return;
+b.disabled = true;
+try{
+await callMemberApi('admin-set-product-note', { productId: pid, note: ta.value });
+adminProductsCache.forEach(function(p){ if(p.id === pid) p.admin_note = ta.value; });
+var head = document.querySelector('.adm-prod[data-product-id="'+pid+'"] .adm-prod-info'), old = head && head.querySelector('.adm-prod-note');
+if(old) old.remove();
+var cp = null; adminProductsCache.forEach(function(p){ if(p.id === pid) cp = p; });
+if(head && cp && adminNoteHeadHTML(cp)){ var t = document.createElement('div'); t.innerHTML = adminNoteHeadHTML(cp); head.appendChild(t.firstChild); }
+showToast('備註已存');
+}catch(err){ alert('存不了：'+err.message); }
+b.disabled = false;
+});
 function adminProductRowHTML(p, catColor){
 var options = ADMIN_STOCK_OPTIONS.map(function(o){
 return '<option value="'+o[0]+'"'+(p.stock_status===o[0]?' selected':'')+'>'+o[1]+'</option>';
@@ -9199,11 +9233,12 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + '<label class="adm-sel-wrap"><input type="checkbox" class="adm-sel" data-product-id="'+p.id+'"'+(adminSelected[p.id] ? ' checked' : '')+'></label>'
 + '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
-+ '<p class="adm-prod-meta">'+(p.buy_store ? '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">📍 '+escHtml(p.buy_store)+'</span>' : '')+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p>'+adminProdUseHTML(p)+'</div>'
++ '<p class="adm-prod-meta">'+(p.buy_store ? '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">📍 '+escHtml(p.buy_store)+'</span>' : '')+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p>'+adminProdUseHTML(p)+adminNoteHeadHTML(p)+'</div>'
 + '<span class="adm-prod-arrow">▸</span>'
 + '</div>'
 + '<div class="adm-prod-body"'+(isOpen ? '' : ' style="display:none;"')+'>'
 + adminOrigWarnHTML(p)
++ adminNoteBoxHTML(p)
 + adminHideBoxHTML(p)
 + adminTagPhotoHTML(p)
 + adminPriceDropHTML(p)
