@@ -1678,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261120-2130';
+var APP_VERSION = '20261120-2140';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7988,7 +7988,18 @@ if(have[o]){ if(out.replace && have[o] > 1){ out.adds.push({ opt: o, url: url, s
 if(!free.length){ noRoom++; return; }
 out.adds.push({ opt: o, url: url, slot: free.shift() });
 });
-out.options = out.adds.map(function(a){ return a.opt; });
+// 封面、更多照片也可以只補（例如匯入時官網抓不到圖）：封面直接換掉；更多照片放進空的格子
+var coverUrl = String(it.cover || '').trim();
+if(coverUrl) out.adds.push({ opt: '', url: coverUrl, slot: 1, label: '封面' });
+var extraN = 0;
+(Array.isArray(it.extraPhotos) ? it.extraPhotos : []).forEach(function(u){
+u = String(u || '').trim(); if(!u) return;
+if(!free.length){ noRoom++; return; }
+out.adds.push({ opt: '', url: u, slot: free.shift(), label: '更多照片' }); extraN++;
+});
+if(coverUrl) out.notes.push('會換掉封面');
+if(extraN) out.notes.push('會加 '+extraN+' 張更多照片');
+out.options = out.adds.filter(function(a){ return a.opt; }).map(function(a){ return a.opt; });
 if(skipped) out.notes.push(skipped+' 個角色本來就有照片，不會蓋掉');
 if(out.adds.some(function(a){ return a.swap; })) out.notes.push('會換掉 '+out.adds.filter(function(a){ return a.swap; }).length+' 個角色原本的照片（修正對錯的照片）');
 if(noRoom) out.notes.push(noRoom+' 個角色因為照片格子滿了（最多 '+MAX_PHOTO_SLOT+' 張）沒補');
@@ -8025,8 +8036,8 @@ return '<div class="imp-row" data-i="'+i+'">'
 + '<div style="min-width:0;flex:1;"><b>'+escHtml(x.name || '（沒有名稱）')+'</b>'
 + (x.sub ? '<small>📄 '+escHtml(x.sub)+'</small>' : '')
 + (x.photoOnly
-? '<small>🖼️ 只補照片'+(x.product ? '・要補 '+x.adds.length+' 個角色' : '')+'</small>'
-+ (x.adds.length ? '<small>'+escHtml(x.adds.map(function(a){ return a.opt; }).join('、'))+'</small>' : '')
+? '<small>🖼️ 只補照片'+(x.product ? '・要補 '+x.adds.length+' 張' : '')+'</small>'
++ (x.adds.length ? '<small>'+escHtml(x.adds.map(function(a){ return a.opt || a.label; }).join('、'))+'</small>' : '')
 : x.general
 ? '<small>🛍️ '+escHtml(x.category)+(x.luxury ? '・🏷️ 特選商品' : '')+(x.buyStore ? '・📍 '+escHtml(x.buyStore)+'（只有後台看得到）' : '')+'</small>'
 + '<small>日幣原價 '+(x.jpy ? '¥'+fmtNum(x.jpy)+(x.tax ? '（'+escHtml(x.tax)+'）' : '') : '？')+' → '+(x.base ? 'NT$'+x.base : '<b style="color:#B26A00;">台幣之後手動填（會先隱藏）</b>')+'</small>'
@@ -8090,8 +8101,9 @@ var okMap = parseOptionPhotos(x.product.option_photos), nOk = 0;
 for(var a=0;a<x.adds.length;a++){
 if(st) st.textContent = '📷 照片 '+(a+1)+' / '+x.adds.length+'（抓取＋壓縮）…';
 try{
-await importPhotoWithRetry(x.adds[a].url, { productId: x.product.id, slot: x.adds[a].slot });
-okMap[x.adds[a].opt] = x.adds[a].slot; nOk++;
+var upP = { productId: x.product.id }; if(x.adds[a].slot > 1) upP.slot = x.adds[a].slot;
+await importPhotoWithRetry(x.adds[a].url, upP);
+if(x.adds[a].opt) okMap[x.adds[a].opt] = x.adds[a].slot; nOk++;
 }catch(err2){ photoFail++; }
 }
 if(nOk) await callMemberApi('admin-import-images', { productId: x.product.id, images: [], optionPhotos: JSON.stringify(okMap) });
