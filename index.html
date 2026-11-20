@@ -1678,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261120-1905';
+var APP_VERSION = '20261120-1930';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3229,6 +3229,16 @@ function invCxLeft(pid, confirmed){
 if(!confirmed){ confirmed = {}; Object.keys(INV.a || {}).forEach(function(oid){ var A = INV.a[oid]; if(A && A.p === pid) (A.u || []).forEach(function(id){ confirmed[id] = 1; }); }); }
 return ((INV.p[pid] || {}).u || []).filter(function(u){ return u.cx && !confirmed[u.i]; }).length;
 }
+// 已經分給客人、而且那筆喊單確認時已經記了成本的（例如 mi. 那筆記了 Jhen 刷卡）：成本在喊單上，不算「還沒填」，存起來／標記也不會動到它
+function invCostedUnits(pid){
+var m = {};
+Object.keys(INV.a || {}).forEach(function(oid){
+var A = INV.a[oid]; if(!A || A.p !== pid) return;
+var o = null; try{ o = findAdminOrder(oid); }catch(e){}
+if(o && o.cost_jpy != null && o.cost_jpy !== '' && Number(o.cost_jpy) > 0) (A.u || []).forEach(function(id){ m[id] = 1; });
+});
+return m;
+}
 function invUnitCostKey(c){ return c ? [c.j, c.r, c.d || '', c.b || '', c.pm || ''].join('|') : ''; }
 function invBuyHTML(pid){
 var P = INV.p[pid] || { u:[], n:1 }, c = P.c || {};
@@ -3236,9 +3246,10 @@ var po = invProdObj(pid), gj = 0; try{ gj = costJpyGuess(po && po.cost ? { jpyPr
 // 誰付的：預設夥伴＋各張分潤表出現過的人（例如一針大阪的小吉、Jhen）
 var ps = sharePartnerList();
 // u.cx：這顆的成本已經在別張分潤算過（例如上一張一起買下的剩貨），不用填、也不會被填
-var miss = P.u.filter(function(u){ return !u.cx && !(u.c && Number(u.c.j) > 0); }).length, nx = P.u.filter(function(u){ return u.cx; }).length, has = P.u.length - miss - nx;
+var oc = invCostedUnits(pid), nOc = P.u.filter(function(u){ return oc[u.i]; }).length;
+var miss = P.u.filter(function(u){ return !oc[u.i] && !u.cx && !(u.c && Number(u.c.j) > 0); }).length, nx = P.u.filter(function(u){ return !oc[u.i] && u.cx; }).length, has = P.u.length - nOc - miss - nx;
 var pm = c.pm || 'card', b = c.b || (ps[0] || {}).id || '';
-return '<details class="inv-buy"'+(P.u.length && miss ? ' open' : '')+'><summary>💴 實際買入成本'+(P.u.length ? '<span class="inv-buy-n'+(miss ? ' is-miss' : '')+'">'+(miss ? miss+' 個還沒填' : (has ? '新買的 '+has+' 個都有填' : '成本都在別張分潤算過'))+'</span>' : '')+'</summary>'
+return '<details class="inv-buy"'+(P.u.length && miss ? ' open' : '')+'><summary>💴 實際買入成本'+(P.u.length ? '<span class="inv-buy-n'+(miss ? ' is-miss' : '')+'">'+(miss ? miss+' 個還沒填' : (has ? '新買的 '+has+' 個都有填' : (nx ? '成本都在別張分潤算過' : '成本都記在喊單上')))+'</span>' : '')+'</summary>'
 + '<p class="inv-buy-h">填<b>實際買到的價錢</b>（打折、免稅後），之後按「＋」記的每一個都會帶這個成本。分潤「從庫存帶入」、確認喊單時都會用這裡的，不會再用上架時查的價錢。</p>'
 + '<div class="inv-buy-g">'
 + '<label>日幣（1個・含稅）<input type="number" inputmode="numeric" class="inv-bc-j" value="'+escAttr(c.j || '')+'" placeholder="'+(gj ? '上架時查的 ¥'+gj : '¥')+'"></label>'
@@ -3249,6 +3260,7 @@ return '<details class="inv-buy"'+(P.u.length && miss ? ' open' : '')+'><summary
 + '</div>'
 + '<button type="button" class="inv-bc-save" data-pid="'+escAttr(pid)+'">💾 存起來'+(miss && P.u.length ? '（也填進還沒填的 '+miss+' 個）' : '')+'</button>'
 + (miss ? '<button type="button" class="inv-bc-x" data-pid="'+escAttr(pid)+'">📒 這 '+miss+' 個成本已經在別張分潤算過了（不用填）</button>' : '')
++ (nOc ? '<p class="inv-buy-h" style="margin:6px 0 0;">✅ 有 '+nOc+' 個已經分給客人，確認喊單時已經記了成本（在分潤的每筆明細看得到），不用再填，存起來也不會改到它。</p>' : '')
 + (nx ? '<p class="inv-buy-h" style="margin:6px 0 0;">📒 有 '+nx+' 個標成「成本在別張分潤算過」，不會被填成本、確認喊單也不會自動帶成本。</p>' : '')
 + (has && P.u.length > 1 ? '<button type="button" class="inv-bc-all" data-pid="'+escAttr(pid)+'">全部 '+P.u.length+' 個都改成這個成本</button>' : '')
 + '</details>';
@@ -3259,7 +3271,8 @@ return { j: j, r: r, d: card.querySelector('.inv-bc-d').value || todayTW(), b: c
 }
 function invSaveBuyCost(pid, c, mode){
 var P = INV.p[pid] || { u:[], n:1 };
-var units = P.u.map(function(u){ var x = Object.assign({}, u); if(x.cx) return x; if(mode === 'all' || !(x.c && Number(x.c.j) > 0)) x.c = Object.assign({}, c); return x; });
+var oc = invCostedUnits(pid);
+var units = P.u.map(function(u){ var x = Object.assign({}, u); if(x.cx || oc[x.i]) return x; if(mode === 'all' || !(x.c && Number(x.c.j) > 0)) x.c = Object.assign({}, c); return x; });
 var nP = { u:units, n:P.n || 1, nm:invProdName(pid), c:c };
 invQueue({ k:'pset', pid:pid, v:nP });
 invRefreshViews();
@@ -3273,9 +3286,10 @@ try{ var fx = await getFxOnDate(t.value); if(fx && fx.rate) rEl.value = fx.rate;
 document.addEventListener('click', function(e){
 var b = e.target && e.target.closest ? e.target.closest('.inv-bc-x') : null; if(!b) return;
 var pid = b.getAttribute('data-pid'), P = INV.p[pid] || { u:[], n:1 };
-var n = P.u.filter(function(u){ return !u.cx && !(u.c && Number(u.c.j) > 0); }).length;
+var oc = invCostedUnits(pid);
+var n = P.u.filter(function(u){ return !oc[u.i] && !u.cx && !(u.c && Number(u.c.j) > 0); }).length;
 if(!window.confirm('把還沒填成本的 '+n+' 個標成「成本已經在別張分潤算過」嗎？\n\n例如上一張分潤一起買下的剩貨。之後按「存起來」不會填到它們，客人喊單確認時也不會自動帶成本（照提醒按「先確認，成本之後補」）。')) return;
-var units = P.u.map(function(u){ var x = Object.assign({}, u); if(!x.cx && !(x.c && Number(x.c.j) > 0)) x.cx = 1; return x; });
+var units = P.u.map(function(u){ var x = Object.assign({}, u); if(!oc[x.i] && !x.cx && !(x.c && Number(x.c.j) > 0)) x.cx = 1; return x; });
 invQueue({ k:'pset', pid:pid, v:{ u:units, n:P.n || 1, nm:invProdName(pid), c:P.c } });
 invRefreshViews();
 showToast('已標記 '+n+' 個');
