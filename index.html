@@ -1679,7 +1679,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261121-0130';
+var APP_VERSION = '20261121-0150';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -8135,7 +8135,10 @@ out.options = out.adds.filter(function(a){ return a.opt; }).map(function(a){ ret
 if(skipped) out.notes.push(skipped+' 個角色本來就有照片，不會蓋掉');
 if(out.adds.some(function(a){ return a.swap; })) out.notes.push('會換掉 '+out.adds.filter(function(a){ return a.swap; }).length+' 個角色原本的照片（修正對錯的照片）');
 if(noRoom) out.notes.push(noRoom+' 個角色因為照片格子滿了（最多 '+MAX_PHOTO_SLOT+' 張）沒補');
-if(!out.adds.length && !out.warn.length) out.notes.push('沒有需要補的照片');
+// 只補照片時也可以順便補「在哪買」（只有後台看得到）
+out.buyStore = String(it.buyStore || '').trim().slice(0, 30);
+if(out.buyStore) out.notes.push('會設定在哪買：'+out.buyStore);
+if(!out.adds.length && !out.warn.length && !out.buyStore) out.notes.push('沒有需要補的照片');
 return out;
 }
 function normalizeImportItem(it){
@@ -8227,6 +8230,16 @@ if(x.photoOnly){
 if(x.product && x.tagPhoto){
 try{ await callMemberApi('admin-upload-tag-photo', { productId: x.product.id, imageData: x.tagPhoto.indexOf('data:') === 0 ? x.tagPhoto : await importImageData(x.tagPhoto) }); if(!x.adds.length){ if(st){ st.textContent = '✓ 已存價格牌原圖'; st.style.color = '#166534'; } okCount++; continue; } }catch(eTp){}
 }
+var storeDone = false;
+if(x.product && x.buyStore){
+try{
+var bl2 = buyStoreList();
+if(bl2.indexOf(x.buyStore) === -1) await saveBuyStoreList(bl2.concat([x.buyStore]));
+await callMemberApi('admin-set-buy-store', { productId: x.product.id, store: x.buyStore });
+x.product.buy_store = x.buyStore; storeDone = true;
+}catch(eBs){}
+}
+if(x.product && !x.adds.length && storeDone){ if(st){ st.textContent = '✓ 在哪買：'+x.buyStore; st.style.color = '#1F8A4C'; } okCount++; continue; }
 if(!x.product || !x.adds.length){ if(st){ st.textContent = x.product ? '－ 不用補' : '－ 跳過（找不到商品）'; st.style.color = 'var(--muted)'; } continue; }
 try{
 var okMap = parseOptionPhotos(x.product.option_photos), nOk = 0;
