@@ -1678,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261120-1930';
+var APP_VERSION = '20261120-1940';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -3483,10 +3483,30 @@ if((b = t.closest('.inv-vt button'))){ invView = b.getAttribute('data-v'); try{ 
 if((b = t.closest('.inv-open'))){ invOpenModal(b.getAttribute('data-pid')); return; }
 if((b = t.closest('button.inv-pick'))){ var pk = b.getAttribute('data-pid'); invPinned[pk] = true; renderAdminInventory(); return; }
 });
+// 「誰付的」名單要等商品列表載入才有；直接從庫存打開時（還沒進商品頁）先補抓一次，抓到後只換選單、不動你填到一半的欄位
+var INV_PARTNERS_LOADING = null;
+function invEnsurePartners(){
+if(SHARE_PARTNERS && SHARE_PARTNERS.length) return;
+if(!INV_PARTNERS_LOADING) INV_PARTNERS_LOADING = callMemberApi('admin-list-products').then(function(d){
+if(d && d.partners && d.partners.length) COST_PARTNERS = d.partners;
+SHARE_PARTNERS = (d && d.allPartners) || [];
+}).catch(function(){});
+var job = INV_PARTNERS_LOADING;
+job.then(function(){
+if(INV_PARTNERS_LOADING === job) INV_PARTNERS_LOADING = null;
+var ps = sharePartnerList();
+document.querySelectorAll('select.inv-bc-b').forEach(function(sel){
+var cur = sel.value;
+sel.innerHTML = ps.map(function(x){ return '<option value="'+escAttr(x.id)+'">'+escHtml(x.name || '未命名')+'</option>'; }).join('')+'<option value="split">平分（大家一起出）</option>';
+if([].some.call(sel.options, function(o){ return o.value === cur; })) sel.value = cur;
+});
+});
+}
 function invOpenModal(pid){
 var ov = document.createElement('div');
 ov.className = 'cm-ov';
 invNoFold = true; var mcard = invCardHTML(pid); invNoFold = false;
+invEnsurePartners();
 ov.innerHTML = '<div class="cm-box">'+mcard+'<button type="button" class="btn btn--primary btn--full inv-done" style="margin-top:14px;">完成</button></div>';
 document.body.appendChild(ov);
 function close(){ ov.remove(); try{ if(document.querySelector('.adm-seg')) renderAdminOrders(); }catch(e){} try{ if(document.getElementById('invList')) renderAdminInventory(); }catch(e2){} }
@@ -3533,6 +3553,7 @@ try{ invMarkAdminAdded(); }catch(ie){}
 renderAdminInventory();
 }
 function renderAdminInventory(){
+try{ setTimeout(invEnsurePartners, 0); }catch(e){}
 var el = document.getElementById('adminTabContent');
 if(!el) return;
 INV_ALLOC = invAllocate(adminGroupsCache);
