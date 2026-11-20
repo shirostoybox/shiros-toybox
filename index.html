@@ -1678,7 +1678,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261120-2140';
+var APP_VERSION = '20261120-2300';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1909,6 +1909,36 @@ LIVE_ZONES = data.zones || [];
 function zoneById(id){
 for(var i=0;i<LIVE_ZONES.length;i++){ if(LIVE_ZONES[i].id === id) return LIVE_ZONES[i]; }
 return null;
+}
+// ---------- 合併結單：同一個 settle_group（至少兩區）的專區，客人的商品合成一張結單（key＝merge:<組別>） ----------
+function zoneGroupMates(zid){
+var z = zoneById(zid); if(!z || !z.settle_group) return [];
+return LIVE_ZONES.filter(function(x){ return x.id !== zid && x.settle_group === z.settle_group; });
+}
+function groupKeyOfZone(zid){
+var z = zoneById(zid);
+return (z && z.settle_group && zoneGroupMates(zid).length) ? 'merge:' + z.settle_group : 'zone:' + zid;
+}
+function zonesOfGroupKey(key){
+key = String(key || '');
+if(key.indexOf('merge:') === 0){ var g = key.slice(6); return LIVE_ZONES.filter(function(z){ return z.settle_group === g; }).map(function(z){ return z.id; }); }
+if(key.indexOf('zone:') === 0) return [key.slice(5)];
+return [];
+}
+function leadZoneIdOfGroup(key){ var zs = zonesOfGroupKey(key); return zs.length ? zs[0] : ''; }
+// 這張結單屬於哪幾區（合併結單會有兩區以上）
+function settleZoneIds(st){
+if(!st) return [];
+var sp = st.zone_split;
+if(sp && typeof sp === 'object' && Object.keys(sp).length > 1) return Object.keys(sp);
+return st.live_zone_id ? [st.live_zone_id] : [];
+}
+function mergedSplitHTML(st){
+var sp = st && st.zone_split; if(!sp || typeof sp !== 'object' || Object.keys(sp).length < 2) return '';
+var ks = Object.keys(sp).sort(function(a,b){ return Number(sp[b]) - Number(sp[a]); });
+return '<p style="margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#EDE9FE;color:#5B21B6;font-size:12.5px;font-weight:800;">🔗 合併結單：'
++ ks.map(function(k){ var z = zoneById(k); return escHtml(z ? (z.note || z.name || '限時連線專區') : '已刪除的專區')+' NT$'+fmtNum(sp[k]); }).join('＋')
++ '<br><span style="font-weight:600;">分潤各算各的；運費、券、折扣照商品金額比例分攤</span></p>';
 }
 function zoneColorClass(z){
 var c = z && z.color;
@@ -2295,9 +2325,10 @@ function projectGroup(g, area){
 if(area === 'all') return g;
 var oo = (g.openOrders || []).filter(function(o){ return areaOfOrder(o) === area; });
 var co = (g.cancelledOrders || []).filter(function(o){ return areaOfOrder(o) === area; });
-var ss = (g.settlements || []).filter(function(st){ return areaOfSettle(st) === area; });
+var az = area.indexOf('zone:') === 0 ? area.slice(5) : '';
+var ss = (g.settlements || []).filter(function(st){ return areaOfSettle(st) === area || (az && settleZoneIds(st).indexOf(az) !== -1); });
 if(!oo.length && !co.length && !ss.length) return null;
-var cy = {}; Object.keys(g.cycle || {}).forEach(function(k){ if(k === area) cy[k] = g.cycle[k]; });
+var cy = {}; Object.keys(g.cycle || {}).forEach(function(k){ if(k === area || (az && k.indexOf('merge:') === 0 && zonesOfGroupKey(k).indexOf(az) !== -1)) cy[k] = g.cycle[k]; });
 return Object.assign({}, g, { openOrders: oo, cancelledOrders: co, settlements: ss, cycle: cy });
 }
 // 還有事要做（喊單中、待付款、待出貨、要退款…）
@@ -2316,7 +2347,7 @@ var act = {}, seen = {};
 adminGroupsCache.forEach(function(g){
 var keys = {};
 (g.openOrders || []).concat(g.cancelledOrders || []).forEach(function(o){ keys[areaOfOrder(o)] = 1; });
-(g.settlements || []).forEach(function(st){ keys[areaOfSettle(st)] = 1; });
+(g.settlements || []).forEach(function(st){ keys[areaOfSettle(st)] = 1; settleZoneIds(st).forEach(function(z){ keys['zone:' + z] = 1; }); });
 Object.keys(keys).forEach(function(k){ seen[k] = 1; var pg = projectGroup(g, k); if(pg && groupIsActive(pg)) act[k] = (act[k] || 0) + 1; });
 });
 var chip = function(a){ var n = act[a] || 0; return adminChip(escHtml(adminAreaLabel(a)) + (n ? ' <b>'+n+'</b>' : ''), adminOrderArea === a, 'data-oarea="'+escAttr(a)+'"'); };
@@ -4571,6 +4602,7 @@ var statusClass = (isPaid && !s.abandoned) ? 'order-status order-status--confirm
 var fillColor = s.abandoned ? '#E5E7EB' : (color ? color.mid : '#F3F4F6');
 return '<div class="adm-row" data-unpaid="'+((isPaid || s.shipped_at)?'0':'1')+'" data-toship="'+((s.status === '已付款' && !s.shipped_at && !s.abandoned)?'1':'0')+'" data-settlement-card="'+s.id+'" style="background:'+fillColor+';border-radius:14px;padding:14px;margin-top:12px;">'
 + '<div class="order-top"><span class="order-no">'+(s.order_no || ('結單 '+formatDate(s.created_at||s.cycle_deadline)))+(s.is_test ? '<span style="display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-left:6px;">🧪測試結單・不算分潤</span>' : '')+'</span><span class="'+statusClass+'">'+(s.abandoned ? '棄單' : (s.shipped_at ? '已出貨' : s.status))+'</span></div>'
++ mergedSplitHTML(s)
 + (s.merged_with ? '<p style="margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:12.5px;font-weight:800;">🔗 加買的，跟 '+escHtml(s.merged_with)+' 一起寄（免運）</p>' + mergeFreeshipHTML(s, isPaid) : linkSettleHTML(s, isPaid))
 + '<p style="font-size:13px;color:var(--text-dark);font-weight:700;margin:2px 0 8px;">客人：'+(s.nickname||'客人')+'</p>'
 + (function(){
@@ -5658,6 +5690,43 @@ return '<div style="display:flex;gap:10px;margin:4px 0 10px;" data-swatch-group=
 return '<button type="button" class="zone-swatch zone-'+c[0]+(selected===c[0]?' is-selected':'')+'" data-color="'+c[0]+'" aria-label="'+c[1]+'" title="'+c[1]+'"></button>';
 }).join('') + '</div>';
 }
+// 專區卡上的「合併結單」設定：預設各自結單；選另一個專區＝兩區的商品合成一張結單
+function zoneMergeRowHTML(z){
+var mates = zoneGroupMates(z.id);
+var others = LIVE_ZONES.filter(function(x){ return x.id !== z.id; });
+if(!others.length && !mates.length) return '';
+var cur = mates.length ? mates[0].id : '';
+var nm = function(x){ return x.note || x.name || '限時連線專區'; };
+return '<div class="zc-merge" style="display:flex;align-items:center;gap:8px;margin:8px 0 2px;padding:7px 10px;border-radius:10px;background:'+(mates.length ? '#EDE9FE' : '#F4F4F5')+';">'
++ '<span style="font-size:12.5px;font-weight:800;color:'+(mates.length ? '#5B21B6' : 'var(--muted)')+';white-space:nowrap;">🔗 結單</span>'
++ '<select class="gate-input admin-zone-merge" data-zone-id="'+escAttr(z.id)+'" data-cur="'+escAttr(cur)+'" style="flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;">'
++ '<option value="">各自結單</option>'
++ others.map(function(x){ return '<option value="'+escAttr(x.id)+'"'+(x.id === cur ? ' selected' : '')+'>跟「'+escHtml(nm(x))+'」一起結單'+(x.is_open ? '' : '（已關閉）')+'</option>'; }).join('')
++ '</select></div>'
++ (mates.length ? '<p style="font-size:11.5px;color:#5B21B6;margin:2px 2px 0;line-height:1.5;">合併中：'+escHtml([nm(z)].concat(mates.map(nm)).join('＋'))+'・全部關閉後才開始倒數・利潤各算各的</p>' : '');
+}
+document.addEventListener('change', async function(e){
+var sel = e.target; if(!sel || !sel.classList || !sel.classList.contains('admin-zone-merge')) return;
+var zid = sel.getAttribute('data-zone-id'), cur = sel.getAttribute('data-cur') || '', to = sel.value;
+var me = zoneById(zid), other = to ? zoneById(to) : null;
+var nm = function(x){ return x ? (x.note || x.name || '限時連線專區') : ''; };
+var msg = to
+? '確定要讓「'+nm(me)+'」跟「'+nm(other)+'」一起結單嗎？\n\n'
++ '・客人在這兩區還沒結單的商品，會合成「一張結單」，只付一次運費、轉一次帳\n'
++ '・兩區都關閉後，才開始倒數 3 天\n'
++ '・分潤照專區分開算：商品成本、利潤各算各的\n'
++ '・運費、回饋券、折扣照兩區商品金額比例分攤（例如 70%／30%）\n'
++ '・已經結好的結單不會改變\n\n'
++ '隨時可以改回「各自結單」。'
+: '確定要讓「'+nm(me)+'」改回各自結單嗎？\n\n・還沒結單的商品會分回各區、各自結單\n・已經合併結好的結單不會改變，分潤照原本的比例';
+if(!window.confirm(msg)){ sel.value = cur; return; }
+sel.disabled = true;
+try{
+await callMemberApi('admin-set-zone-merge', { zoneId: zid, withZoneId: to });
+showToast(to ? '已設定一起結單' : '已改回各自結單');
+await loadAdminProducts();
+}catch(err){ alert('設定失敗：'+err.message); sel.value = cur; sel.disabled = false; }
+});
 function adminZonesManageHTML(){
 var html = '<div style="background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:14px;">'
 + '<p style="font-size:14px;font-weight:700;color:var(--text-dark);margin:0 0 4px;">專區管理</p>'
@@ -5679,6 +5748,7 @@ var head = z.is_open
 + '<button type="button" class="zc-btn is-ghost admin-zone-edit-toggle">編輯</button></div>';
 return '<div class="admin-zone-card'+(z.is_open ? '' : ' is-closed')+'" data-zone-id="'+escAttr(z.id)+'">'
 + head
++ zoneMergeRowHTML(z)
 + '<div class="admin-zone-edit" style="display:none;margin-top:10px;">'
 + '<input type="text" class="gate-input admin-zone-name" value="'+escAttr(z.name||'')+'" placeholder="專區名稱" style="margin-bottom:8px;">'
 + '<input type="text" class="gate-input admin-zone-note" value="'+escAttr(z.note||'')+'" placeholder="備註（地點或小幫手名字，例如：岡山・小美）" style="margin-bottom:8px;">'
@@ -6128,6 +6198,24 @@ return !!(o && /蛋殼|蛋紙|扭蛋/.test(String(o.variant || '') + String(o.pr
 // 扭蛋沒選的話：限時連線＝現金，預購連線（不是限時連線）＝刷卡
 function pfPayOf(o){ return o.pay_method || (pfIsGacha(o.product_id, o) ? ((o.is_live_limited || (o.is_live_limited === undefined && pfKey && pfKey.indexOf('zone:') === 0)) ? 'cash' : 'card') : ''); }
 function pfCardRate(pid){ var r = (pfData.cardRates || {})[pid]; return (r === undefined || r === null || r === '') ? 1.5 : (Number(r) || 0); }
+// 合併結單：這張分潤表只算「這區的那一份」，列出每張怎麼分的，一看就懂
+function pfMergedHTML(){
+var ms = ((pfDetail && pfDetail.settlements) || []).filter(function(s){ return s.merge_ratio != null && !s.abandoned; });
+if(!ms.length) return '';
+return '<details class="pf-merge" style="margin:8px 0 4px;background:#F5F3FF;border-radius:12px;padding:8px 10px;"><summary style="font-size:13px;font-weight:800;color:#5B21B6;cursor:pointer;">🔗 有 '+ms.length+' 張是合併結單（點開看怎麼分）</summary>'
++ '<p style="font-size:12px;color:#5B21B6;margin:6px 0;line-height:1.6;">上面的金額只算本區那一份：商品金額＝本區商品；運費、券、折扣照「本區商品金額 ÷ 整張商品金額」的比例分攤。商品成本、利潤一樣各算各的。</p>'
++ ms.map(function(s){
+var f = s.merge_full || {}, pct = Math.round(s.merge_ratio * 100);
+return '<div style="font-size:12px;line-height:1.6;padding:6px 0;border-top:1px dashed #DDD6FE;">'
++ '<b>'+escHtml(s.order_no || '')+' '+escHtml(s.nickname || '客人')+'</b>（跟 '+escHtml((s.merge_others || []).join('、'))+' 合併）<br>'
++ '本區商品 '+pfMoney(s.subtotal)+'／整張 '+pfMoney(f.subtotal || 0)+' ＝ <b>'+pct+'%</b><br>'
++ '→ 運費分 '+pfMoney(s.shipping_fee || 0)+'（整張 '+pfMoney(f.shipping_fee || 0)+'）'
++ ((f.coupon_discount || 0) ? '、券分 '+pfMoney(-(s.coupon_discount || 0))+'（整張 '+pfMoney(-(f.coupon_discount || 0))+'）' : '')
++ ((f.extra_discount || 0) ? '、折扣分 '+pfMoney(-(s.extra_discount || 0))+'（整張 '+pfMoney(-(f.extra_discount || 0))+'）' : '')
++ '</div>';
+}).join('')
++ '</details>';
+}
 function pfSettlementIncome(s){ return (Number(s.subtotal)||0) + (Number(s.shipping_fee)||0) - (Number(s.coupon_discount)||0) - (Number(s.extra_discount)||0); }
 function pfSheetRow(key){
 var rows = (pfOverview && pfOverview.sheets) || [];
@@ -6351,7 +6439,7 @@ rows.push({ kind:'dep', id:o.id, nick: o.nickname || (s && s.nickname) || '客�
 if(s.status !== '已付款') return;
 var amt = (s.total != null && s.total !== '') ? Number(s.total) : (pfSettlementIncome(s) - (Number(s.deposit_deducted) || 0));
 if(!(amt > 0)) return;
-rows.push({ kind:'set', id:s.id, nick: s.nickname || '客人', label: '結單轉帳' + (s.order_no ? ' ' + s.order_no : ''), amt: amt, who: settleWho(s), explicit: !!s.received_by });
+rows.push({ kind:'set', id:s.id, nick: s.nickname || '客人', label: '結單轉帳' + (s.order_no ? ' ' + s.order_no : '') + (s.merge_ratio != null ? '（🔗合併，本區 '+Math.round(s.merge_ratio * 100)+'%）' : ''), amt: amt, who: settleWho(s), explicit: !!s.received_by });
 });
 return rows;
 }
@@ -6755,6 +6843,7 @@ listEl.innerHTML = '<button type="button" class="adm-link pf-back">‹ 分潤列
 + '<div class="pf-line"><span>＋ 向客人收的運費</span><span>'+pfMoney(c.inc.ship)+'</span></div>'
 + '<div class="pf-line"><span>− 免運券・回饋券・特選商品券</span><span>'+pfMoney(-c.inc.coupon)+'</span></div>'
 + (c.inc.disc ? '<div class="pf-line"><span>− 🎁 特別折扣（'+c.inc.discCount+' 筆結單）</span><span>'+pfMoney(-c.inc.disc)+'</span></div>' : '')
++ pfMergedHTML()
 + '<div class="pf-line pf-total"><span>實收（'+c.inc.paidCount+' 筆已付款）</span><span>'+pfMoney(c.inc.paid)+'</span></div>'
 + (c.inProgress
 ? '<p class="pf-ch" style="margin-top:14px;">進行中（預估）</p>'
@@ -11901,7 +11990,7 @@ var hh = String(d.getHours()).padStart(2,'0'), min = String(d.getMinutes()).padS
 return mm+'/'+dd+' '+hh+':'+min;
 }
 // 我的喊單：依結單分區（現貨／預購、各限時連線專區），每區有摘要＋小計，每筆精簡成一列
-function myOrderGroupKey(o){ return o.is_live_limited ? 'zone:' + (o.live_zone_id || 'z_default') : 'regular'; }
+function myOrderGroupKey(o){ return o.is_live_limited ? groupKeyOfZone(o.live_zone_id || 'z_default') : 'regular'; }
 function myOrderRank(o){
 if(o.status === '缺貨已幫您取消') return 9;
 if(o.deposit_required && o.status === '待確認' && !(Number(o.deposit_amount || 0) > 0)) return 0;
@@ -12074,13 +12163,15 @@ if(btn){ btn.disabled = false; btn.textContent = '兌換回饋券（-NT$'+REWARD
 // 結單倒數卡片的底色跟專區顏色一致：現貨／預購＝黑灰色，限時連線＝該專區設定的顏色
 function cycleGroupClass(group){
 if(!group || group === 'regular') return 'grp-regular';
-var zid = String(group).replace(/^zone:/, '');
+var zid = leadZoneIdOfGroup(group) || String(group).replace(/^zone:/, '');
 return 'grp-zone ' + zoneColorClass(zoneById(zid));
 }
 // 從專區的日期（例如「10/26～10/31」）抓出結束那天「10/31」；只有一天就用那天；抓不到就不顯示日期
 function zoneEndText(group){
 if(!group || group === 'regular') return '';
-var z = zoneById(String(group).replace(/^zone:/, ''));
+// 合併結單：用最晚結束的那區
+var zs = zonesOfGroupKey(group).map(zoneById).filter(Boolean);
+var z = zs.length ? zs[zs.length - 1] : zoneById(String(group).replace(/^zone:/, ''));
 var t = String((z && z.trip_date) || '').trim();
 if(!t) return '';
 var parts = t.split(/[～~〜\-－—至到]/).map(function(x){ return x.trim(); }).filter(Boolean);
