@@ -1680,7 +1680,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261123-0140';
+var APP_VERSION = '20261123-0150';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -10414,8 +10414,14 @@ var delProdBtns = container.querySelectorAll('.admin-delete-product-btn');
 for(var dp=0; dp<delProdBtns.length; dp++){
 delProdBtns[dp].addEventListener('click', async function(){
 var b = this, pid = b.getAttribute('data-product-id');
-if(prodInvCnt(pid) > 0){ alert('這件商品還有庫存 '+prodInvCnt(pid)+' 件，不能刪除。\n\n可以用「📍 放在哪一區」移到現貨區或預購區繼續賣。'); return; }
-if(!window.confirm('確定要刪除「'+b.getAttribute('data-name')+'」嗎？\n\n刪除後：\n・商品和照片都會刪掉，無法復原\n・客人已經結單／付款的紀錄不受影響\n・還有客人喊單但沒結單的商品不能刪')) return;
+// 還有「沒分給客人」的庫存才擋；全部分完（都賣掉了）可以刪，庫存紀錄一起清掉
+var invLeftN = prodInvCnt(pid) > 0 ? prodInvLeft(pid) : 0;
+if(invLeftN > 0){ alert('這件商品還有 '+invLeftN+' 個庫存沒分給客人，不能刪除。\n\n可以用「📍 放在哪一區」移到現貨區或預購區繼續賣。'); return; }
+var dpP = null; adminProductsCache.forEach(function(x){ if(x.id === pid) dpP = x; });
+var dpShared = !!(dpP && dpP.share && dpP.share.mode && dpP.share.mode !== 'none');
+if(!window.confirm('確定要刪除「'+b.getAttribute('data-name')+'」嗎？\n\n刪除後：\n・商品和照片都會刪掉，無法復原\n・客人已經結單／付款的紀錄不受影響\n・還有客人喊單但沒結單的商品不能刪'
++ (prodInvCnt(pid) > 0 ? '\n・庫存 '+prodInvCnt(pid)+' 個都已經分給客人，庫存紀錄會一起清掉' : '')
++ (dpShared ? '\n\n⚠️ 這件是共同庫存／寄賣商品：分潤表還沒鎖定的話，刪掉後那張表裡這件的分法會不見。請先確認分潤表已經結算鎖定。' : ''))) return;
 b.disabled = true; b.textContent = '刪除中...';
 try{
 await callMemberApi('admin-delete-product', { productId: pid });
