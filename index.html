@@ -1299,6 +1299,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <span id="qtyValue">1</span>
 <button id="qtyPlus">＋</button>
 </div>
+<p id="orderModalNoReward" style="display:none;font-size:12.5px;color:#6B7280;font-weight:600;margin:0 0 10px;"></p>
 <p id="orderModalDepositHint" style="display:none;font-size:12.5px;color:var(--ignis-deep);font-weight:600;margin:0 0 10px;"></p>
 <button class="btn btn--primary btn--full" id="orderModalConfirm">加入喊單</button>
 </div>
@@ -1679,7 +1680,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261121-0150';
+var APP_VERSION = '20261123-0130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1951,7 +1952,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), lockedOptions:Array.isArray(p.locked_options) ? p.locked_options.map(String) : [], createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), lockedOptions:Array.isArray(p.locked_options) ? p.locked_options.map(String) : [], createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', noReward:!!p.no_reward, isAddon:!!p.is_addon, isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -5234,8 +5235,9 @@ if(!window.confirm('把「'+pname+'」從「'+nm(from)+'」移到「'+nm(to)+'�
 ov.remove();
 btn.disabled = true; var old = btn.textContent; btn.textContent = '移動中...';
 try{
-await callMemberApi('admin-move-order-zone', { orderId: oid, zoneId: to.id });
+var rmz = await callMemberApi('admin-move-order-zone', { orderId: oid, zoneId: to.id });
 showToast('已移到「'+nm(to)+'」');
+addonOrphanNotice(rmz);
 await loadAdminGroups();
 }catch(err){ alert('移不了：'+err.message); btn.disabled = false; btn.textContent = old; }
 });
@@ -5244,6 +5246,15 @@ document.addEventListener('click', function(e){
 var b = e.target && e.target.closest ? e.target.closest('.admin-move-zone-btn') : null;
 if(b){ e.preventDefault(); openMoveZonePicker(b); }
 });
+// 主商品取消後，客人在那區只剩加購品 → 系統已經把加購品一起移除；付過錢的留著要你處理
+function addonOrphanNotice(r){
+if(!r) return;
+var rm = r.addonRemoved || [], kp = r.addonKept || [];
+if(!rm.length && !kp.length) return;
+alert('🛒 這位客人在這個專區沒有其他商品了\n\n'
++ (rm.length ? '已自動移除加購品：\n・'+rm.join('\n・')+'\n（庫存已放回）\n' : '')
++ (kp.length ? '\n⚠️ 這幾件加購品已經付過錢，沒有移除，請自己處理（退款或保留）：\n・'+kp.join('\n・') : ''));
+}
 async function handleAdminCancelOrder(btn){
 if(!window.confirm('確定要標記這件商品缺貨、取消這筆訂單嗎？客人會在自己的訂單紀錄看到「缺貨已幫您取消」，不會影響他其他已確認的商品結單。')) return;
 btn.disabled = true; btn.textContent = '處理中...';
@@ -5252,8 +5263,9 @@ var depositInput = btn.parentElement ? btn.parentElement.querySelector('.admin-d
 var payload = { orderId: orderId };
 if(depositInput && depositInput.value !== ''){ payload.depositAmount = depositInput.value; }
 try{
-await callMemberApi('admin-cancel-order', payload);
+var rc = await callMemberApi('admin-cancel-order', payload);
 showToast('已標記缺貨取消');
+addonOrphanNotice(rc);
 await loadAdminGroups();
 }catch(e){
 alert('操作失敗：' + e.message);
@@ -7845,11 +7857,15 @@ return '<div class="admin-cat-group" style="margin-bottom:10px;">'
 + '<span style="display:inline-block;font-size:13px;font-weight:700;padding:5px 14px;border-radius:999px;background:'+g.color.tag+';color:'+g.color.tagText+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escAttr(g.label)+'</span>'
 + '<span style="font-size:12.5px;color:var(--muted);white-space:nowrap;">'+g.items.length+' 件</span>'
 + (nHidden ? '<span style="font-size:11.5px;font-weight:700;color:#374151;background:#E5E7EB;padding:2px 8px;border-radius:999px;white-space:nowrap;">🙈 '+nHidden+' 件隱藏中</span>' : '')
++ (isAddonCat(g.key) ? '<span style="font-size:11.5px;font-weight:700;color:#075985;background:#E0F2FE;padding:2px 8px;border-radius:999px;white-space:nowrap;">🛒 加購區</span>' : '')
 + '</span>'
 + '<span class="admin-cat-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s ease;transform:rotate('+(isOpen?'90':'0')+'deg);">▶</span>'
 + '</button>'
 + '<div class="admin-cat-body" data-cat-key="'+escAttr(g.key)+'" style="display:'+(isOpen?'block':'none')+';margin-top:10px;">'
-+ ((g.key !== '__none__' && g.key !== DONTMISS_CAT) ? '<div style="display:flex;justify-content:flex-end;margin:0 0 8px;"><button type="button" class="admin-cat-rename" data-cat-key="'+escAttr(g.key)+'" data-label="'+escAttr(g.label)+'" style="border:1px solid var(--line);background:#fff;color:var(--text-dark);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:var(--font-body);">✏️ 改分類名稱</button></div>' : '')
++ ((g.key !== '__none__' && g.key !== DONTMISS_CAT) ? '<div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin:0 0 8px;">'+(isAddonCat(g.key)
+? '<button type="button" class="admin-cat-addon" data-cat-key="'+escAttr(g.key)+'" data-label="'+escAttr(g.label)+'" data-on="0" style="border:1.5px solid #7DD3FC;background:#E0F2FE;color:#075985;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;font-family:var(--font-body);">🛒 加購區（點我取消）</button>'
+: '<button type="button" class="admin-cat-addon" data-cat-key="'+escAttr(g.key)+'" data-label="'+escAttr(g.label)+'" data-on="1" style="border:1px solid var(--line);background:#fff;color:var(--text-dark);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:var(--font-body);">🛒 設成加購區</button>')
++ '<button type="button" class="admin-cat-rename" data-cat-key="'+escAttr(g.key)+'" data-label="'+escAttr(g.label)+'" style="border:1px solid var(--line);background:#fff;color:var(--text-dark);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:var(--font-body);">✏️ 改分類名稱</button></div>' : '')
 + rows+'</div>'
 + '</div>';
 }).join('');
@@ -7958,6 +7974,23 @@ showToast((off ? '已改成只開放不指定：' : '已全部開放指定：') 
 loadAdminProducts();
 }catch(err){ alert('更新失敗：' + err.message); }
 b.disabled = false;
+});
+// 分類「加購區」：限時連線裡這個分類的商品＝現貨加購品
+document.addEventListener('click', async function(e){
+var b = e.target && e.target.closest ? e.target.closest('.admin-cat-addon') : null; if(!b) return;
+e.preventDefault(); e.stopPropagation();
+var cat = b.getAttribute('data-cat-key'), label = b.getAttribute('data-label') || '', on = b.getAttribute('data-on') === '1';
+var msg = on
+? '把「'+label+'」設成加購區？\n\n・限時連線裡這個分類的商品＝現貨加購品\n・客人要先在同一個專區喊其他商品，才可以加購\n・客人在專區喊單成功後，會跳出同專區的加購品\n・加購品算在那個專區，跟那一區一起結單、利潤也算那一區'
+: '取消「'+label+'」的加購區設定？\n\n取消後，這個分類的商品變回一般商品，客人可以直接喊，也不會再跳出加購視窗。';
+if(!window.confirm(msg)) return;
+b.disabled = true;
+try{
+var r = await callMemberApi('admin-set-addon-cat', { cat: cat, on: on });
+siteSettings.addon_cats = JSON.stringify((r && r.list) || []);
+showToast(on ? '已設成加購區' : '已取消加購區');
+renderAdminProducts();
+}catch(err){ alert('設定失敗：'+err.message); b.disabled = false; }
 });
 // 改分類名稱：同一個分類底下所有商品一起改（現貨、預購、限時連線都會跟著變）
 document.addEventListener('click', async function(e){
@@ -9399,6 +9432,8 @@ return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-
 + adminHideBoxHTML(p)
 + adminTagPhotoHTML(p)
 + adminPriceDropHTML(p)
++ adminAddonHTML(p)
++ adminNoRewardHTML(p)
 + adminStripJpBtnHTML(p)
 + '<input type="text" class="gate-input admin-name-input" data-product-id="'+p.id+'" value="'+escAttr(p.name)+'" placeholder="商品名稱" style="margin:12px 0 8px;font-weight:700;">'
 + '<input type="text" class="gate-input admin-sub-input" data-product-id="'+p.id+'" value="'+escAttr(p.sub)+'" placeholder="規格說明（例如：30cm）" style="margin-bottom:8px;">'
@@ -9656,6 +9691,45 @@ showToast('已刪除日文 '+ok+' 件'+(fail ? '・失敗 '+fail+' 件' : ''));
 targets.forEach(function(p){ adminProductExpanded[p.id] = adminProductExpanded[p.id]; });
 await loadAdminProducts();
 refreshShop();
+});
+// 這件是加購商品：留在原本的分類，也會出現在專區的加購區；客人要先喊同專區其他商品才能加購
+function adminAddonHTML(p){
+var on = !!p.is_addon, byCat = isAddonCat(p.cat);
+return '<div style="margin:10px 0 0;padding:8px 12px;border:1.5px dashed '+(on || byCat ? '#7DD3FC' : 'var(--line)')+';border-radius:var(--r-md);background:'+(on || byCat ? '#F0F9FF' : 'transparent')+';">'
++ (byCat
+? '<p style="margin:0;font-size:13px;font-weight:700;color:#075985;">🛒 這件在加購區分類裡，本來就是加購商品</p>'
+: '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-dark);"><input type="checkbox" class="adm-addon-on" data-product-id="'+escAttr(p.id)+'"'+(on ? ' checked' : '')+' style="width:18px;height:18px;"> 🛒 這件也是加購商品</label>'
++ '<p style="margin:4px 0 0 24px;font-size:11.5px;color:var(--muted);line-height:1.5;">留在原本的分類，也會出現在專區的加購區；客人要先在同專區喊其他商品才能加購（只對限時連線商品有效）</p>')
++ '</div>';
+}
+document.addEventListener('change', async function(e){
+var t = e.target; if(!t || !t.classList || !t.classList.contains('adm-addon-on')) return;
+var pid = t.getAttribute('data-product-id'), on = t.checked;
+try{
+await callMemberApi('admin-set-addon', { productId: pid, on: on });
+adminProductsCache.forEach(function(p){ if(p.id === pid) p.is_addon = on; });
+var box = t.closest('div'); if(box){ box.style.borderColor = on ? '#7DD3FC' : ''; box.style.background = on ? '#F0F9FF' : 'transparent'; }
+showToast(on ? '已設成加購商品' : '已取消加購商品');
+refreshShop();
+}catch(err){ alert('儲存失敗：' + err.message); t.checked = !on; }
+});
+// 這件不累積回饋：客人付款後，這件的金額不算進回饋累積
+function adminNoRewardHTML(p){
+var on = !!p.no_reward;
+return '<div style="margin:10px 0 0;padding:8px 12px;border:1.5px dashed '+(on ? '#FDBA74' : 'var(--line)')+';border-radius:var(--r-md);background:'+(on ? '#FFF7ED' : 'transparent')+';">'
++ '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-dark);"><input type="checkbox" class="adm-nr-on" data-product-id="'+escAttr(p.id)+'"'+(on ? ' checked' : '')+' style="width:18px;height:18px;"> 🚫 這件不累積回饋</label>'
++ '<p style="margin:4px 0 0 24px;font-size:11.5px;color:var(--muted);line-height:1.5;">客人付款後，這件的金額不算進回饋累積（一般、特選都不算）；只影響之後才按「已付款」的結單</p></div>';
+}
+document.addEventListener('change', async function(e){
+var t = e.target; if(!t || !t.classList || !t.classList.contains('adm-nr-on')) return;
+var pid = t.getAttribute('data-product-id'), on = t.checked;
+try{
+await callMemberApi('admin-set-no-reward', { productId: pid, on: on });
+adminProductsCache.forEach(function(p){ if(p.id === pid) p.no_reward = on; });
+var box = t.closest('div'); if(box){ box.style.borderColor = on ? '#FDBA74' : ''; box.style.background = on ? '#FFF7ED' : 'transparent'; }
+showToast(on ? '這件不累積回饋' : '這件恢復累積回饋');
+refreshShop();
+}catch(err){ alert('儲存失敗：' + err.message); t.checked = !on; }
 });
 // 「↘降價」標示：只有勾選的商品才在商品卡顯示
 function adminPriceDropHTML(p){
@@ -10821,6 +10895,7 @@ return '<article class="card">'
 + '<div class="card-body">'
 + (function(){ var cc = colorForCategory(p.cat); return '<span class="type-chip" style="background:'+cc.tag+';color:'+cc.tagText+';border-color:'+cc.tag+';">' + p.catLabel + '</span>'; })()
 + (p.isLuxury ? '<span class="type-chip" style="margin-left:4px;background:#1B1E27;color:#E9C46A;border-color:#1B1E27;">🏷️ 特選商品</span>' : '')
++ (isAddonProduct(p) ? '<span class="type-chip" style="margin-left:4px;background:#E0F2FE;color:#075985;border-color:#E0F2FE;">🛒 加購商品</span>' : '')
 + (p.isPrivate ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">🔒 客訂</span>' : (p.isCustom ? '<span class="type-chip" style="margin-left:4px;background:#EFE7FF;color:#6D3FD1;border-color:#EFE7FF;">✨ 客訂</span>' : ''))
 + '<h3 class="card-title">' + p.name + '<span class="sub">' + p.sub + '</span></h3>'
 + ((p.options || []).length && !(p.isPrivate && !p.privateAccess) ? '<p style="margin:2px 0 4px;font-size:11.5px;color:var(--muted);">'+[[p.options,p.optionLabel],[p.options2,p.optionLabel2]].filter(function(x){ return (x[0]||[]).length; }).map(function(x){ return x[0].length+'種'+escHtml(x[1] || '規格'); }).join('・')+'可選</p>' : '')
@@ -11178,6 +11253,13 @@ for(var i=0;i<all.length;i++){
 var p = all[i];
 if(p.cat && !cats[p.cat]){ cats[p.cat] = p.catLabel || catLabelFor(p.cat); catKeys.push(p.cat); }
 }
+// 加購商品（單件勾的）：留在原本分類，也一起出現在加購區分頁；專區沒有加購區分類就多一個「🛒 現貨加購區」分頁
+var liveAddonKey = '';
+if(all.some(function(p){ return p.isAddon; })){
+liveAddonKey = catKeys.filter(function(k){ return isAddonCat(k); })[0] || '__addon__';
+if(!cats[liveAddonKey]){ cats[liveAddonKey] = '🛒 現貨加購區'; catKeys.push(liveAddonKey); }
+}
+var inLiveCat = function(p){ return liveCategory === 'all' || p.cat === liveCategory || (liveAddonKey && liveCategory === liveAddonKey && p.isAddon); };
 // 「別錯過」分類固定排第一個
 if(catKeys.indexOf(DONTMISS_CAT) > 0){ catKeys.splice(catKeys.indexOf(DONTMISS_CAT), 1); catKeys.unshift(DONTMISS_CAT); }
 if(liveCategory !== 'all' && !cats[liveCategory]) liveCategory = 'all';
@@ -11198,7 +11280,7 @@ tabsWrap.style.display = 'none';
 }
 }
 // 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
-var list = sortNewFirst(sortProductsByPrice(all.filter(function(p){ return (liveCategory === 'all' || p.cat === liveCategory) && productMatchesQuery(p, liveQuery); })));
+var list = sortNewFirst(sortProductsByPrice(all.filter(function(p){ return inLiveCat(p) && productMatchesQuery(p, liveQuery); })));
 // 「別錯過」是出國時邊逛邊上架的，最新上架的排最前面
 if(liveCategory === DONTMISS_CAT){
 list = all.filter(function(p){ return p.cat === DONTMISS_CAT && productMatchesQuery(p, liveQuery); }).sort(function(a, b){
@@ -11259,6 +11341,65 @@ var orderModalMax = null;
 var orderModalShell = 'no';
 var orderModalOption = null;
 var orderModalOption2 = null;
+// 加購區分類（後台在分類裡設定）：限時連線裡這些分類的商品＝現貨加購品
+function addonCats(){ try{ var v = JSON.parse((typeof siteSettings !== 'undefined' && siteSettings && siteSettings.addon_cats) || '[]'); return Array.isArray(v) ? v.map(String) : []; }catch(e){ return []; } }
+function isAddonCat(cat){ return !!cat && addonCats().indexOf(String(cat)) !== -1; }
+function isAddonProduct(p){ return !!p && p.stock === 'live_limited' && (!!p.isAddon || isAddonCat(p.cat)); }
+function productByIdC(id){ for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === id) return PRODUCTS[i]; } return null; }
+// 客人在這個專區有沒有喊過「不是加購品」的商品（還沒結單、沒取消）
+function canBuyAddon(p){
+var zid = p.liveZoneId || null;
+return (myOrders || []).some(function(o){
+if(!o.is_live_limited || o.status === '缺貨已幫您取消' || o.settlement_id) return false;
+if((o.live_zone_id || null) !== zid) return false;
+if(!o.product_id) return true;
+var op = productByIdC(o.product_id);
+return !(op ? (op.isAddon || isAddonCat(op.cat)) : false);
+});
+}
+// 喊單成功後：跳出同一個專區的現貨加購品（按「這次不用」之後這次逛網站不再跳）
+var addonSheetOff = false;
+function maybeShowAddonSheet(orderedP, qty){
+if(addonSheetOff || !orderedP || orderedP.stock !== 'live_limited' || isAddonProduct(orderedP)) return;
+var zid = orderedP.liveZoneId || null;
+var list = PRODUCTS.filter(function(p){ return isAddonProduct(p) && (p.liveZoneId || null) === zid && p.id !== orderedP.id && !(p.qty === 0); });
+if(!list.length) return;
+var ov = document.createElement('div');
+ov.className = 'addon-ov';
+ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+ov.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto;">'
++ '<div style="background:#E7F7EC;color:#137A3A;border-radius:12px;padding:8px 10px;font-size:13px;font-weight:800;margin-bottom:10px;">✓ 已加入喊單：'+escHtml(orderedP.name)+(qty ? ' ×'+qty : '')+'</div>'
++ '<p style="margin:0 0 2px;font-size:16px;font-weight:900;">🛒 要不要順便加購？</p>'
++ '<p style="margin:0 0 6px;font-size:12px;color:var(--muted);">現貨，跟這次的商品一起結單、一起寄</p>'
++ list.map(function(p){
+var hasOpt = (p.options && p.options.length) || (p.options2 && p.options2.length);
+return '<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed #eee;">'
++ '<img src="'+escAttr(productImageUrl(p.id))+'" alt="" loading="lazy" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:#f4f4f5;" onerror="this.style.visibility=\'hidden\'">'
++ '<div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;line-height:1.35;">'+escHtml(p.name)+'</div>'
++ '<div style="font-size:13px;font-weight:800;color:var(--ignis-deep,#E07A5F);">'+(hasOptionPrices(p) && productPriceRange(p).min !== productPriceRange(p).max ? 'NT$'+productPriceRange(p).min+'～'+productPriceRange(p).max : 'NT$'+p.price)
++ (p.noReward ? ' <span style="font-size:10.5px;color:#9A3412;background:#FFEDD5;border-radius:999px;padding:1px 6px;font-weight:700;">不累積回饋</span>' : '')+'</div>'
++ (p.qty ? '<div style="font-size:12px;color:var(--muted);">剩 '+p.qty+' 個</div>' : '')+'</div>'
++ '<button type="button" class="addon-add" data-pid="'+escAttr(p.id)+'" data-opt="'+(hasOpt ? '1' : '0')+'" style="margin-left:auto;flex:none;border:none;background:#E07A5F;color:#fff;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:800;font-family:var(--font-body);white-space:nowrap;">'+(hasOpt ? '選款式' : '＋ 加購')+'</button></div>';
+}).join('')
++ '<button type="button" class="addon-done" style="display:block;width:100%;margin-top:10px;border:none;background:#222;color:#fff;border-radius:999px;padding:12px;font-size:15px;font-weight:800;font-family:var(--font-body);">好了</button>'
++ '<button type="button" class="addon-skip" style="display:block;width:100%;margin-top:4px;border:none;background:none;color:var(--muted);font-size:13px;padding:8px;font-family:var(--font-body);">這次不用</button>'
++ '</div>';
+document.body.appendChild(ov);
+var added = 0;
+ov.addEventListener('click', async function(e){
+if(e.target === ov || (e.target.closest && e.target.closest('.addon-done'))){ ov.remove(); if(added){ loadProducts().then(function(){ renderShop(); renderLive(); }); loadMyOrders(); } return; }
+if(e.target.closest && e.target.closest('.addon-skip')){ addonSheetOff = true; ov.remove(); return; }
+var b = e.target.closest ? e.target.closest('.addon-add') : null; if(!b || b.disabled) return;
+var p = productByIdC(b.getAttribute('data-pid')); if(!p) return;
+if(b.getAttribute('data-opt') === '1'){ ov.remove(); openOrderModal(p); return; }
+b.disabled = true; b.textContent = '加購中…';
+try{
+await callMemberApi('submit-order', { product_id: p.id, product_name: p.name, variant: p.sub || '', quantity: 1, price: p.price });
+added++;
+b.textContent = '✓ 已加購'; b.style.background = '#E7F7EC'; b.style.color = '#137A3A';
+}catch(err){ alert('加購失敗：' + err.message); b.disabled = false; b.textContent = '＋ 加購'; }
+});
+}
 function updateOrderModalSub(){
 var extra = orderModalShell === 'yes' ? 10 : 0;
 // 有「每個選項不同價格」時：還沒選就顯示價格範圍，選了就顯示那個選項的價格
@@ -11268,6 +11409,11 @@ var priceLabel = (priceVaries && !orderModalOption)
 ? 'NT$' + (productPriceRange(orderModalProduct).min + extra) + '～' + (productPriceRange(orderModalProduct).max + extra) + '（依' + (orderModalProduct.optionLabel || '規格') + '）'
 : 'NT$' + unitPrice;
 document.getElementById('orderModalSub').textContent = (orderModalProduct.sub ? orderModalProduct.sub + ' · ' : '') + priceLabel;
+var nrEl = document.getElementById('orderModalNoReward');
+if(nrEl){
+var nrTxt = (isAddonProduct(orderModalProduct) ? '🛒 現貨加購：要先在這個專區喊其他商品才能加購' : '') + (orderModalProduct.noReward ? (isAddonProduct(orderModalProduct) ? '<br>' : '') + '🎁 這件商品不累積回饋金額' : '');
+nrEl.innerHTML = nrTxt; nrEl.style.display = nrTxt ? '' : 'none';
+}
 // 訂金判斷用「這筆訂單的小計」（單價×數量），跟後端 submit-order 的邏輯一致，數量變動即時更新提示。
 var depositEl = document.getElementById('orderModalDepositHint');
 var stock = orderModalProduct.stock;
@@ -11301,6 +11447,10 @@ function openOrderModal(product, presetOpt){
 if(product && product.isPrivate && !product.privateAccess){ openPrivateAsk(); return; }
 if(isRegularPaused() && !isLiveStock(product.stock)){
 alert('限時連線忙碌中，暫停現貨與預購連線喊單。\n欲購買商品可以先以限時連線為主，也可以許願 ♡');
+return;
+}
+if(isAddonProduct(product) && !canBuyAddon(product)){
+alert('🛒 這是現貨加購商品\n\n要先在這個限時連線專區喊其他商品，才可以加購喔 ♡');
 return;
 }
 orderModalProduct = product;
@@ -11949,6 +12099,7 @@ alert('送出失敗：' + e.message);
 return;
 }
 btn.disabled = false; btn.textContent = '加入喊單';
+var orderedP = orderModalProduct, orderedQ = orderModalQty;
 closeOrderModal();
 showToast('已加入喊單！');
 await loadProducts();
@@ -11956,7 +12107,8 @@ renderCategoryNav();
 renderHome();
 renderShop();
 renderLive();
-loadMyOrders();
+await loadMyOrders();
+maybeShowAddonSheet(orderedP, orderedQ);
 }
 /* ---------- 別錯過：按 +1 直接喊單（數量 1），幾秒內可以按「復原」 ---------- */
 var plusToastTimer = null;
@@ -11983,6 +12135,7 @@ var p = null;
 for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === productId){ p = PRODUCTS[i]; break; } }
 if(!p || plusBusy[productId]) return;
 if((p.options && p.options.length) || (p.options2 && p.options2.length)){ openOrderModal(p); return; }
+if(isAddonProduct(p) && !canBuyAddon(p)){ alert('🛒 這是現貨加購商品\n\n要先在這個限時連線專區喊其他商品，才可以加購喔 ♡'); return; }
 if(myOrderRestricted){ alert('您已失去下單資格，如有疑問請私訊官方LINE了解詳情'); return; }
 plusBusy[productId] = true;
 var btns = document.querySelectorAll('[data-plus1="'+productId+'"]');
@@ -11994,7 +12147,7 @@ product_id: p.id, product_name: p.name, variant: p.sub || '', quantity: 1, price
 for(var k=0;k<btns.length;k++){ btns[k].classList.add('is-done'); btns[k].textContent = '✓ 已喊單 +1'; }
 setTimeout(function(){ for(var k2=0;k2<btns.length;k2++){ btns[k2].classList.remove('is-done'); btns[k2].textContent = '＋1 喊單'; } }, 1200);
 showPlusToast('已喊單 +1・' + p.name + (r && r.depositRequired ? '（需付訂金）' : ''), r && r.orderId);
-loadMyOrders();
+loadMyOrders().then(function(){ maybeShowAddonSheet(p, 1); });
 }catch(e){
 alert('喊單失敗：' + e.message);
 }
@@ -12512,11 +12665,27 @@ btn.disabled = false;
 note.style.display = 'none';
 }
 }
+// 客人移除主商品後，這個專區如果只剩加購品，加購品會一起移除 → 先提醒
+function addonsLeftAfterRemove(orderId){
+var o = (myOrders || []).filter(function(x){ return x.id === orderId; })[0];
+if(!o || !o.is_live_limited) return [];
+var op = o.product_id ? productByIdC(o.product_id) : null;
+if(op && (op.isAddon || isAddonCat(op.cat))) return [];
+var zid = o.live_zone_id || null, others = 0, addons = [];
+(myOrders || []).forEach(function(x){
+if(x.id === orderId || !x.is_live_limited || x.settlement_id || x.status === '缺貨已幫您取消' || (x.live_zone_id || null) !== zid) return;
+var xp = x.product_id ? productByIdC(x.product_id) : null;
+if(xp && (xp.isAddon || isAddonCat(xp.cat))) addons.push(x.product_name); else others++;
+});
+return others ? [] : addons;
+}
 async function handleDeleteOrder(orderId){
-if(!window.confirm('確定要移除這件商品嗎？移除後這次結單不會包含它。')) return;
+var willDrop = addonsLeftAfterRemove(orderId);
+if(!window.confirm('確定要移除這件商品嗎？移除後這次結單不會包含它。' + (willDrop.length ? '\n\n🛒 這個專區沒有其他商品了，加購的商品也會一起移除：\n・' + willDrop.join('\n・') : ''))) return;
 try{
-await callMemberApi('delete-order', { orderId: orderId });
-showToast('已移除');
+var rd = await callMemberApi('delete-order', { orderId: orderId });
+showToast(rd && rd.addonRemoved && rd.addonRemoved.length ? '已移除（加購品也一起移除）' : '已移除');
+if(rd && rd.addonRemoved && rd.addonRemoved.length) loadMyOrders();
 var cycleData = await callMemberApi('get-cycle-status');
 pendingCycles = cycleData.groups || pendingCycles;
 var pc = pendingCycles[settlementState.group];
