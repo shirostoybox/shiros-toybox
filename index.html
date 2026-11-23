@@ -1713,7 +1713,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261124-0410';
+var APP_VERSION = '20261124-0420';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -8357,11 +8357,21 @@ try{
 var fr = await callMemberApi('admin-fetch-image', { url: url });
 return fr.dataUrl;
 }catch(e){
-// 後台伺服器抓不到（有些官網會擋伺服器來的下載，例如 7-11），改用手機瀏覽器自己抓（不帶來源網址）
-var d = await browserImageData(url).catch(function(){ return ''; });
+// 後台伺服器抓不到（有些官網會擋伺服器來的下載，例如 7-11）：
+// 先改用自己網站在東京機房的圖片中繼 /api/img 代抓，再不行才用手機瀏覽器自己抓
+var d = await relayImageData(url).catch(function(){ return ''; });
+if(!d) d = await browserImageData(url).catch(function(){ return ''; });
 if(d) return d;
 throw e;
 }
+}
+async function relayImageData(url){
+if(!/^https?:\/\/[^\/]+\.jp\//i.test(url)) return '';
+var r = await fetch('/api/img?u=' + encodeURIComponent(url));
+if(!r.ok) return '';
+var b = await r.blob();
+if(!/^image\//.test(b.type || '')) return '';
+return await new Promise(function(res, rej){ var fr = new FileReader(); fr.onload = function(){ res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); });
 }
 async function browserImageData(url){
 try{
