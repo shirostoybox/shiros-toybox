@@ -418,6 +418,7 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 #admSelBar .sb-gap{ flex-basis:100%; height:0; }
 #admSelBar .sb-move, #admSelBar .sb-cat, #admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; min-width:0; padding:10px 2px; font-size:12.5px; white-space:nowrap; }
 #admSelBar .sb-cat{ background:#E9D5FF; color:#581C87; }
+#admSelBar .sb-share{ background:#06C755; color:#fff; margin-left:auto; }
 #admSelBar .sb-move{ background:#BFDBFE; color:#1E3A8A; }
 #admSelBar .sb-hide{ background:#FDE68A; color:#78350F; }
 #admSelBar .sb-show{ background:#BBF7D0; color:#14532D; }
@@ -1682,7 +1683,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261123-2300';
+var APP_VERSION = '20261124-0030';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -9273,7 +9274,7 @@ var bar = document.getElementById('admSelBar');
 if(!bar){ bar = document.createElement('div'); bar.id = 'admSelBar'; document.body.appendChild(bar); }
 var onPage = admSelVisible();
 bar.style.display = (ids.length && onPage) ? 'flex' : 'none';
-bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-cat" id="sbCat">📂 分類</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
+bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><button type="button" class="sb-share" id="sbShare">🔗 分享</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-cat" id="sbCat">📂 分類</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
 var cs = document.querySelectorAll('.adm-sel');
 for(var i=0;i<cs.length;i++){ var on = !!adminSelected[cs[i].getAttribute('data-product-id')]; cs[i].checked = on; var cd = cs[i].closest('.adm-prod'); if(cd) cd.classList.toggle('is-sel', on); }
 }
@@ -9452,6 +9453,69 @@ ADM_DELETING = false;
 adminSelPaint();
 });
 }
+// 勾選的商品做成「大圖卡片」傳到 LINE 群組：每 4 件一張大卡（2×2 大圖＋商品名稱＋價格），點圖直接進那件商品
+// 超過 4 件會變成好幾張卡左右滑（最多 12 張卡＝48 件）
+function shareGridCell(p){
+var uri = productShareUrl(p);
+return { type:'box', layout:'vertical', flex:1, spacing:'none', action:{ type:'uri', label:'看商品', uri: uri }, contents:[
+{ type:'image', url: productImageUrl(p.id), size:'full', aspectRatio:'1:1', aspectMode:'cover' },
+{ type:'box', layout:'vertical', paddingAll:'8px', paddingTop:'6px', spacing:'xs', contents:[
+{ type:'text', text: flexStr(p.name, 60), wrap:true, weight:'bold', size:'sm', maxLines:2, color:'#111111' },
+{ type:'text', text: flexStr(productPriceText(p), 30), size:'sm', weight:'bold', color:'#E8505B' }
+] }
+] };
+}
+function shareGridBubble(list, title, url){
+var rows = [];
+if(list.length === 1){ rows.push({ type:'box', layout:'horizontal', contents:[ shareGridCell(list[0]) ] }); }
+else {
+for(var i=0;i<list.length;i+=2){
+var r = [ shareGridCell(list[i]) ];
+r.push(list[i+1] ? shareGridCell(list[i+1]) : { type:'filler', flex:1 });
+rows.push({ type:'box', layout:'horizontal', spacing:'xs', contents:r });
+}
+}
+return { type:'bubble', size:'giga',
+header: { type:'box', layout:'vertical', paddingAll:'12px', backgroundColor:'#111827', contents:[ { type:'text', text: flexStr(title, 60), color:'#FFFFFF', weight:'bold', size:'md', wrap:true, maxLines:2 } ] },
+body: { type:'box', layout:'vertical', paddingAll:'0px', spacing:'xs', contents: rows },
+footer: { type:'box', layout:'vertical', paddingAll:'10px', contents:[ { type:'button', style:'primary', color:'#E8505B', height:'sm', action:{ type:'uri', label:'看看・喊單', uri: url } } ] } };
+}
+async function adminShareSelected(){
+var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
+if(!ids.length) return;
+var byId = {}; (PRODUCTS || []).forEach(function(p){ byId[p.id] = p; });
+var cache = {}; adminProductsCache.forEach(function(p){ cache[p.id] = p; });
+// 照商品頁上的順序排（不是勾的順序）
+var order = []; var cs = document.querySelectorAll('.adm-sel'); for(var i=0;i<cs.length;i++){ var id = cs[i].getAttribute('data-product-id'); if(adminSelected[id] && order.indexOf(id) === -1) order.push(id); }
+ids.forEach(function(id){ if(order.indexOf(id) === -1) order.push(id); });
+var list = [], skip = [];
+order.forEach(function(id){ var p = byId[id]; if(p && !p.isPrivate && !p.isCustom && !(cache[id] && cache[id].is_hidden)) list.push(p); else skip.push(cache[id] ? cache[id].name : '（商品）'); });
+if(!list.length){ alert('勾的商品都是隱藏或客訂商品，客人看不到，不能分享。\n\n先按「👀 公開」再分享。'); return; }
+if(list.length > 48){ alert('一次最多分享 48 件（現在勾了 '+list.length+' 件）'); return; }
+var inLine = !!(window.liff && liff.isInClient && liff.isInClient()), canPicker = false;
+try{ canPicker = inLine && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }catch(e){}
+if(!canPicker){ alert('要在 LINE 裡打開四郎玩具箱，才能把卡片傳到群組。'); return; }
+// 連結：都在同一個限時連線專區 → 專區連結；只有 1 件 → 商品連結；其他 → 首頁
+var zids = {}; list.forEach(function(p){ zids[(p.stock === 'live_limited' && p.liveZoneId) ? p.liveZoneId : '-'] = 1; });
+var zk = Object.keys(zids), zone = (zk.length === 1 && zk[0] !== '-') ? zoneById(zk[0]) : null;
+var defTitle = zone ? ((zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '')) : (list.length === 1 ? list[0].name : '四郎玩具箱・精選商品');
+var title = window.prompt('卡片標題（會顯示在大圖上面）：'+(skip.length ? '\n\n⚠️ 有 '+skip.length+' 件是隱藏／客訂商品，會跳過' : ''), defTitle);
+if(title === null) return;
+title = String(title).trim() || defTitle;
+var url = '';
+try{ url = zone ? zoneShareUrl(zone, await zoneShareVer(zone)) : (list.length === 1 ? productShareUrl(list[0]) : window.location.origin + '/'); }catch(e){ url = window.location.origin + '/'; }
+var bubbles = [];
+for(var j=0;j<list.length;j+=4) bubbles.push(shareGridBubble(list.slice(j, j+4), title, url));
+var msgs = [ { type:'flex', altText: flexStr(title, 100) + '（' + list.length + ' 件）', contents: bubbles.length === 1 ? bubbles[0] : { type:'carousel', contents: bubbles } },
+{ type:'text', text: title + '\n' + url } ];
+try{
+var r = await liff.shareTargetPicker(msgs);
+if(r){ showToast('已分享 ♡'); adminSelected = {}; adminSelPaint(); }
+}catch(e){
+try{ var r2 = await liff.shareTargetPicker([{ type:'text', text: title + '\n' + url }]); if(r2) showToast('大圖卡片傳送失敗，已改傳連結'); }
+catch(e2){ alert('分享失敗：' + (e && e.message ? e.message : e)); }
+}
+}
 async function adminDeleteSelected(){
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
 if(!ids.length) return;
@@ -9518,6 +9582,7 @@ if(t.closest('#sbAll')){ var cs = document.querySelectorAll('.adm-sel'); for(var
 if(t.closest('#sbDel')){ adminDeleteSelected(); return; }
 if(t.closest('#sbMove')){ adminMoveSelected(); return; }
 if(t.closest('#sbCat')){ adminRecatSelected(); return; }
+if(t.closest('#sbShare')){ adminShareSelected(); return; }
 if(t.closest('#sbHide')){ adminHideSelected(true); return; }
 if(t.closest('#sbShow')){ adminHideSelected(false); return; }
 }, true);
