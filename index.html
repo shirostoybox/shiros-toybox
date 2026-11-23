@@ -1712,7 +1712,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261124-0230';
+var APP_VERSION = '20261124-0300';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -13400,9 +13400,10 @@ var first = picked[0];
 var liveZ = (isLiveStock(first.stock) && first.liveZoneId) ? first.liveZoneId : null;
 if(liveZ) openLiveZone(liveZ); else showView('shop');
 var zone = liveZ ? zoneById(liveZ) : null;
-var seen = {}; picked.forEach(function(p){ seen[p.id] = 1; });
+var seen = {}, cats = {}; picked.forEach(function(p){ seen[p.id] = 1; if(p.cat) cats[p.cat] = 1; });
+// 後面只接「同一區、同分類」的其他商品（例如選的是超商食品，就只接超商食品）
 var rest = (PRODUCTS || []).filter(function(p){
-if(seen[p.id] || p.isPrivate) return false;
+if(seen[p.id] || p.isPrivate || !cats[p.cat]) return false;
 if(liveZ) return p.stock === 'live_limited' && p.liveZoneId === liveZ;
 return p.stock === 'in' || p.stock === 'preorder';
 });
@@ -13412,7 +13413,7 @@ var old = document.getElementById('pickViewer'); if(old) old.remove();
 var v = document.createElement('div'); v.id = 'pickViewer';
 v.innerHTML = '<div class="pv-head"><span class="pv-title">'+escHtml(head)+'</span><span id="pvNum" class="pv-num"></span><button type="button" class="pv-x" id="pvClose">✕</button></div>'
 + '<div class="pv-track" id="pvTrack">' + list.map(function(p, i){
-return '<div class="pv-page" data-i="'+i+'">'+(i === nPick && rest.length ? '<p class="pv-sep">👇 以下是'+(zone ? '這個專區' : '')+'的其他商品</p>' : '')
+return '<div class="pv-page" data-i="'+i+'">'+(i === nPick && rest.length ? '<p class="pv-sep">👇 以下是「'+escHtml(first.catLabel || catLabelFor(first.cat) || '同分類')+'」的其他商品</p>' : '')
 + '<div class="pv-imgwrap"><img class="pv-img" data-src="'+escAttr(productImageUrl(p.id))+'"'+(i < 3 ? ' src="'+escAttr(productImageUrl(p.id))+'"' : '')+' alt=""></div>'
 + '<p class="pv-name">'+escHtml(p.name)+'</p>'
 + (p.sub ? '<p class="pv-sub">'+escHtml(p.sub)+'</p>' : '')
