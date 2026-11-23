@@ -1713,7 +1713,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261124-0400';
+var APP_VERSION = '20261124-0410';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -8353,8 +8353,27 @@ throw last || new Error('照片匯入失敗');
 }
 async function importImageData(url){
 if(/^data:image\//.test(String(url||''))) return url;
+try{
 var fr = await callMemberApi('admin-fetch-image', { url: url });
 return fr.dataUrl;
+}catch(e){
+// 後台伺服器抓不到（有些官網會擋伺服器來的下載，例如 7-11），改用手機瀏覽器自己抓（不帶來源網址）
+var d = await browserImageData(url).catch(function(){ return ''; });
+if(d) return d;
+throw e;
+}
+}
+async function browserImageData(url){
+try{
+var r = await fetch(url, { mode:'cors', referrerPolicy:'no-referrer', credentials:'omit' });
+if(r.ok){ var b = await r.blob(); if(/^image\//.test(b.type || '')) return await new Promise(function(res, rej){ var fr = new FileReader(); fr.onload = function(){ res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); }); }
+}catch(e){}
+return await new Promise(function(res, rej){
+var im = new Image(); im.crossOrigin = 'anonymous'; im.referrerPolicy = 'no-referrer';
+im.onload = function(){ try{ var cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight; var ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0); res(cv.toDataURL('image/jpeg', 0.9)); }catch(err){ rej(err); } };
+im.onerror = function(){ rej(new Error('瀏覽器也抓不到')); };
+im.src = url;
+});
 }
 async function runImport(){
 var btn = document.getElementById('impGo');
