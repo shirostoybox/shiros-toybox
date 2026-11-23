@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/s/:ids",
+      "destination": "/api/p?pick=:ids"
+    },
+    {
       "source": "/vote/:v",
       "destination": "/api/p?vote=1&v=:v"
     },
