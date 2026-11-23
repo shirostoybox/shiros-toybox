@@ -1,4 +1,4 @@
-// 商品分享連結：/p/商品編號　專區分享連結：/z/專區編號
+// 商品分享連結：/p/商品編號　專區分享連結：/z/專區編號　精選商品連結：/s/商品1.商品2…
 // LINE、Threads 來讀這個網址時，回傳商品名稱和照片（不放價格）當作預覽；
 // 客人點開後，自動轉到 LINE 裡的四郎玩具箱，並打開這個商品。
 const SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
@@ -155,6 +155,47 @@ async function catPage(req, res) {
   sendPage(res, { title, desc, image, pageUrl, goUrl, heading: label + '｜' + where });
 }
 
+// 精選商品分享頁：/s/商品1.商品2.商品3?t=標題&v=版本
+// 預覽圖：老闆分享時拼好的 pickcover-（商品編號串的雜湊）.jpg；沒有就用第一件商品照片
+async function pickPage(req, res) {
+  const idStr = String(req.query.pick || '').trim().slice(0, 600);
+  const ids = idStr.split('.').filter((x) => /^[A-Za-z0-9_\-]+$/.test(x)).slice(0, 12);
+  const t = String(req.query.t || '').trim().slice(0, 40);
+  const ver = String(req.query.v || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
+  let rows = [];
+  if (ids.length) {
+    try {
+      const r = await fetch(
+        SUPABASE_URL + '/rest/v1/products?id=in.(' + ids.map(encodeURIComponent).join(',') + ')&is_hidden=is.false&select=id,name,image_version,is_private',
+        { headers: { apikey: SUPABASE_KEY } }
+      );
+      if (r.ok) { const d = await r.json(); if (Array.isArray(d)) rows = d.filter((x) => !x.is_private); }
+    } catch (e) { /* 讀不到就用一般的預覽 */ }
+  }
+  const byId = {}; rows.forEach((x) => { byId[x.id] = x; });
+  const list = ids.map((id) => byId[id]).filter(Boolean);
+  let image = '';
+  if (list.length) image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + list[0].id + '.jpg' + (list[0].image_version ? '?v=' + list[0].image_version : '');
+  try {
+    const coverBase = SUPABASE_URL + '/storage/v1/object/public/product-images/pickcover-' + shortHash(ids.join('.')) + '.jpg';
+    const h = await fetch(coverBase + '?check=' + Date.now(), { method: 'HEAD' });
+    if (h.ok) {
+      const tag = String(h.headers.get('etag') || h.headers.get('last-modified') || Date.now()).replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
+      image = coverBase + '?v=' + tag;
+    }
+  } catch (e) { /* 沒有預覽圖就用商品照片 */ }
+  const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
+  const qs = [];
+  if (t) qs.push('t=' + encodeURIComponent(t));
+  if (ver) qs.push('v=' + ver);
+  const pageUrl = 'https://' + host + '/s/' + ids.join('.') + (qs.length ? '?' + qs.join('&') : '');
+  const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=pick&ids=' + ids.join('.') + (t ? '&t=' + encodeURIComponent(t) : '');
+  const heading = t || '四郎玩具箱・精選商品';
+  const names = list.map((x) => x.name).slice(0, 4).join('、');
+  const desc = (names ? names + (list.length > 4 ? ' 等 ' + list.length + ' 件' : '') + '・' : '') + '點進來往右滑看看 ♡';
+  sendPage(res, { title: heading + '｜四郎玩具箱', desc, image, pageUrl, goUrl, heading });
+}
+
 // 角色人氣投票分享頁：/vote/版本
 async function votePage(req, res) {
   let image = '';
@@ -175,6 +216,7 @@ async function votePage(req, res) {
 
 module.exports = async (req, res) => {
   if (req.query && req.query.vote) return votePage(req, res);
+  if (req.query && req.query.pick) return pickPage(req, res);
   if (req.query && req.query.cat) return catPage(req, res);
   if (req.query && req.query.zone) return zonePage(req, res);
   const id = String((req.query && req.query.id) || '').trim();
