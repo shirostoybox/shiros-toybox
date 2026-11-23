@@ -48,5 +48,8 @@
       "source": "/c/:cat",
       "destination": "/api/p?cat=:cat"
     }
+  ],
+  "regions": [
+    "hnd1"
   ]
 }
