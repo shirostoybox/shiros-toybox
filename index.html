@@ -876,6 +876,7 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .cat-share-bar{ display:flex; justify-content:flex-start; gap:8px; flex-wrap:wrap; margin:-4px 0 12px; padding:0 20px; min-width:0; }
 .pick-start-btn{ background:#06C755; color:#fff; border:0; border-radius:var(--r-full); font-size:12.5px; font-weight:800; padding:7px 13px; font-family:var(--font-body); white-space:nowrap; }
 .pick-check{ display:none; }
+.tab-order-btn{ background:rgba(255,255,255,.1); color:#fff; border:1px dashed rgba(255,255,255,.5); border-radius:var(--r-full); font-size:12.5px; font-weight:800; padding:6px 13px; font-family:var(--font-body); white-space:nowrap; }
 body.pick-mode .card{ cursor:pointer; }
 body.pick-mode .card .card-order-btn{ pointer-events:none; opacity:.35; }
 body.pick-mode .pick-check{ display:flex; position:absolute; top:10px; right:10px; z-index:3; width:34px; height:34px; border-radius:50%; border:3px solid #fff; background:rgba(0,0,0,.35); color:#fff; font-weight:900; font-size:16px; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.3); }
@@ -1712,7 +1713,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261124-0300';
+var APP_VERSION = '20261124-0400';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7846,6 +7847,64 @@ var t = Date.parse(p.createdAt);
 return !isNaN(t) && (Date.now() - t) < NEW_PRODUCT_HOURS * 3600 * 1000;
 }
 // 排序：後台勾了「↘降價」的排最前面 → 新上架 → 其他（買不到的本來就在後面）
+// 限時連線專區排序：買得到的在前、買不到的在後；各自照上架時間「新→舊」（同一次上架的保持原本順序）
+function sortLiveNewest(list){
+var idx = {}; list.forEach(function(p, i){ idx[p.id] = i; });
+return list.slice().sort(function(a, b){
+var ea = (a.stock === 'live_ended' || a.stock === 'sold_out') ? 1 : 0, eb = (b.stock === 'live_ended' || b.stock === 'sold_out') ? 1 : 0;
+if(ea !== eb) return ea - eb;
+var c = String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+return c || (idx[a.id] - idx[b.id]);
+});
+}
+// ---------- ↔️ 排列分類（限時連線專區的分頁，含「全部」）：存在網站設定 tab_order:專區編號 ----------
+var LIVE_TAB_STATE = { zoneId:'', keys:[], labels:{} };
+function liveOrderedTabs(zoneId, keys){
+var saved = [];
+try{ saved = JSON.parse((siteSettings && siteSettings['tab_order:' + zoneId]) || '[]') || []; }catch(e){ saved = []; }
+if(!saved.length) return keys.slice();
+var pos = {}; saved.forEach(function(k, i){ pos[k] = i; });
+var known = keys.filter(function(k){ return k in pos; }).sort(function(a, b){ return pos[a] - pos[b]; });
+var fresh = keys.filter(function(k){ return !(k in pos); });
+return known.concat(fresh);
+}
+function openTabOrderEditor(){
+var st = LIVE_TAB_STATE; if(!st.zoneId || st.keys.length < 2){ showToast('這個專區只有一個分類，不用排'); return; }
+var keys = st.keys.slice();
+var ov = document.createElement('div');
+ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+function name(k){ return k === 'all' ? '全部' : (st.labels[k] || k); }
+function paint(){
+ov.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto;">'
++ '<p style="margin:0 0 4px;font-size:16px;font-weight:900;">↔️ 排列分類</p>'
++ '<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.6;">用 ↑ ↓ 調整順序，「全部」也可以移。<b>排第一個的就是客人點進專區時預設打開的分頁。</b>只會改這個專區。</p>'
++ keys.map(function(k, i){ return '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;margin:0 0 8px;border:1.5px solid '+(i === 0 ? '#06C755' : '#E4E4E7')+';border-radius:14px;background:'+(i === 0 ? '#F0FDF4' : '#fff')+';">'
++ '<span style="width:22px;font-weight:900;color:var(--muted);">'+(i+1)+'</span><span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;">'+escHtml(name(k))+(i === 0 ? ' <small style="color:#15803D;">（預設打開）</small>' : '')+'</span>'
++ '<button type="button" class="to-up" data-i="'+i+'" style="width:40px;height:36px;border-radius:10px;border:1px solid #D4D4D8;background:#fff;font-size:16px;font-weight:900;"'+(i === 0 ? ' disabled' : '')+'>↑</button>'
++ '<button type="button" class="to-dn" data-i="'+i+'" style="width:40px;height:36px;border-radius:10px;border:1px solid #D4D4D8;background:#fff;font-size:16px;font-weight:900;"'+(i === keys.length - 1 ? ' disabled' : '')+'>↓</button></div>'; }).join('')
++ '<button type="button" class="to-save" style="width:100%;padding:13px;border:0;border-radius:999px;background:#111827;color:#fff;font-size:15px;font-weight:900;font-family:var(--font-body);margin-top:4px;">儲存順序</button>'
++ '<button type="button" class="to-reset" style="width:100%;padding:10px;border:none;background:none;color:var(--muted);font-size:13px;font-weight:700;font-family:var(--font-body);">恢復原本順序</button>'
++ '<button type="button" class="to-cancel" style="width:100%;padding:10px;border:none;background:none;color:var(--muted);font-size:14px;font-weight:700;font-family:var(--font-body);">取消</button></div>';
+}
+paint();
+document.body.appendChild(ov);
+async function save(val){
+try{
+await callMemberApi('admin-update-site-setting', { key: 'tab_order:' + st.zoneId, value: val });
+siteSettings = siteSettings || {}; siteSettings['tab_order:' + st.zoneId] = val;
+ov.remove(); liveCategory = '__first__'; renderLive(); showToast('分類順序已儲存');
+}catch(e){ alert('儲存失敗：' + e.message + (/沒有權限/.test(e.message) ? '\n\n（排列分類只有老闆可以改）' : '')); }
+}
+ov.addEventListener('click', function(e){
+if(e.target === ov || (e.target.closest && e.target.closest('.to-cancel'))){ ov.remove(); return; }
+var b = e.target.closest ? e.target.closest('button') : null; if(!b || b.disabled) return;
+var i = Number(b.getAttribute('data-i'));
+if(b.classList.contains('to-up') && i > 0){ var t = keys[i-1]; keys[i-1] = keys[i]; keys[i] = t; paint(); }
+else if(b.classList.contains('to-dn') && i < keys.length - 1){ var t2 = keys[i+1]; keys[i+1] = keys[i]; keys[i] = t2; paint(); }
+else if(b.classList.contains('to-save')) save(JSON.stringify(keys));
+else if(b.classList.contains('to-reset')) save('[]');
+});
+}
 function isDropFirst(p){ return !!p.priceDrop && p.stock !== 'live_ended' && p.stock !== 'sold_out'; }
 function sortNewFirst(list){
 var drop = list.filter(isDropFirst);
@@ -11371,7 +11430,7 @@ document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list
 renderCatShareBar('shopCatShare', 'regular', currentCategory, regularProducts().filter(function(p){ return p.cat === currentCategory && (p.stock === 'in' || p.stock === 'preorder'); }));
 setEndNote('shopEndNote', !isRegularPaused() && list.length > 0);
 }
-var liveCategory = 'all';
+var liveCategory = '__first__';   // '__first__'＝照排列的第一個分頁（老闆可以自己排）
 var currentLiveZoneId = null;
 var LIVE_ICON_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.3 5.3a9.5 9.5 0 0 0 0 13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4"/></svg>';
 function openZones(){ return LIVE_ZONES.filter(function(z){ return z.is_open; }); }
@@ -11420,7 +11479,7 @@ return '<button type="button" class="live-entry '+zoneColorClass(z)+'" data-zone
 }).join('');
 }
 function openLiveZone(zoneId){
-if(currentLiveZoneId !== zoneId){ liveCategory = 'all'; liveQuery = ''; var lsi = document.getElementById('liveSearch'); if(lsi) lsi.value = ''; }
+if(currentLiveZoneId !== zoneId){ liveCategory = '__first__'; liveQuery = ''; var lsi = document.getElementById('liveSearch'); if(lsi) lsi.value = ''; }
 currentLiveZoneId = zoneId;
 showView('live');
 }
@@ -11460,12 +11519,16 @@ if(!cats[liveAddonKey]){ cats[liveAddonKey] = '🛒 現貨加購區'; catKeys.pu
 var inLiveCat = function(p){ return liveCategory === 'all' || p.cat === liveCategory || (liveAddonKey && liveCategory === liveAddonKey && p.isAddon); };
 // 「別錯過」分類固定排第一個
 if(catKeys.indexOf(DONTMISS_CAT) > 0){ catKeys.splice(catKeys.indexOf(DONTMISS_CAT), 1); catKeys.unshift(DONTMISS_CAT); }
-if(liveCategory !== 'all' && !cats[liveCategory]) liveCategory = 'all';
+// 分頁順序（含「全部」）：老闆在前台按「↔️ 排列分類」自己排，存在網站設定；沒排過就是「全部」在最前面
+var tabKeys = liveOrderedTabs(zone ? zone.id : '', ['all'].concat(catKeys));
+if(catKeys.length <= 1) tabKeys = ['all'];
+// 進專區預設打開排在第一個的分頁
+if(liveCategory === '__first__' || (liveCategory !== 'all' && !cats[liveCategory])) liveCategory = tabKeys[0] || 'all';
+LIVE_TAB_STATE = { zoneId: zone ? zone.id : '', keys: tabKeys, labels: cats };
 var tabsWrap = document.getElementById('liveCategoryTabs');
 if(tabsWrap){
 if(catKeys.length > 1){
-var tabsHtml = '<button class="cat-tab'+(liveCategory==='all'?' active':'')+'" data-cat="all">全部</button>';
-tabsHtml += catKeys.map(function(key){ return '<button class="cat-tab'+(liveCategory===key?' active':'')+'" data-cat="'+escAttr(key)+'">'+escAttr(cats[key])+'</button>'; }).join('');
+var tabsHtml = tabKeys.map(function(key){ return '<button class="cat-tab'+(liveCategory===key?' active':'')+'" data-cat="'+escAttr(key)+'">'+(key === 'all' ? '全部' : escAttr(cats[key]))+'</button>'; }).join('');
 tabsWrap.innerHTML = tabsHtml;
 tabsWrap.style.display = '';
 var tabs = tabsWrap.querySelectorAll('.cat-tab');
@@ -11477,8 +11540,8 @@ tabsWrap.innerHTML = '';
 tabsWrap.style.display = 'none';
 }
 }
-// 還能喊單的排前面，連線已結束的放後面；各自低價到高價、同名商品放一起
-var list = sortNewFirst(sortProductsByPrice(all.filter(function(p){ return inLiveCat(p) && productMatchesQuery(p, liveQuery); })));
+// 限時連線專區：還能喊單的排前面，然後「最新上架的排最前面」（降價商品不再固定置頂，避免每次點進來都看到一樣的）
+var list = sortLiveNewest(all.filter(function(p){ return inLiveCat(p) && productMatchesQuery(p, liveQuery); }));
 // 「別錯過」是出國時邊逛邊上架的，最新上架的排最前面
 if(liveCategory === DONTMISS_CAT){
 list = all.filter(function(p){ return p.cat === DONTMISS_CAT && productMatchesQuery(p, liveQuery); }).sort(function(a, b){
@@ -13457,16 +13520,19 @@ function catCoverId(zoneKey, cat){ return 'catcover-' + String(zoneKey).replace(
 function renderCatShareBar(elId, zoneKey, cat, products, zone){
 var el = document.getElementById(elId);
 if(!el) return;
-var pickBtn = isAdminSelf() ? '<button type="button" class="pick-start-btn">'+(PICK_SEL.length || document.body.classList.contains('pick-mode') ? '☑️ 選商品中（'+PICK_SEL.length+'）' : '☑️ 選商品分享')+'</button>' : '';
+var pickBtn = isAdminSelf() ? '<button type="button" class="pick-start-btn">'+(PICK_SEL.length || document.body.classList.contains('pick-mode') ? '☑️ 選商品中（'+PICK_SEL.length+'）' : '☑️ 選商品分享')+'</button>'
++ (elId === 'liveCatShare' && LIVE_TAB_STATE.keys.length > 1 ? '<button type="button" class="tab-order-btn">↔️ 排列分類</button>' : '') : '';
 if(!cat || cat === 'all' || !zoneKey || !products.length){
 el.innerHTML = pickBtn ? '<div class="cat-share-bar">'+pickBtn+'</div>' : '';
 var pb0 = el.querySelector('.pick-start-btn'); if(pb0) pb0.addEventListener('click', pickModeStart);
+var to0 = el.querySelector('.tab-order-btn'); if(to0) to0.addEventListener('click', openTabOrderEditor);
 return;
 }
 var label = (products[0] && products[0].catLabel) || catLabelFor(cat);
 el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-share-btn">🔗 分享「'+escHtml(label)+'」</button>'+pickBtn+'</div>';
 el.querySelector('.cat-share-btn').addEventListener('click', function(){ shareCategoryLink(zoneKey, cat, label, products, zone); });
 var pb = el.querySelector('.pick-start-btn'); if(pb) pb.addEventListener('click', pickModeStart);
+var to1 = el.querySelector('.tab-order-btn'); if(to1) to1.addEventListener('click', openTabOrderEditor);
 }
 function loadCorsImage(url){
 return new Promise(function(resolve){
