@@ -873,7 +873,36 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .live-entry.zone-purple .live-badge{ color:#5B2BB5; } .live-entry.zone-purple .live-dot{ background:#7C4DDB; }
 .live-entry.zone-green .live-badge{ color:#067A57; } .live-entry.zone-green .live-dot{ background:#139E72; }
 .live-zone-hero{ margin:4px 20px 12px; padding:16px; border-radius:var(--r-md); color:#fff; position:relative; }
-.cat-share-bar{ display:flex; justify-content:flex-start; margin:-4px 0 12px; padding:0 20px; min-width:0; }
+.cat-share-bar{ display:flex; justify-content:flex-start; gap:8px; flex-wrap:wrap; margin:-4px 0 12px; padding:0 20px; min-width:0; }
+.pick-start-btn{ background:#06C755; color:#fff; border:0; border-radius:var(--r-full); font-size:12.5px; font-weight:800; padding:7px 13px; font-family:var(--font-body); white-space:nowrap; }
+.pick-check{ display:none; }
+body.pick-mode .card{ cursor:pointer; }
+body.pick-mode .card .card-order-btn{ pointer-events:none; opacity:.35; }
+body.pick-mode .pick-check{ display:flex; position:absolute; top:10px; right:10px; z-index:3; width:34px; height:34px; border-radius:50%; border:3px solid #fff; background:rgba(0,0,0,.35); color:#fff; font-weight:900; font-size:16px; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+body.pick-mode .card.is-picked{ outline:4px solid #06C755; outline-offset:-4px; }
+body.pick-mode .card.is-picked .pick-check{ background:#06C755; }
+#pickBar{ position:fixed; left:12px; right:12px; bottom:96px; z-index:90; display:none; align-items:center; gap:8px; padding:10px 12px; border-radius:16px; background:#111827; color:#fff; font-size:14px; font-weight:800; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+body.pick-mode #pickBar{ display:flex; }
+#pickBar button{ border:0; border-radius:999px; padding:9px 14px; font:inherit; font-size:13.5px; font-weight:800; }
+#pickViewer{ position:fixed; inset:0; z-index:120; background:#171A24; color:#F3F4F8; display:flex; flex-direction:column; max-width:460px; margin:0 auto; }
+#pickViewer .pv-head{ display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 16px 10px; }
+#pickViewer .pv-title{ flex:1; min-width:0; font-size:15px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#pickViewer .pv-x{ width:36px; height:36px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:16px; font-weight:800; }
+#pickViewer .pv-track{ flex:1; display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+#pickViewer .pv-track::-webkit-scrollbar{ display:none; }
+#pickViewer .pv-page{ flex:0 0 100%; scroll-snap-align:start; overflow-y:auto; padding:0 16px 16px; box-sizing:border-box; }
+#pickViewer .pv-img{ width:100%; aspect-ratio:1; object-fit:contain; background:#fff; border-radius:18px; display:block; }
+#pickViewer .pv-name{ margin:14px 0 4px; font-size:18px; font-weight:900; line-height:1.4; }
+#pickViewer .pv-sub{ margin:0 0 8px; font-size:13px; color:#9AA0B4; line-height:1.6; }
+#pickViewer .pv-price{ margin:0 0 12px; font-size:22px; font-weight:900; color:#FF7A85; }
+#pickViewer .pv-order{ width:100%; border:0; border-radius:999px; padding:14px; font:inherit; font-size:16px; font-weight:900; background:#E8505B; color:#fff; }
+#pickViewer .pv-foot{ display:flex; align-items:center; justify-content:center; gap:14px; padding:10px 16px calc(14px + env(safe-area-inset-bottom)); }
+#pickViewer .pv-arrow{ width:44px; height:44px; border-radius:50%; border:2px solid rgba(255,255,255,.6); background:transparent; color:#fff; font-size:22px; font-weight:800; }
+#pickViewer .pv-arrow:disabled{ opacity:.25; }
+#pickViewer .pv-dots{ display:flex; gap:6px; align-items:center; }
+#pickViewer .pv-dot{ width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.3); }
+#pickViewer .pv-dot.on{ width:22px; border-radius:999px; background:#fff; }
+#pickViewer .pv-hint{ text-align:center; font-size:12px; color:#9AA0B4; margin:0; padding:0 16px; }
 .cat-share-btn{ background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:var(--r-full); font-size:12.5px; font-weight:700; padding:6px 13px; font-family:var(--font-body); max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .zone-share-btn{ position:absolute; top:12px; right:12px; background:rgba(255,255,255,.22); color:#fff; border:1px solid rgba(255,255,255,.45); border-radius:var(--r-full); font-size:12px; font-weight:700; padding:5px 11px; font-family:var(--font-body); }
 .live-zone-hero.zone-gold{ background:linear-gradient(125deg,#7A5410,#C8962B 55%,#F2D07A); }
@@ -1683,7 +1712,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261124-0030';
+var APP_VERSION = '20261124-0130';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -2247,6 +2276,12 @@ if(isLiveStock(prod.stock) && prod.liveZoneId){ openLiveZone(prod.liveZoneId); }
 else { showView('shop'); }
 var presetOpt = params.get('opt') || '';
 setTimeout(function(){ openOrderModal(prod, presetOpt); }, 250);
+return;
+}
+// 精選商品連結：?view=pick&ids=a.b.c.d&t=標題 → 打開可以左右滑的精選商品頁
+if(target === 'pick'){
+var pids = String(params.get('ids') || '').split('.').filter(Boolean);
+openPickViewer(pids, params.get('t') || '');
 return;
 }
 var validTargets = ['home','shop','live','cart','wish','vote','menu','guide','payment','shipping','activity'];
@@ -9453,68 +9488,12 @@ ADM_DELETING = false;
 adminSelPaint();
 });
 }
-// 勾選的商品做成「大圖卡片」傳到 LINE 群組：每 4 件一張大卡（2×2 大圖＋商品名稱＋價格），點圖直接進那件商品
-// 超過 4 件會變成好幾張卡左右滑（最多 12 張卡＝48 件）
-function shareGridCell(p){
-var uri = productShareUrl(p);
-return { type:'box', layout:'vertical', flex:1, spacing:'none', action:{ type:'uri', label:'看商品', uri: uri }, contents:[
-{ type:'image', url: productImageUrl(p.id), size:'full', aspectRatio:'1:1', aspectMode:'cover' },
-{ type:'box', layout:'vertical', paddingAll:'8px', paddingTop:'6px', spacing:'xs', contents:[
-{ type:'text', text: flexStr(p.name, 60), wrap:true, weight:'bold', size:'sm', maxLines:2, color:'#111111' },
-{ type:'text', text: flexStr(productPriceText(p), 30), size:'sm', weight:'bold', color:'#E8505B' }
-] }
-] };
-}
-function shareGridBubble(list, title, url){
-var rows = [];
-if(list.length === 1){ rows.push({ type:'box', layout:'horizontal', contents:[ shareGridCell(list[0]) ] }); }
-else {
-for(var i=0;i<list.length;i+=2){
-var r = [ shareGridCell(list[i]) ];
-r.push(list[i+1] ? shareGridCell(list[i+1]) : { type:'filler', flex:1 });
-rows.push({ type:'box', layout:'horizontal', spacing:'xs', contents:r });
-}
-}
-return { type:'bubble', size:'giga',
-header: { type:'box', layout:'vertical', paddingAll:'12px', backgroundColor:'#111827', contents:[ { type:'text', text: flexStr(title, 60), color:'#FFFFFF', weight:'bold', size:'md', wrap:true, maxLines:2 } ] },
-body: { type:'box', layout:'vertical', paddingAll:'0px', spacing:'xs', contents: rows },
-footer: { type:'box', layout:'vertical', paddingAll:'10px', contents:[ { type:'button', style:'primary', color:'#E8505B', height:'sm', action:{ type:'uri', label:'看看・喊單', uri: url } } ] } };
-}
-async function adminShareSelected(){
+// 後台勾選列「🔗 分享」：用勾的商品做精選連結（跟前台「☑️ 選商品分享」一樣）
+function adminShareSelected(){
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
-if(!ids.length) return;
-var byId = {}; (PRODUCTS || []).forEach(function(p){ byId[p.id] = p; });
-var cache = {}; adminProductsCache.forEach(function(p){ cache[p.id] = p; });
-// 照商品頁上的順序排（不是勾的順序）
 var order = []; var cs = document.querySelectorAll('.adm-sel'); for(var i=0;i<cs.length;i++){ var id = cs[i].getAttribute('data-product-id'); if(adminSelected[id] && order.indexOf(id) === -1) order.push(id); }
 ids.forEach(function(id){ if(order.indexOf(id) === -1) order.push(id); });
-var list = [], skip = [];
-order.forEach(function(id){ var p = byId[id]; if(p && !p.isPrivate && !p.isCustom && !(cache[id] && cache[id].is_hidden)) list.push(p); else skip.push(cache[id] ? cache[id].name : '（商品）'); });
-if(!list.length){ alert('勾的商品都是隱藏或客訂商品，客人看不到，不能分享。\n\n先按「👀 公開」再分享。'); return; }
-if(list.length > 48){ alert('一次最多分享 48 件（現在勾了 '+list.length+' 件）'); return; }
-var inLine = !!(window.liff && liff.isInClient && liff.isInClient()), canPicker = false;
-try{ canPicker = inLine && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }catch(e){}
-if(!canPicker){ alert('要在 LINE 裡打開四郎玩具箱，才能把卡片傳到群組。'); return; }
-// 連結：都在同一個限時連線專區 → 專區連結；只有 1 件 → 商品連結；其他 → 首頁
-var zids = {}; list.forEach(function(p){ zids[(p.stock === 'live_limited' && p.liveZoneId) ? p.liveZoneId : '-'] = 1; });
-var zk = Object.keys(zids), zone = (zk.length === 1 && zk[0] !== '-') ? zoneById(zk[0]) : null;
-var defTitle = zone ? ((zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '')) : (list.length === 1 ? list[0].name : '四郎玩具箱・精選商品');
-var title = window.prompt('卡片標題（會顯示在大圖上面）：'+(skip.length ? '\n\n⚠️ 有 '+skip.length+' 件是隱藏／客訂商品，會跳過' : ''), defTitle);
-if(title === null) return;
-title = String(title).trim() || defTitle;
-var url = '';
-try{ url = zone ? zoneShareUrl(zone, await zoneShareVer(zone)) : (list.length === 1 ? productShareUrl(list[0]) : window.location.origin + '/'); }catch(e){ url = window.location.origin + '/'; }
-var bubbles = [];
-for(var j=0;j<list.length;j+=4) bubbles.push(shareGridBubble(list.slice(j, j+4), title, url));
-var msgs = [ { type:'flex', altText: flexStr(title, 100) + '（' + list.length + ' 件）', contents: bubbles.length === 1 ? bubbles[0] : { type:'carousel', contents: bubbles } },
-{ type:'text', text: title + '\n' + url } ];
-try{
-var r = await liff.shareTargetPicker(msgs);
-if(r){ showToast('已分享 ♡'); adminSelected = {}; adminSelPaint(); }
-}catch(e){
-try{ var r2 = await liff.shareTargetPicker([{ type:'text', text: title + '\n' + url }]); if(r2) showToast('大圖卡片傳送失敗，已改傳連結'); }
-catch(e2){ alert('分享失敗：' + (e && e.message ? e.message : e)); }
-}
+pickShareIds(order);
 }
 async function adminDeleteSelected(){
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
@@ -11102,8 +11081,9 @@ orderBtnHTML = '<button class="card-order-btn" data-order="' + p.id + '">加入�
 var depositNoteHTML = (!myBalance.noDeposit && p.stock === 'live_limited' && productPriceRange(p).max >= 1000)
 ? '<p class="deposit-hint" style="font-size:11.5px;color:var(--ignis-deep);margin:2px 0 0;">💰 喊單總金額滿 NT$1,000，需支付 50% 訂金。</p>'
 : '';
-return '<article class="card">'
+return '<article class="card'+(PICK_SEL.indexOf(p.id) !== -1 ? ' is-picked' : '')+'" data-pid="'+escAttr(p.id)+'">'
 + '<div class="card-visual">' + visualHTML(p)
++ '<span class="pick-check">'+(PICK_SEL.indexOf(p.id) !== -1 ? (PICK_SEL.indexOf(p.id)+1) : '')+'</span>'
 + (isNewProduct(p) ? '<span class="new-badge">NEW 新上架</span>' : '')
 + '</div>'
 + '<div class="card-body">'
@@ -13281,6 +13261,168 @@ items.forEach(function(it, k){ btns[k].addEventListener('click', function(){ clo
 wrap.querySelector('.share-menu-cancel').addEventListener('click', closeShareMenu);
 wrap.addEventListener('click', function(e){ if(e.target === wrap) closeShareMenu(); });
 }
+// ---------- ☑️ 選商品分享：老闆／小幫手在前台點選幾件商品 → 做成一個連結 ----------
+// 連結 /s/商品1.商品2… ：LINE 預覽是勾選商品拼成的大圖（2×2＋名稱）；客人點開是可以左右滑的精選商品頁
+var PICK_SEL = [];
+var PICK_MAX = 12;
+function pickRefreshCards(){
+var cards = document.querySelectorAll('.card[data-pid]');
+for(var i=0;i<cards.length;i++){
+var id = cards[i].getAttribute('data-pid'), k = PICK_SEL.indexOf(id);
+cards[i].classList.toggle('is-picked', k !== -1);
+var ck = cards[i].querySelector('.pick-check'); if(ck) ck.textContent = k !== -1 ? String(k + 1) : '';
+}
+var bar = document.getElementById('pickBar');
+if(!bar){
+bar = document.createElement('div'); bar.id = 'pickBar';
+bar.innerHTML = '<span id="pickBarN" style="flex:1;"></span><button type="button" id="pickBarCancel" style="background:rgba(255,255,255,.14);color:#fff;">取消</button><button type="button" id="pickBarGo" style="background:#06C755;color:#fff;">🔗 分享</button>';
+document.body.appendChild(bar);
+bar.querySelector('#pickBarCancel').addEventListener('click', pickModeEnd);
+bar.querySelector('#pickBarGo').addEventListener('click', function(){ if(!PICK_SEL.length){ showToast('先點商品選起來'); return; } pickShareIds(PICK_SEL.slice()); });
+}
+bar.querySelector('#pickBarN').textContent = PICK_SEL.length ? '已選 ' + PICK_SEL.length + ' 件（建議 4 件）' : '點商品選起來（建議 4 件）';
+var sb = document.querySelectorAll('.pick-start-btn'); for(var j=0;j<sb.length;j++) sb[j].textContent = '☑️ 選商品中（'+PICK_SEL.length+'）';
+}
+function pickModeStart(){
+if(document.body.classList.contains('pick-mode')){ pickRefreshCards(); return; }
+document.body.classList.add('pick-mode');
+pickRefreshCards();
+showToast('點商品照片選起來，選好按下面「🔗 分享」');
+}
+function pickModeEnd(){
+document.body.classList.remove('pick-mode');
+PICK_SEL = [];
+pickRefreshCards();
+var sb = document.querySelectorAll('.pick-start-btn'); for(var j=0;j<sb.length;j++) sb[j].textContent = '☑️ 選商品分享';
+}
+// 選商品模式：點卡片＝選／取消，不會打開喊單
+document.addEventListener('click', function(e){
+if(!document.body.classList.contains('pick-mode')) return;
+var card = e.target && e.target.closest ? e.target.closest('.card[data-pid]') : null;
+if(!card) return;
+e.preventDefault(); e.stopPropagation();
+var id = card.getAttribute('data-pid'), k = PICK_SEL.indexOf(id);
+if(k !== -1) PICK_SEL.splice(k, 1);
+else { if(PICK_SEL.length >= PICK_MAX){ showToast('一次最多選 '+PICK_MAX+' 件'); return; } PICK_SEL.push(id); }
+pickRefreshCards();
+}, true);
+// 預覽大圖 1080×1080：上面標題，下面 2×2 商品照片＋名稱；超過 4 件第 4 格顯示「+N 件 往右滑」
+async function buildPickCollage(list, title){
+var W = 1080, H = 1080, head = 120, gap = 10, pad = 10;
+var shown = list.slice(0, 4), more = list.length > 4 ? list.length - 3 : 0;
+if(more) shown = list.slice(0, 3);
+var imgs = await Promise.all(shown.map(function(p){ return loadCorsImage(productImageUrl(p.id)); }));
+var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+var ctx = cv.getContext('2d');
+var font = '-apple-system,"PingFang TC","Noto Sans TC",sans-serif';
+ctx.fillStyle = '#171A24'; ctx.fillRect(0, 0, W, H);
+ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; ctx.fillStyle = '#FFFFFF';
+ctx.font = '900 50px ' + font;
+var t = String(title || ''); while(ctx.measureText(t).width > W - 80 && t.length > 2) t = t.slice(0, -1);
+if(t !== String(title || '')) t = t.slice(0, -1) + '…';
+ctx.fillText(t, W/2, head/2 + 4);
+var n = shown.length + (more ? 1 : 0);
+var cols = n === 1 ? 1 : 2, rows = n <= 2 ? 1 : 2;
+var cw = (W - pad*2 - gap*(cols-1)) / cols, chTotal = H - head - pad;
+var ch = rows === 1 ? Math.min(chTotal, n === 1 ? chTotal : cw + 150) : (chTotal - gap) / 2;
+var top0 = head + (rows === 1 ? Math.max(0, (chTotal - ch) / 2) : 0);
+var NAME = n === 1 ? 170 : 130;
+function cell(i){ var c = i % cols, r = Math.floor(i / cols); return { x: pad + c*(cw+gap), y: top0 + r*(ch+gap) }; }
+for(var i=0;i<shown.length;i++){
+var p = shown[i], o = cell(i), ih = ch - NAME;
+ctx.save(); roundRectPath(ctx, o.x, o.y, cw, ch, 22); ctx.clip();
+ctx.fillStyle = '#FFFFFF'; ctx.fillRect(o.x, o.y, cw, ch);
+var im = imgs[i];
+if(im){ var sc = Math.max(cw / im.width, ih / im.height), dw = im.width*sc, dh = im.height*sc; ctx.drawImage(im, o.x + (cw-dw)/2, o.y + (ih-dh)/2, dw, dh); }
+ctx.fillStyle = '#FFFFFF'; ctx.fillRect(o.x, o.y + ih, cw, NAME);
+ctx.restore();
+ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = '#1B1E27';
+ctx.font = '800 ' + (n === 1 ? 48 : 34) + 'px ' + font;
+var lines = wrapLines(ctx, p.name, cw - 36, 2);
+lines.forEach(function(l, k){ ctx.fillText(l, o.x + 18, o.y + ih + 14 + k * (n === 1 ? 58 : 42)); });
+ctx.font = '900 ' + (n === 1 ? 44 : 32) + 'px ' + font; ctx.fillStyle = '#E8505B';
+ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+ctx.fillText(productPriceText(p), o.x + cw - 16, o.y + ch - 10);
+}
+if(more){
+var o2 = cell(3);
+ctx.save(); roundRectPath(ctx, o2.x, o2.y, cw, ch, 22); ctx.clip();
+var g = ctx.createLinearGradient(o2.x, o2.y, o2.x + cw, o2.y + ch); g.addColorStop(0, '#E8505B'); g.addColorStop(1, '#F59E6B');
+ctx.fillStyle = g; ctx.fillRect(o2.x, o2.y, cw, ch); ctx.restore();
+ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+ctx.font = '900 110px ' + font; ctx.fillText('+' + more, o2.x + cw/2, o2.y + ch/2 - 40);
+ctx.font = '800 40px ' + font; ctx.fillText('點進來往右滑 ›', o2.x + cw/2, o2.y + ch/2 + 60);
+}
+return cv.toDataURL('image/jpeg', 0.9);
+}
+async function pickShareIds(ids){
+var byId = {}; (PRODUCTS || []).forEach(function(p){ byId[p.id] = p; });
+var list = [], skip = 0;
+(ids || []).forEach(function(id){ var p = byId[id]; if(p && !p.isPrivate && !p.isCustom) list.push(p); else skip++; });
+if(!list.length){ alert('選的商品都是隱藏或客訂商品，客人看不到，不能分享。'); return; }
+if(list.length > PICK_MAX){ alert('一次最多分享 '+PICK_MAX+' 件（現在選了 '+list.length+' 件）'); return; }
+var zk = {}; list.forEach(function(p){ zk[(p.stock === 'live_limited' && p.liveZoneId) ? p.liveZoneId : '-'] = 1; });
+var keys = Object.keys(zk), zone = (keys.length === 1 && keys[0] !== '-') ? zoneById(keys[0]) : null;
+var defTitle = zone ? ((zone.name || '限時連線專區') + (zone.note ? '｜' + zone.note : '')) : '四郎玩具箱・精選商品';
+var title = window.prompt('標題（會出現在預覽大圖最上面）：'+(skip ? '\n\n⚠️ 有 '+skip+' 件是隱藏／客訂商品，會跳過' : ''), defTitle);
+if(title === null) return;
+title = String(title).trim().slice(0, 40) || defTitle;
+var idStr = list.map(function(p){ return p.id; }).join('.');
+var coverId = 'pickcover-' + shortHash(idStr);
+try{
+showToast('產生預覽大圖中…');
+var data = await buildPickCollage(list, title);
+await callMemberApi('admin-upload-product-image', { productId: coverId, imageData: data });
+}catch(e){ showToast('預覽圖產生失敗，先用第一件商品的照片'); }
+var ver = shortHash(idStr + '|' + title + '|' + list.map(function(p){ return (p.imageVersion || 0) + ':' + p.name + ':' + productPriceText(p); }).join(',') + '|' + Date.now()).slice(0, 6);
+var url = window.location.origin + '/s/' + idStr + '?t=' + encodeURIComponent(title) + '&v=' + ver;
+pickModeEnd();
+openShareMenu(title, url, title + '｜四郎玩具箱');
+}
+// 客人點開精選連結：全螢幕，一件一頁左右滑，每頁大圖＋名稱＋價格＋加入喊單
+function openPickViewer(ids, title){
+var byId = {}; (PRODUCTS || []).forEach(function(p){ byId[p.id] = p; });
+var list = (ids || []).map(function(id){ return byId[id]; }).filter(function(p){ return p && !p.isPrivate; });
+if(!list.length){ showView('home'); showToast('這些商品已經下架囉，看看其他商品吧 ♡'); return; }
+var first = list[0];
+if(isLiveStock(first.stock) && first.liveZoneId) openLiveZone(first.liveZoneId); else showView('shop');
+var old = document.getElementById('pickViewer'); if(old) old.remove();
+var v = document.createElement('div'); v.id = 'pickViewer';
+v.innerHTML = '<div class="pv-head"><span class="pv-title">'+escHtml(title || '四郎玩具箱・精選商品')+'</span><span id="pvNum" style="font-size:13px;font-weight:800;color:#9AA0B4;">1 / '+list.length+'</span><button type="button" class="pv-x" id="pvClose">✕</button></div>'
++ '<div class="pv-track" id="pvTrack">' + list.map(function(p, i){
+var off = p.stock === 'sold_out' || p.stock === 'live_ended';
+return '<div class="pv-page"><img class="pv-img" src="'+escAttr(productImageUrl(p.id))+'" alt="" loading="'+(i < 2 ? 'eager' : 'lazy')+'">'
++ '<p class="pv-name">'+escHtml(p.name)+'</p>'
++ (p.sub ? '<p class="pv-sub">'+escHtml(p.sub)+'</p>' : '')
++ '<p class="pv-price">'+escHtml(productPriceText(p))+'</p>'
++ '<button type="button" class="pv-order" data-i="'+i+'"'+(off ? ' disabled style="opacity:.45;"' : '')+'>'+(off ? '已售完' : '加入喊單')+'</button></div>';
+}).join('') + '</div>'
++ (list.length > 1 ? '<p class="pv-hint">👉 往左滑看下一件</p>' : '')
++ '<div class="pv-foot">' + (list.length > 1 ? '<button type="button" class="pv-arrow" id="pvPrev">‹</button><div class="pv-dots">' + list.map(function(p, i){ return '<span class="pv-dot'+(i === 0 ? ' on' : '')+'"></span>'; }).join('') + '</div><button type="button" class="pv-arrow" id="pvNext">›</button>' : '') + '</div>'
++ '<div style="padding:0 16px calc(12px + env(safe-area-inset-bottom));"><button type="button" id="pvMore" style="width:100%;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:999px;padding:11px;font:inherit;font-size:14px;font-weight:800;">看專區全部商品</button></div>';
+document.body.appendChild(v);
+var tr = v.querySelector('#pvTrack'), cur = 0;
+function paint(){
+var w = tr.clientWidth || 1; cur = Math.round(tr.scrollLeft / w);
+var dots = v.querySelectorAll('.pv-dot'); for(var i=0;i<dots.length;i++) dots[i].classList.toggle('on', i === cur);
+var num = v.querySelector('#pvNum'); if(num) num.textContent = (cur + 1) + ' / ' + list.length;
+var pv = v.querySelector('#pvPrev'), nx = v.querySelector('#pvNext');
+if(pv) pv.disabled = cur <= 0; if(nx) nx.disabled = cur >= list.length - 1;
+var h = v.querySelector('.pv-hint'); if(h) h.textContent = cur >= list.length - 1 ? '最後一件囉 ♡' : '👉 往左滑看下一件';
+}
+function go(i){ tr.scrollTo({ left: i * tr.clientWidth, behavior:'smooth' }); }
+tr.addEventListener('scroll', function(){ clearTimeout(tr._t); tr._t = setTimeout(paint, 60); });
+paint();
+var pv = v.querySelector('#pvPrev'), nx = v.querySelector('#pvNext');
+if(pv) pv.addEventListener('click', function(){ go(Math.max(0, cur - 1)); });
+if(nx) nx.addEventListener('click', function(){ go(Math.min(list.length - 1, cur + 1)); });
+v.querySelector('#pvClose').addEventListener('click', function(){ v.remove(); });
+v.querySelector('#pvMore').addEventListener('click', function(){ v.remove(); });
+tr.addEventListener('click', function(e){
+var b = e.target.closest ? e.target.closest('.pv-order') : null; if(!b || b.disabled) return;
+openOrderModal(list[Number(b.getAttribute('data-i'))]);
+});
+}
 // ---------- 分類分享 ----------
 // 每個分類都有「分享這個分類」：連結是 /c/分類?z=專區（或 regular＝現貨・預購），
 // 預覽圖是這個分類每件商品的第一張照片拼成的一張圖（老闆／小幫手按分享時自動產生並上傳）
@@ -13293,10 +13435,16 @@ function catCoverId(zoneKey, cat){ return 'catcover-' + String(zoneKey).replace(
 function renderCatShareBar(elId, zoneKey, cat, products, zone){
 var el = document.getElementById(elId);
 if(!el) return;
-if(!cat || cat === 'all' || !zoneKey || !products.length){ el.innerHTML = ''; return; }
+var pickBtn = isAdminSelf() ? '<button type="button" class="pick-start-btn">'+(PICK_SEL.length || document.body.classList.contains('pick-mode') ? '☑️ 選商品中（'+PICK_SEL.length+'）' : '☑️ 選商品分享')+'</button>' : '';
+if(!cat || cat === 'all' || !zoneKey || !products.length){
+el.innerHTML = pickBtn ? '<div class="cat-share-bar">'+pickBtn+'</div>' : '';
+var pb0 = el.querySelector('.pick-start-btn'); if(pb0) pb0.addEventListener('click', pickModeStart);
+return;
+}
 var label = (products[0] && products[0].catLabel) || catLabelFor(cat);
-el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-share-btn">🔗 分享「'+escHtml(label)+'」</button></div>';
+el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-share-btn">🔗 分享「'+escHtml(label)+'」</button>'+pickBtn+'</div>';
 el.querySelector('.cat-share-btn').addEventListener('click', function(){ shareCategoryLink(zoneKey, cat, label, products, zone); });
+var pb = el.querySelector('.pick-start-btn'); if(pb) pb.addEventListener('click', pickModeStart);
 }
 function loadCorsImage(url){
 return new Promise(function(resolve){
