@@ -416,7 +416,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 #admSelBar button{ border:0; border-radius:999px; padding:8px 12px; font:inherit; font-size:12.5px; font-weight:800; }
 #admSelBar .sb-del{ background:#DC2626; color:#fff; }
 #admSelBar .sb-gap{ flex-basis:100%; height:0; }
-#admSelBar .sb-move, #admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; padding:10px 6px; font-size:13px; white-space:nowrap; }
+#admSelBar .sb-move, #admSelBar .sb-cat, #admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; min-width:0; padding:10px 2px; font-size:12.5px; white-space:nowrap; }
+#admSelBar .sb-cat{ background:#E9D5FF; color:#581C87; }
 #admSelBar .sb-move{ background:#BFDBFE; color:#1E3A8A; }
 #admSelBar .sb-hide{ background:#FDE68A; color:#78350F; }
 #admSelBar .sb-show{ background:#BBF7D0; color:#14532D; }
@@ -1681,7 +1682,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261123-1450';
+var APP_VERSION = '20261123-2300';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -9272,7 +9273,7 @@ var bar = document.getElementById('admSelBar');
 if(!bar){ bar = document.createElement('div'); bar.id = 'admSelBar'; document.body.appendChild(bar); }
 var onPage = admSelVisible();
 bar.style.display = (ids.length && onPage) ? 'flex' : 'none';
-bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
+bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-cat" id="sbCat">📂 分類</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
 var cs = document.querySelectorAll('.adm-sel');
 for(var i=0;i<cs.length;i++){ var on = !!adminSelected[cs[i].getAttribute('data-product-id')]; cs[i].checked = on; var cd = cs[i].closest('.adm-prod'); if(cd) cd.classList.toggle('is-sel', on); }
 }
@@ -9382,6 +9383,75 @@ ADM_DELETING = false;
 adminSelPaint();
 });
 }
+// 勾選的一次換分類（跟商品裡「📂 分類」一樣，只是一次換好幾件）
+function adminRecatSelected(){
+var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
+if(!ids.length) return;
+var cache = {}; adminProductsCache.forEach(function(p){ cache[p.id] = p; });
+var cats = {}, order = [];
+function add(k, l){ if(k && !(k in cats)){ cats[k] = l; order.push(k); } }
+add(DONTMISS_CAT, '🔥 別錯過');
+(adminProductsCache || []).forEach(function(x){ add(x.cat, x.cat_label || catLabelFor(x.cat)); });
+(PRODUCTS || []).forEach(function(x){ add(x.cat, x.catLabel || catLabelFor(x.cat)); });
+var cnt = {}; ids.forEach(function(id){ var c = cache[id] ? cache[id].cat || '' : ''; cnt[c] = (cnt[c]||0) + 1; });
+var ov = document.createElement('div');
+ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+var btn = function(k, l, here){ return '<button type="button" class="rc-pick" data-cat="'+escAttr(k)+'" data-label="'+escAttr(l)+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1.5px solid #E4E4E7;border-radius:14px;background:#fff;font-size:14.5px;font-weight:800;font-family:var(--font-body);"><span style="flex:1;min-width:0;">'+escHtml(l)+'</span>'+(here ? '<span style="font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;">已在這個分類 '+here+' 件</span>' : '')+'</button>'; };
+ov.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto;">'
++ '<p style="margin:0 0 4px;font-size:16px;font-weight:900;">📂 勾選的 '+ids.length+' 件換到哪個分類？</p>'
++ '<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.6;">跟商品裡「📂 分類」一樣，只是一次換好幾件。區不會變（要換區用「📍 移區」），已經喊的單不受影響。</p>'
++ order.map(function(k){ return btn(k, cats[k] || k, cnt[k] || 0); }).join('')
++ '<button type="button" class="rc-pick" data-cat="__new__" data-label="" style="display:block;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1.5px dashed #A1A1AA;border-radius:14px;background:#FAFAFA;font-size:14.5px;font-weight:800;font-family:var(--font-body);">＋ 新增分類…</button>'
++ '<button type="button" class="rc-cancel" style="width:100%;padding:12px;border:none;background:none;color:var(--muted);font-size:14px;font-weight:700;font-family:var(--font-body);">取消</button></div>';
+document.body.appendChild(ov);
+ov.addEventListener('click', async function(e){
+if(e.target === ov || (e.target.closest && e.target.closest('.rc-cancel'))){ ov.remove(); return; }
+var pk = e.target.closest ? e.target.closest('.rc-pick') : null; if(!pk) return;
+var cat = pk.getAttribute('data-cat'), label = pk.getAttribute('data-label');
+if(cat === '__new__'){
+var nm = (window.prompt('新分類的名稱：', '') || '').trim();
+if(!nm) return;
+label = nm.slice(0, 20);
+var hit = order.filter(function(k){ return (cats[k] || '') === label; })[0];
+cat = hit || ('cat' + Date.now().toString(36));
+}
+var todo = ids.filter(function(id){ return !cache[id] || (cache[id].cat || '') !== cat; });
+var skip = ids.length - todo.length;
+if(!todo.length){ showToast('勾的都已經在「'+label+'」了'); return; }
+if(!window.confirm('把 '+todo.length+' 件換到「'+label+'」嗎？'+(skip ? '\n（另外 '+skip+' 件本來就在這個分類，跳過）' : '')+'\n\n'+todo.slice(0, 6).map(function(id){ return '・'+(cache[id] ? cache[id].name : '（商品）'); }).join('\n')+(todo.length > 6 ? '\n…' : '')+'\n\n原本的分類就看不到它們了，已經喊的單不受影響。')) return;
+ov.remove();
+ADM_DELETING = true;
+var bar = document.getElementById('admSelBar'); if(bar) bar.style.display = 'none';
+var pov = document.createElement('div'); pov.className = 'cm-ov'; pov.style.zIndex = '10060';
+pov.innerHTML = '<div class="cm-box" style="text-align:center;"><p class="cm-title">📂 換分類中…</p><p id="admDelTxt" style="font-size:15px;font-weight:800;margin:10px 0;">0 / '+todo.length+'</p><p class="cm-hint">請不要關掉或離開這個畫面</p></div>';
+document.body.appendChild(pov);
+var setBar = function(t){ var el = document.getElementById('admDelTxt'); if(el) el.textContent = t; };
+var ok = 0, fail = [], done = 0, next = 0;
+async function worker(){
+while(next < todo.length){
+var id = todo[next++];
+try{
+var r = await callMemberApi('admin-set-product-category', { productId: id, cat: cat, catLabel: label });
+ok++;
+var nc = (r && r.cat) || cat, nl = (r && r.catLabel) || label;
+if(cache[id]){ cache[id].cat = nc; cache[id].cat_label = nl; }
+for(var j=0;j<PRODUCTS.length;j++){ if(PRODUCTS[j].id === id){ PRODUCTS[j].cat = nc; PRODUCTS[j].catLabel = nl; } }
+}catch(err){ fail.push((cache[id] ? cache[id].name : '（商品）')+'：'+err.message); }
+done++; setBar(done+' / '+todo.length+(fail.length ? '（'+fail.length+' 件沒成功）' : ''));
+}
+}
+await Promise.all([worker(), worker(), worker()]);
+try{ registerCategories(PRODUCTS); }catch(re){}
+showToast('已把 '+ok+' 件換到「'+label+'」');
+if(fail.length) alert('有 '+fail.length+' 件沒成功：\n\n'+fail.slice(0, 8).join('\n\n')+(fail.length > 8 ? '\n…' : ''));
+adminSelected = {};
+try{ refreshShop(); }catch(rs){}
+try{ await loadAdminProducts(); }catch(er){}
+pov.remove();
+ADM_DELETING = false;
+adminSelPaint();
+});
+}
 async function adminDeleteSelected(){
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
 if(!ids.length) return;
@@ -9447,6 +9517,7 @@ if(t.closest('#sbNone')){ adminSelected = {}; adminSelPaint(); return; }
 if(t.closest('#sbAll')){ var cs = document.querySelectorAll('.adm-sel'); for(var i=0;i<cs.length;i++){ var cd = cs[i].closest('.adm-prod'); if(cd && cd.offsetParent !== null) adminSelected[cs[i].getAttribute('data-product-id')] = true; } adminSelPaint(); return; }
 if(t.closest('#sbDel')){ adminDeleteSelected(); return; }
 if(t.closest('#sbMove')){ adminMoveSelected(); return; }
+if(t.closest('#sbCat')){ adminRecatSelected(); return; }
 if(t.closest('#sbHide')){ adminHideSelected(true); return; }
 if(t.closest('#sbShow')){ adminHideSelected(false); return; }
 }, true);
