@@ -416,7 +416,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 #admSelBar button{ border:0; border-radius:999px; padding:8px 12px; font:inherit; font-size:12.5px; font-weight:800; }
 #admSelBar .sb-del{ background:#DC2626; color:#fff; }
 #admSelBar .sb-gap{ flex-basis:100%; height:0; }
-#admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; padding:10px 8px; font-size:13.5px; }
+#admSelBar .sb-move, #admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; padding:10px 6px; font-size:13px; white-space:nowrap; }
+#admSelBar .sb-move{ background:#BFDBFE; color:#1E3A8A; }
 #admSelBar .sb-hide{ background:#FDE68A; color:#78350F; }
 #admSelBar .sb-show{ background:#BBF7D0; color:#14532D; }
 #admSelBar .sb-lt{ background:rgba(255,255,255,.14); color:#fff; }
@@ -1680,7 +1681,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261123-0150';
+var APP_VERSION = '20261123-1450';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -9271,7 +9272,7 @@ var bar = document.getElementById('admSelBar');
 if(!bar){ bar = document.createElement('div'); bar.id = 'admSelBar'; document.body.appendChild(bar); }
 var onPage = admSelVisible();
 bar.style.display = (ids.length && onPage) ? 'flex' : 'none';
-bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><span class="sb-gap"></span><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
+bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
 var cs = document.querySelectorAll('.adm-sel');
 for(var i=0;i<cs.length;i++){ var on = !!adminSelected[cs[i].getAttribute('data-product-id')]; cs[i].checked = on; var cd = cs[i].closest('.adm-prod'); if(cd) cd.classList.toggle('is-sel', on); }
 }
@@ -9319,6 +9320,67 @@ try{ await loadAdminProducts(); }catch(e){}
 pov.remove();
 ADM_DELETING = false;
 adminSelPaint();
+}
+// 勾選的一次移到別區（現貨區／預購連線區／某個限時連線專區），跟商品裡「📍 放在哪一區」一樣
+function admAreaOf(p){
+if(!p) return '';
+if(isLiveStock(p.stock_status)) return p.live_zone_id ? 'zone:'+p.live_zone_id : '';
+return p.stock_status === 'preorder' ? 'preorder' : (p.stock_status === 'in' ? 'in' : '');
+}
+function adminMoveSelected(){
+var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
+if(!ids.length) return;
+var cache = {}; adminProductsCache.forEach(function(p){ cache[p.id] = p; });
+var areas = [['in','現貨區'], ['preorder','預購連線區']].concat(LIVE_ZONES.map(function(z){ return ['zone:'+z.id, '專區：'+(z.name||'限時連線專區')+(z.note?'｜'+z.note:''), z]; }));
+var cnt = {}; ids.forEach(function(id){ var a = admAreaOf(cache[id]); cnt[a] = (cnt[a]||0) + 1; });
+var ov = document.createElement('div');
+ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+ov.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto;">'
++ '<p style="margin:0 0 4px;font-size:16px;font-weight:900;">📍 勾選的 '+ids.length+' 件移到哪一區？</p>'
++ '<p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.6;">跟商品裡「📍 放在哪一區」一樣，只是一次搬好幾件。已經喊的單不受影響。</p>'
++ areas.map(function(a){
+var z = a[2], here = cnt[a[0]] || 0;
+var dot = z ? '<span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+({gold:'#C8962B',blue:'#2F6FE0',purple:'#7C4DDB',green:'#139E72'}[z.color] || '#C8962B')+';"></span>' : '<span style="width:12px;flex:none;">'+(a[0]==='in'?'📦':'✈️')+'</span>';
+return '<button type="button" class="ms-pick" data-area="'+escAttr(a[0])+'" data-label="'+escAttr(a[1])+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1.5px solid #E4E4E7;border-radius:14px;background:#fff;font-size:14.5px;font-weight:800;font-family:var(--font-body);">'
++ dot + '<span style="flex:1;min-width:0;">'+escHtml(a[1])+'</span>'
++ (here ? '<span style="font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;">已在這區 '+here+' 件</span>' : '')
++ '</button>';
+}).join('')
++ '<button type="button" class="ms-cancel" style="width:100%;padding:12px;border:none;background:none;color:var(--muted);font-size:14px;font-weight:700;font-family:var(--font-body);">取消</button></div>';
+document.body.appendChild(ov);
+ov.addEventListener('click', async function(e){
+if(e.target === ov || (e.target.closest && e.target.closest('.ms-cancel'))){ ov.remove(); return; }
+var pk = e.target.closest ? e.target.closest('.ms-pick') : null; if(!pk) return;
+var area = pk.getAttribute('data-area'), label = pk.getAttribute('data-label');
+var todo = ids.filter(function(id){ return admAreaOf(cache[id]) !== area; });
+var skip = ids.length - todo.length;
+if(!todo.length){ showToast('勾的都已經在「'+label+'」了'); return; }
+if(!window.confirm('把 '+todo.length+' 件移到「'+label+'」嗎？'+(skip ? '\n（另外 '+skip+' 件本來就在這區，跳過）' : '')+'\n\n'+todo.slice(0, 6).map(function(id){ return '・'+(cache[id] ? cache[id].name : '（商品）'); }).join('\n')+(todo.length > 6 ? '\n…' : '')+'\n\n已經喊的單不受影響。')) return;
+ov.remove();
+ADM_DELETING = true;
+var bar = document.getElementById('admSelBar'); if(bar) bar.style.display = 'none';
+var pov = document.createElement('div'); pov.className = 'cm-ov'; pov.style.zIndex = '10060';
+pov.innerHTML = '<div class="cm-box" style="text-align:center;"><p class="cm-title">📍 移動中…</p><p id="admDelTxt" style="font-size:15px;font-weight:800;margin:10px 0;">0 / '+todo.length+'</p><p class="cm-hint">請不要關掉或離開這個畫面</p></div>';
+document.body.appendChild(pov);
+var setBar = function(t){ var el = document.getElementById('admDelTxt'); if(el) el.textContent = t; };
+var ok = 0, fail = [], done = 0, next = 0;
+async function worker(){
+while(next < todo.length){
+var id = todo[next++];
+try{ await callMemberApi('admin-move-product-area', { productId: id, area: area }); ok++; }
+catch(err){ fail.push((cache[id] ? cache[id].name : '（商品）')+'：'+err.message); }
+done++; setBar(done+' / '+todo.length+(fail.length ? '（'+fail.length+' 件沒成功）' : ''));
+}
+}
+await Promise.all([worker(), worker(), worker()]);
+showToast('已移 '+ok+' 件到「'+label+'」');
+if(fail.length) alert('有 '+fail.length+' 件沒成功：\n\n'+fail.slice(0, 8).join('\n\n')+(fail.length > 8 ? '\n…' : ''));
+adminSelected = {};
+try{ await loadAdminProducts(); }catch(er){}
+pov.remove();
+ADM_DELETING = false;
+adminSelPaint();
+});
 }
 async function adminDeleteSelected(){
 var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
@@ -9384,6 +9446,7 @@ var t = e.target && e.target.closest ? e.target : null; if(!t) return;
 if(t.closest('#sbNone')){ adminSelected = {}; adminSelPaint(); return; }
 if(t.closest('#sbAll')){ var cs = document.querySelectorAll('.adm-sel'); for(var i=0;i<cs.length;i++){ var cd = cs[i].closest('.adm-prod'); if(cd && cd.offsetParent !== null) adminSelected[cs[i].getAttribute('data-product-id')] = true; } adminSelPaint(); return; }
 if(t.closest('#sbDel')){ adminDeleteSelected(); return; }
+if(t.closest('#sbMove')){ adminMoveSelected(); return; }
 if(t.closest('#sbHide')){ adminHideSelected(true); return; }
 if(t.closest('#sbShow')){ adminHideSelected(false); return; }
 }, true);
