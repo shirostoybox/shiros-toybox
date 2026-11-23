@@ -155,18 +155,34 @@ async function catPage(req, res) {
   sendPage(res, { title, desc, image, pageUrl, goUrl, heading: label + '｜' + where });
 }
 
-// 精選商品分享頁：/s/商品1.商品2.商品3?t=標題&v=版本
-// 預覽圖：老闆分享時拼好的 pickcover-（商品編號串的雜湊）.jpg；沒有就用第一件商品照片
+// 精選商品分享頁：/s/代碼（舊的 /s/商品1.商品2… 也可以）
+// 預覽：圖片＝老闆分享時拼好的 pickcover-代碼.jpg；標題＝商品名稱（不放其他字）
 async function pickPage(req, res) {
-  const idStr = String(req.query.pick || '').trim().slice(0, 600);
-  const ids = idStr.split('.').filter((x) => /^[A-Za-z0-9_\-]+$/.test(x)).slice(0, 12);
-  const t = String(req.query.t || '').trim().slice(0, 40);
-  const ver = String(req.query.v || '').replace(/[^0-9a-z]/gi, '').slice(0, 16);
+  const raw = String(req.query.pick || '').trim().slice(0, 600);
+  let ids = [];
+  let code = '';
+  let t = '';
+  if (raw.indexOf('.') !== -1) {
+    ids = raw.split('.').filter((x) => /^[A-Za-z0-9_\-]+$/.test(x)).slice(0, 12);
+    t = String(req.query.t || '').trim().slice(0, 40);
+  } else {
+    code = raw.replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
+    if (code) {
+      try {
+        const r = await fetch(SUPABASE_URL + '/functions/v1/member-api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+          body: JSON.stringify({ action: 'get-pick', code }),
+        });
+        if (r.ok) { const d = await r.json(); ids = (d.ids || []).filter((x) => /^[A-Za-z0-9_\-]+$/.test(x)).slice(0, 60); t = String(d.t || ''); }
+      } catch (e) { /* 查不到就用一般的預覽 */ }
+    }
+  }
   let rows = [];
   if (ids.length) {
     try {
       const r = await fetch(
-        SUPABASE_URL + '/rest/v1/products?id=in.(' + ids.map(encodeURIComponent).join(',') + ')&is_hidden=is.false&select=id,name,image_version,is_private',
+        SUPABASE_URL + '/rest/v1/products?id=in.(' + ids.slice(0, 12).map(encodeURIComponent).join(',') + ')&is_hidden=is.false&select=id,name,image_version,is_private',
         { headers: { apikey: SUPABASE_KEY } }
       );
       if (r.ok) { const d = await r.json(); if (Array.isArray(d)) rows = d.filter((x) => !x.is_private); }
@@ -177,7 +193,7 @@ async function pickPage(req, res) {
   let image = '';
   if (list.length) image = SUPABASE_URL + '/storage/v1/object/public/product-images/' + list[0].id + '.jpg' + (list[0].image_version ? '?v=' + list[0].image_version : '');
   try {
-    const coverBase = SUPABASE_URL + '/storage/v1/object/public/product-images/pickcover-' + shortHash(ids.join('.')) + '.jpg';
+    const coverBase = SUPABASE_URL + '/storage/v1/object/public/product-images/pickcover-' + (code || shortHash(ids.join('.'))) + '.jpg';
     const h = await fetch(coverBase + '?check=' + Date.now(), { method: 'HEAD' });
     if (h.ok) {
       const tag = String(h.headers.get('etag') || h.headers.get('last-modified') || Date.now()).replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
@@ -185,15 +201,11 @@ async function pickPage(req, res) {
     }
   } catch (e) { /* 沒有預覽圖就用商品照片 */ }
   const host = (req.headers && req.headers.host) || 'shiros-toybox.vercel.app';
-  const qs = [];
-  if (t) qs.push('t=' + encodeURIComponent(t));
-  if (ver) qs.push('v=' + ver);
-  const pageUrl = 'https://' + host + '/s/' + ids.join('.') + (qs.length ? '?' + qs.join('&') : '');
-  const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=pick&ids=' + ids.join('.') + (t ? '&t=' + encodeURIComponent(t) : '');
-  const heading = t || '四郎玩具箱・精選商品';
-  const names = list.map((x) => x.name).slice(0, 4).join('、');
-  const desc = (names ? names + (list.length > 4 ? ' 等 ' + list.length + ' 件' : '') + '・' : '') + '點進來往右滑看看 ♡';
-  sendPage(res, { title: heading + '｜四郎玩具箱', desc, image, pageUrl, goUrl, heading });
+  const pageUrl = 'https://' + host + '/s/' + (code || ids.join('.'));
+  const goUrl = 'https://liff.line.me/' + LIFF_ID + '?view=pick' + (code ? '&k=' + code : '&ids=' + ids.join('.') + (t ? '&t=' + encodeURIComponent(t) : ''));
+  const names = list.slice(0, 4).map((x) => x.name);
+  const title = names.length ? names.join('、') + (ids.length > 4 ? ' 等 ' + ids.length + ' 件' : '') : '四郎玩具箱';
+  sendPage(res, { title, desc: '', image, pageUrl, goUrl, heading: title });
 }
 
 // 角色人氣投票分享頁：/vote/版本
