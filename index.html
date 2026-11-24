@@ -1713,7 +1713,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261124-0420';
+var APP_VERSION = '20261124-2110';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -9699,7 +9699,7 @@ var isOpen = !!adminProductExpanded[p.id];
 return '<div class="order-card adm-prod'+(isOpen?' is-open':'')+'" data-product-id="'+p.id+'" style="'+borderStyle+'">'
 + '<div class="adm-prod-head" data-product-id="'+p.id+'">'
 + '<label class="adm-sel-wrap"><input type="checkbox" class="adm-sel" data-product-id="'+p.id+'"'+(adminSelected[p.id] ? ' checked' : '')+'></label>'
-+ '<img src="'+imgUrl+'" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="this.style.visibility=\'hidden\';">'
++ '<img src="'+productThumbUrl(p.id)+'" data-full="'+imgUrl+'" loading="lazy" decoding="async" class="admin-product-thumb" data-product-id="'+p.id+'" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--paper);flex-shrink:0;cursor:pointer;" onerror="if(thumbImgFail(this))return;this.style.visibility=\'hidden\';">'
 + '<div class="adm-prod-info"><p class="adm-prod-name" data-product-id="'+p.id+'">'+escHtml(p.name)+adminDupTagHTML(p)+'</p>'
 + '<p class="adm-prod-meta">'+(p.buy_store ? '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">📍 '+escHtml(p.buy_store)+'</span>' : '')+(p.is_hidden ? '<span style="display:inline-block;background:#E5E7EB;color:#374151;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:4px;">🙈 隱藏中</span>' : '')+'<span class="adm-prod-price" data-product-id="'+p.id+'">'+((p.is_hidden && !(Number(p.price) > 0)) ? '未定價' : productPriceText({ price:p.price, options:parseOptionList(p.options), optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)) }))+'</span>'+(stockLabel ? '・'+stockLabel : '')+(p.featured ? '・⭐' : '')+(p.is_luxury ? '・🏷️' : '')+(p.is_private ? '・🔒客訂（指定）' : (p.is_custom ? '・✨客訂' : ''))+'</p>'+adminProdUseHTML(p)+adminNoteHeadHTML(p)+'</div>'
 + '<span class="adm-prod-arrow">▸</span>'
@@ -10204,14 +10204,14 @@ var toLoad = extraSlotsToLoad(p.id);
 var html = '<div style="display:flex;flex-wrap:wrap;gap:16px 8px;padding-bottom:6px;">'
 // 第一格固定顯示目前的封面（點一下換封面照片）；下面任何一張按「設封面」就跟它對調
 + '<div class="admin-cover-slot" data-product-id="'+p.id+'" style="position:relative;width:52px;height:52px;flex-shrink:0;border:2px solid var(--ink);border-radius:10px;cursor:pointer;background:var(--paper);">'
-+ '<img src="'+productImageUrl(p.id)+'" class="admin-cover-slot-img" data-product-id="'+p.id+'" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;display:block;" onerror="this.style.visibility=\'hidden\';">'
++ '<img src="'+productImageUrl(p.id)+'" loading="lazy" class="admin-cover-slot-img" data-product-id="'+p.id+'" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;display:block;" onerror="this.style.visibility=\'hidden\';">'
 + '<span class="admin-cover-badge">封面</span>'
 + '<input type="file" accept="image/*" class="admin-cover-file-input" data-product-id="'+p.id+'" style="display:none;">'
 + '</div>';
 slots.forEach(function(slotNum){
 var slotUrl = productImageUrl(p.id, slotNum);
 html += '<div class="admin-photo-slot" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="position:relative;width:52px;height:52px;flex-shrink:0;border:1.5px dashed var(--line);border-radius:10px;cursor:pointer;">'
-+ '<img '+(toLoad.indexOf(slotNum)!==-1 ? 'src="'+slotUrl+'" ' : '')+'class="admin-extra-thumb" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;display:block;'+(toLoad.indexOf(slotNum)!==-1 ? '' : 'visibility:hidden;')+'" onload="var bs=this.parentNode.querySelectorAll(\'.admin-slot-delete-btn,.admin-slot-cover-btn\');for(var bi=0;bi<bs.length;bi++)bs[bi].style.display=\'flex\';" onerror="this.style.visibility=\'hidden\';">'
++ '<img '+(toLoad.indexOf(slotNum)!==-1 ? 'src="'+slotUrl+'" loading="lazy" ' : '')+'class="admin-extra-thumb" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;display:block;'+(toLoad.indexOf(slotNum)!==-1 ? '' : 'visibility:hidden;')+'" onload="var bs=this.parentNode.querySelectorAll(\'.admin-slot-delete-btn,.admin-slot-cover-btn\');for(var bi=0;bi<bs.length;bi++)bs[bi].style.display=\'flex\';" onerror="this.style.visibility=\'hidden\';">'
 + '<button type="button" class="admin-slot-delete-btn" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--ignis-deep);color:#fff;border:none;font-size:11px;line-height:20px;padding:0;">✕</button>'
 + '<button type="button" class="admin-slot-cover-btn" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;">設封面</button>'
 + '<input type="file" accept="image/*" class="admin-slot-file-input" data-product-id="'+p.id+'" data-slot="'+slotNum+'" style="display:none;">'
@@ -10499,7 +10499,7 @@ box.innerHTML = '<p class="admin-oph-title">📷 每個選項對應照片（客�
 + list.map(function(o){
 return '<div class="admin-oph-row"><span>'+escHtml(o)+'</span><div class="admin-oph-thumbs">'
 + slots.map(function(n){
-return '<button type="button" class="admin-oph-thumb'+(map[o] === n ? ' is-on' : '')+'" data-opt="'+escAttr(o)+'" data-slot="'+n+'"><img src="'+productImageUrl(pid, n > 1 ? n : null)+'" alt="" onerror="this.style.visibility=\'hidden\';">'+(n === 1 ? '<small>封面</small>' : '')+'</button>';
+return '<button type="button" class="admin-oph-thumb'+(map[o] === n ? ' is-on' : '')+'" data-opt="'+escAttr(o)+'" data-slot="'+n+'"><img src="'+productImageUrl(pid, n > 1 ? n : null)+'" loading="lazy" alt="" onerror="this.style.visibility=\'hidden\';">'+(n === 1 ? '<small>封面</small>' : '')+'</button>';
 }).join('') + '</div></div>';
 }).join('')
 + '<p style="margin:2px 0 0;font-size:11.5px;color:var(--muted);">選好後記得按「儲存商品資訊」</p>';
@@ -10796,7 +10796,7 @@ adminProductExpanded[this.getAttribute('data-product-id')] = open;
 var thumbImgs = container.querySelectorAll('.admin-product-thumb');
 for(var t=0;t<thumbImgs.length;t++){
 thumbImgs[t].addEventListener('click', (function(img){
-return function(){ openProductGallery(img.getAttribute('data-product-id'), img.src); };
+return function(){ openProductGallery(img.getAttribute('data-product-id'), img.getAttribute('data-full') || img.src); };
 })(thumbImgs[t]));
 }
 var photoSlots = container.querySelectorAll('.admin-photo-slot');
