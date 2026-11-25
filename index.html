@@ -1723,7 +1723,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261125-1930';
+var APP_VERSION = '20261125-2040';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -11868,11 +11868,17 @@ document.getElementById('orderModal').classList.add('is-open');
 }
 // ---------- 商品熱度（客人看不到）：總數＋記是哪位客人看的（只有後台看得到） ----------
 var viewTrack = null;   // { pid, start, photos }
-function startViewTrack(pid){ flushViewTrack(); viewTrack = { pid: pid, start: Date.now(), photos: 0 }; }
+// minSecs：精選連結左右滑的頁面要停超過幾秒才算看過（快速滑過去不算）
+function startViewTrack(pid, minSecs){
+// 同一件商品從滑動頁點開喊單視窗：接著算同一次，不重複記
+if(viewTrack && viewTrack.pid === pid){ if(!minSecs) viewTrack.min = 0; return; }
+flushViewTrack(); viewTrack = { pid: pid, start: Date.now(), photos: 0, min: minSecs || 0 };
+}
 function flushViewTrack(){
 if(!viewTrack) return;
 var t = viewTrack; viewTrack = null;
 if(isAdminSelf()) return;   // 老闆／小幫手自己看不算
+if(t.min && (Date.now() - t.start) < t.min * 1000) return;   // 滑過去太快，不算
 var secs = Math.round((Date.now() - t.start) / 1000);
 if(secs > 600) secs = 600;
 var first = false;
@@ -13564,13 +13570,14 @@ v.querySelector('#pvNum').textContent = (i + 1) + ' / ' + list.length;
 v.querySelector('#pvPrice').textContent = productPriceText(p);
 var ob = v.querySelector('#pvOrder'); ob.disabled = off; ob.querySelector('b').textContent = off ? '已售完' : '加入喊單';
 v.querySelector('#pvPrev').disabled = i <= 0; v.querySelector('#pvNext').disabled = i >= list.length - 1;
+startViewTrack(p.id, 2);   // 停在這頁超過 2 秒才算看過
 }
 function go(i){ tr.scrollTo({ left: i * tr.clientWidth, behavior:'smooth' }); }
 tr.addEventListener('scroll', function(){ clearTimeout(tr._t); tr._t = setTimeout(paint, 40); });
 setTimeout(paint, 0); paint();
 v.querySelector('#pvPrev').addEventListener('click', function(){ go(Math.max(0, cur - 1)); });
 v.querySelector('#pvNext').addEventListener('click', function(){ go(Math.min(list.length - 1, cur + 1)); });
-v.querySelector('#pvClose').addEventListener('click', function(){ v.remove(); });
+v.querySelector('#pvClose').addEventListener('click', function(){ flushViewTrack(); v.remove(); });
 v.querySelector('#pvOrder').addEventListener('click', function(){ if(this.disabled) return; openOrderModal(list[cur]); });
 // 點照片也可以直接喊單
 tr.addEventListener('click', function(e){ var pg = e.target.closest ? e.target.closest('.pv-page') : null; if(!pg || !e.target.closest('.pv-imgwrap')) return; var p = list[Number(pg.getAttribute('data-i'))]; if(p && !(p.stock === 'sold_out' || p.stock === 'live_ended')) openOrderModal(p); });
