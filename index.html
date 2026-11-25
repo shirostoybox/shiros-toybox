@@ -876,6 +876,8 @@ p.inv-cost.is-todo{ font-size:12px; color:var(--muted); background:var(--bg); bo
 .cat-share-bar{ display:flex; justify-content:flex-start; gap:8px; flex-wrap:wrap; margin:-4px 0 12px; padding:0 20px; min-width:0; }
 .pick-start-btn{ background:#06C755; color:#fff; border:0; border-radius:var(--r-full); font-size:12.5px; font-weight:800; padding:7px 13px; font-family:var(--font-body); white-space:nowrap; }
 .pick-check{ display:none; }
+.price-sort-btn{ background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:var(--r-full); font-size:12.5px; font-weight:800; padding:6px 13px; font-family:var(--font-body); white-space:nowrap; }
+.price-sort-btn.on{ background:#FFD84D; color:#1F2430; border-color:#FFD84D; }
 .tab-order-btn{ background:rgba(255,255,255,.1); color:#fff; border:1px dashed rgba(255,255,255,.5); border-radius:var(--r-full); font-size:12.5px; font-weight:800; padding:6px 13px; font-family:var(--font-body); white-space:nowrap; }
 body.pick-mode .card{ cursor:pointer; }
 body.pick-mode .card .card-order-btn{ pointer-events:none; opacity:.35; }
@@ -1723,7 +1725,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261125-2040';
+var APP_VERSION = '20261126-0205';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -7942,6 +7944,18 @@ else if(b.classList.contains('to-reset')) save('[]');
 });
 }
 function isDropFirst(p){ return !!p.priceDrop && p.stock !== 'live_ended' && p.stock !== 'sold_out'; }
+// 💰 價格低→高：客人自己切換（商品頁、限時連線都適用）；還能買的排前面，售完的放最後
+var PRICE_ASC = false;
+function applyPriceSort(list){
+if(!PRICE_ASC) return list;
+function off(p){ return p.stock === 'sold_out' || p.stock === 'live_ended' ? 1 : 0; }
+return list.map(function(p, i){ return { p: p, i: i, o: off(p), m: productPriceRange(p).min }; }).sort(function(a, b){
+if(a.o !== b.o) return a.o - b.o;
+var am = isFinite(a.m) ? a.m : 1e9, bm = isFinite(b.m) ? b.m : 1e9;
+if(am !== bm) return am - bm;
+return a.i - b.i;
+}).map(function(x){ return x.p; });
+}
 function sortNewFirst(list){
 var drop = list.filter(isDropFirst);
 var fresh = list.filter(function(p){ return !isDropFirst(p) && isNewProduct(p); }).sort(function(a, b){ return String(b.createdAt).localeCompare(String(a.createdAt)); });
@@ -11488,7 +11502,7 @@ renderPausedNotices();
 renderRegularHero();
 renderLiveEntries();
 var grid = document.getElementById('shopGrid');
-var list = sortNewFirst(sortProductsByPrice(getFilteredShop()));
+var list = applyPriceSort(sortNewFirst(sortProductsByPrice(getFilteredShop())));
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件・持續上架中 🔄';
@@ -11617,6 +11631,7 @@ if(da !== db) return da - db;
 return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
 });
 }
+list = applyPriceSort(list);
 renderCatShareBar('liveCatShare', zone ? zone.id : '', isOpen ? liveCategory : 'all', all.filter(function(p){ return p.cat === liveCategory && p.stock === 'live_limited'; }), zone);
 var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
@@ -13596,10 +13611,13 @@ var el = document.getElementById(elId);
 if(!el) return;
 var pickBtn = isAdminSelf() ? '<button type="button" class="pick-start-btn">'+(PICK_SEL.length || document.body.classList.contains('pick-mode') ? '☑️ 選商品中（'+PICK_SEL.length+'）' : '☑️ 選商品分享')+'</button>'
 + (elId === 'liveCatShare' && LIVE_TAB_STATE.keys.length > 1 ? '<button type="button" class="tab-order-btn">↔️ 排列分類</button>' : '') : '';
+pickBtn = '<button type="button" class="price-sort-btn'+(PRICE_ASC ? ' on' : '')+'">'+(PRICE_ASC ? '✓ 價格低→高' : '💰 價格低→高')+'</button>' + pickBtn;
+function bindPriceSort(){ var ps = el.querySelector('.price-sort-btn'); if(ps) ps.addEventListener('click', function(){ PRICE_ASC = !PRICE_ASC; if(elId === 'liveCatShare') renderLive(); else renderShop(); }); }
 if(!cat || cat === 'all' || !zoneKey || !products.length){
 el.innerHTML = pickBtn ? '<div class="cat-share-bar">'+pickBtn+'</div>' : '';
 var pb0 = el.querySelector('.pick-start-btn'); if(pb0) pb0.addEventListener('click', pickModeStart);
 var to0 = el.querySelector('.tab-order-btn'); if(to0) to0.addEventListener('click', openTabOrderEditor);
+bindPriceSort();
 return;
 }
 var label = (products[0] && products[0].catLabel) || catLabelFor(cat);
@@ -13607,6 +13625,7 @@ el.innerHTML = '<div class="cat-share-bar"><button type="button" class="cat-shar
 el.querySelector('.cat-share-btn').addEventListener('click', function(){ shareCategoryLink(zoneKey, cat, label, products, zone); });
 var pb = el.querySelector('.pick-start-btn'); if(pb) pb.addEventListener('click', pickModeStart);
 var to1 = el.querySelector('.tab-order-btn'); if(to1) to1.addEventListener('click', openTabOrderEditor);
+bindPriceSort();
 }
 function loadCorsImage(url){
 return new Promise(function(resolve){
