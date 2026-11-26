@@ -459,6 +459,10 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 .adm-catsel{ display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:13px; font-weight:700; color:var(--text-dark); }
 .adm-catsel span{ white-space:nowrap; }
 .adm-catsel select{ margin:0; flex:1; }
+.adm-alsocats{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:-2px 0 10px; font-size:12.5px; }
+.adm-also-lab{ font-weight:700; color:var(--text-dark); white-space:nowrap; }
+.adm-also-chip{ border:1px solid #C4B5FD; background:#EDE9FE; color:#5B21B6; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; font-family:var(--font-body); }
+.adm-also-add{ border:1px dashed var(--line); background:transparent; border-radius:999px; padding:3px 8px; font-size:12px; color:var(--muted); font-family:var(--font-body); max-width:150px; }
 .inv-cat-h{ margin:18px 0 8px; }
 .inv-catpill{ margin:14px 0 -6px 10px; position:relative; z-index:1; }
 .inv-catpill .adm-cat-pill{ font-size:11px; padding:2px 9px; }
@@ -1725,7 +1729,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261126-0205';
+var APP_VERSION = '20261126-2240';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -1997,7 +2001,7 @@ if(res && res.data) rememberPhotoSlots(res.data);
 if(res.error){ showError('商品讀取失敗：' + res.error.message); return; }
 // 隱藏中的商品客人看不到（只在後台顯示）
 PRODUCTS = res.data.filter(function(p){ return !p.is_hidden; }).map(function(p){
-return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), lockedOptions:Array.isArray(p.locked_options) ? p.locked_options.map(String) : [], createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', noReward:!!p.no_reward, isAddon:!!p.is_addon, isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
+return { id:p.id, name:p.name, sub:p.sub, cat:p.cat, catLabel:p.cat_label, alsoCats:parseAlsoCats(p.also_cats, p.cat), price:p.price, priceWas:Number(p.price_was) || 0, priceDrop:!!p.show_price_drop, stock:p.stock_status, qty:p.qty, spin:p.spin, featured:p.featured, liveZoneId:p.live_zone_id || null, isLuxury:!!p.is_luxury, imageVersion:p.image_version || 0, options:parseOptionList(p.options), optionLabel:p.option_label || '', options2:parseOptionList(p.options2), optionLabel2:p.option2_label || '', optionPrices:parseOptionPrices(p.option_prices, parseOptionList(p.options)), optionPhotos:parseOptionPhotos(p.option_photos), optionSwap:!!p.option_swap, pickOff:!!(p.pick_off && p.cat === 'gacha'), lockedOptions:Array.isArray(p.locked_options) ? p.locked_options.map(String) : [], createdAt:p.listed_at || p.created_at || '', buyStore:p.buy_store || '', noReward:!!p.no_reward, isAddon:!!p.is_addon, isPrivate:!!p.is_private, isCustom:!!(p.is_custom || p.is_private), publicName:p.name, privateAccess:false };
 });
 rememberImageVersions(PRODUCTS);
 PRIVATE_IDS = {};
@@ -9407,8 +9411,55 @@ if(p.cat) add(p.cat, p.cat_label || catLabelFor(p.cat) || p.cat);
 var opts = order.map(function(k){ return '<option value="'+escAttr(k)+'"'+(k === p.cat ? ' selected' : '')+'>'+escHtml(cats[k] || k)+'</option>'; }).join('')
 + (p.cat ? '' : '<option value="" selected>（未分類）</option>')
 + '<option value="__new__">＋ 新增分類…</option>';
-return '<label class="adm-catsel"><span>📂 分類</span><select class="gate-input admin-cat-select" data-product-id="'+escAttr(p.id)+'" data-cur="'+escAttr(p.cat || '')+'">'+opts+'</select></label>';
+var also = parseAlsoCats(p.also_cats !== undefined ? p.also_cats : p.alsoCats, p.cat);
+var alsoOpts = order.filter(function(k){ return k !== p.cat && k !== DONTMISS_CAT && !also.some(function(c){ return c.cat === k; }); })
+.map(function(k){ return '<option value="'+escAttr(k)+'">'+escHtml(cats[k] || k)+'</option>'; }).join('');
+return '<label class="adm-catsel"><span>📂 分類</span><select class="gate-input admin-cat-select" data-product-id="'+escAttr(p.id)+'" data-cur="'+escAttr(p.cat || '')+'">'+opts+'</select></label>'
++ '<div class="adm-alsocats" data-product-id="'+escAttr(p.id)+'"><span class="adm-also-lab">➕ 也顯示在</span>'
++ also.map(function(c){ return '<button type="button" class="adm-also-chip" data-rm="'+escAttr(c.cat)+'">'+escHtml(catLabelFor(c.cat) || c.label || c.cat)+' ✕</button>'; }).join('')
++ '<select class="adm-also-add" data-product-id="'+escAttr(p.id)+'"><option value="">＋ 加分類…</option>'+alsoOpts+'</select></div>';
 }
+function adminProdById(pid){
+for(var i=0;i<(adminProductsCache || []).length;i++){ if(String(adminProductsCache[i].id) === String(pid)) return adminProductsCache[i]; }
+for(var j=0;j<(PRODUCTS || []).length;j++){ if(String(PRODUCTS[j].id) === String(pid)) return PRODUCTS[j]; }
+return null;
+}
+async function saveAlsoCats(pid, list, el){
+if(el) el.disabled = true;
+try{
+var r = await callMemberApi('admin-set-product-also-cats', { productId: pid, alsoCats: list });
+var saved = r.alsoCats || list;
+(adminProductsCache || []).forEach(function(x){ if(String(x.id) === String(pid)) x.also_cats = saved; });
+(PRODUCTS || []).forEach(function(x){ if(String(x.id) === String(pid)){ x.also_cats = saved; x.alsoCats = parseAlsoCats(saved, x.cat); } });
+showToast(saved.length ? '已設定：也顯示在「'+saved.map(function(c){ return catLabelFor(c.cat) || c.label; }).join('、')+'」' : '已取消顯示在其他分類');
+try{ refreshShop(); }catch(rs){}
+var box = document.querySelector('.adm-alsocats[data-product-id="'+String(pid).replace(/"/g,'')+'"]');
+var p = adminProdById(pid);
+if(box && p){ var tmp = document.createElement('div'); tmp.innerHTML = adminCatSelectHTML(p); var nb = tmp.querySelector('.adm-alsocats'); if(nb) box.replaceWith(nb); }
+}catch(err){
+alert('設定失敗：' + err.message + (/未知的操作/.test(err.message) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : (/also_cats/.test(err.message) ? '\n\n（資料庫還沒加欄位，請先跑 SQL）' : '')));
+if(el) el.disabled = false;
+}
+}
+document.addEventListener('change', function(e){
+var el = e.target;
+if(!el || !el.classList || !el.classList.contains('adm-also-add') || !el.value) return;
+var pid = el.getAttribute('data-product-id'), p = adminProdById(pid);
+if(!p) return;
+var cur = parseAlsoCats(p.also_cats !== undefined ? p.also_cats : p.alsoCats, p.cat);
+var op = el.options[el.selectedIndex];
+cur.push({ cat: el.value, label: op ? op.textContent : el.value });
+saveAlsoCats(pid, cur, el);
+});
+document.addEventListener('click', function(e){
+var b = e.target && e.target.closest ? e.target.closest('.adm-also-chip') : null;
+if(!b) return;
+var box = b.closest('.adm-alsocats'), pid = box.getAttribute('data-product-id'), p = adminProdById(pid);
+if(!p) return;
+var rm = b.getAttribute('data-rm');
+var cur = parseAlsoCats(p.also_cats !== undefined ? p.also_cats : p.alsoCats, p.cat).filter(function(c){ return c.cat !== rm; });
+saveAlsoCats(pid, cur, b);
+});
 document.addEventListener('change', async function(e){
 var el = e.target;
 if(!el || !el.classList || !el.classList.contains('admin-cat-select')) return;
@@ -11265,12 +11316,26 @@ return function(){ openProductGallery(img.getAttribute('data-gallery-id'), img.g
 }
 // 限時連線商品（限時連線／連線已結束）只放在限時連線專區，不出現在一般商品頁、首頁分類跟本週嚴選。
 function isLiveStock(stock){ return stock === 'live_limited' || stock === 'live_ended'; }
+// 同一件商品也顯示在其他分類（只是多一個地方看得到，喊單還是同一件）
+function parseAlsoCats(v, main){
+var a = v; if(typeof a === 'string'){ try{ a = JSON.parse(a); }catch(e){ a = []; } }
+if(!Array.isArray(a)) return [];
+return a.filter(function(c){ return c && c.cat && c.cat !== main; }).map(function(c){ return { cat: String(c.cat), label: String(c.label || '') }; });
+}
+function prodInCat(p, cat){
+if(!p) return false;
+if(p.cat === cat) return true;
+var a = p.alsoCats || parseAlsoCats(p.also_cats, p.cat);
+for(var i=0;i<a.length;i++){ if(a[i].cat === cat) return true; }
+return false;
+}
 function regularProducts(){ return PRODUCTS.filter(function(p){ return !isLiveStock(p.stock); }); }
 function liveProducts(){ return PRODUCTS.filter(function(p){ return isLiveStock(p.stock); }); }
 function renderCategoryNav(){
 var cats = {};
 var regList = regularProducts();
 for(var i=0;i<regList.length;i++){ var p = regList[i]; if(p.cat){ cats[p.cat] = p.catLabel || catLabelFor(p.cat); } }
+for(var i2=0;i2<regList.length;i2++){ (regList[i2].alsoCats || []).forEach(function(c){ if(!cats[c.cat]) cats[c.cat] = catLabelFor(c.cat) || c.label || c.cat; }); }
 var catKeys = Object.keys(cats);
 
 var catGrid = document.querySelector('.cat-grid');
@@ -11493,7 +11558,7 @@ var liveQuery = '';
 function getFilteredShop(){
 var q = normalizeSearch(currentQuery);
 return regularProducts().filter(function(p){
-var catOk = currentCategory==='all' || p.cat===currentCategory;
+var catOk = currentCategory==='all' || prodInCat(p, currentCategory);
 return catOk && productMatchesQuery(p, currentQuery);
 });
 }
@@ -11506,7 +11571,7 @@ var list = applyPriceSort(sortNewFirst(sortProductsByPrice(getFilteredShop())));
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
 document.getElementById('shopCount').textContent = isRegularPaused() ? '' : list.length + ' 件・持續上架中 🔄';
-renderCatShareBar('shopCatShare', 'regular', currentCategory, regularProducts().filter(function(p){ return p.cat === currentCategory && (p.stock === 'in' || p.stock === 'preorder'); }));
+renderCatShareBar('shopCatShare', 'regular', currentCategory, regularProducts().filter(function(p){ return prodInCat(p, currentCategory) && (p.stock === 'in' || p.stock === 'preorder'); }));
 setEndNote('shopEndNote', !isRegularPaused() && list.length > 0);
 }
 var liveCategory = '__first__';   // '__first__'＝照排列的第一個分頁（老闆可以自己排）
@@ -11589,13 +11654,14 @@ for(var i=0;i<all.length;i++){
 var p = all[i];
 if(p.cat && !cats[p.cat]){ cats[p.cat] = p.catLabel || catLabelFor(p.cat); catKeys.push(p.cat); }
 }
+for(var ia=0;ia<all.length;ia++){ (all[ia].alsoCats || []).forEach(function(c){ if(!cats[c.cat]){ cats[c.cat] = catLabelFor(c.cat) || c.label || c.cat; catKeys.push(c.cat); } }); }
 // 加購商品（單件勾的）：留在原本分類，也一起出現在加購區分頁；專區沒有加購區分類就多一個「🛒 現貨加購區」分頁
 var liveAddonKey = '';
 if(all.some(function(p){ return p.isAddon; })){
 liveAddonKey = catKeys.filter(function(k){ return isAddonCat(k); })[0] || '__addon__';
 if(!cats[liveAddonKey]){ cats[liveAddonKey] = '🛒 現貨加購區'; catKeys.push(liveAddonKey); }
 }
-var inLiveCat = function(p){ return liveCategory === 'all' || p.cat === liveCategory || (liveAddonKey && liveCategory === liveAddonKey && p.isAddon); };
+var inLiveCat = function(p){ return liveCategory === 'all' || prodInCat(p, liveCategory) || (liveAddonKey && liveCategory === liveAddonKey && p.isAddon); };
 // 「別錯過」分類固定排第一個
 if(catKeys.indexOf(DONTMISS_CAT) > 0){ catKeys.splice(catKeys.indexOf(DONTMISS_CAT), 1); catKeys.unshift(DONTMISS_CAT); }
 // 分頁順序（含「全部」）：老闆在前台按「↔️ 排列分類」自己排，存在網站設定；沒排過就是「全部」在最前面
@@ -11632,7 +11698,7 @@ return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
 });
 }
 list = applyPriceSort(list);
-renderCatShareBar('liveCatShare', zone ? zone.id : '', isOpen ? liveCategory : 'all', all.filter(function(p){ return p.cat === liveCategory && p.stock === 'live_limited'; }), zone);
+renderCatShareBar('liveCatShare', zone ? zone.id : '', isOpen ? liveCategory : 'all', all.filter(function(p){ return prodInCat(p, liveCategory) && p.stock === 'live_limited'; }), zone);
 var grid = document.getElementById('liveGrid');
 grid.innerHTML = list.map(cardHTML).join('');
 bindCardButtons(grid);
