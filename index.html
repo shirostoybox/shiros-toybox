@@ -419,6 +419,8 @@ body.home-empty .view[data-view="home"] .hero-content{ width:100%; }
 #admSelBar .sb-move, #admSelBar .sb-cat, #admSelBar .sb-hide, #admSelBar .sb-show, #admSelBar .sb-del{ flex:1; min-width:0; padding:10px 2px; font-size:12.5px; white-space:nowrap; }
 #admSelBar .sb-cat{ background:#E9D5FF; color:#581C87; }
 #admSelBar .sb-share{ background:#06C755; color:#fff; margin-left:auto; }
+#admSelBar .sb-mult{ background:#FDE7C2; color:#7C2D12; margin-left:auto; padding:8px 10px; }
+#admSelBar .sb-mult + .sb-share{ margin-left:0; }
 #admSelBar .sb-move{ background:#BFDBFE; color:#1E3A8A; }
 #admSelBar .sb-hide{ background:#FDE68A; color:#78350F; }
 #admSelBar .sb-show{ background:#BBF7D0; color:#14532D; }
@@ -1729,7 +1731,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261127-1545';
+var APP_VERSION = '20261128-0015';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -9528,7 +9530,7 @@ var bar = document.getElementById('admSelBar');
 if(!bar){ bar = document.createElement('div'); bar.id = 'admSelBar'; document.body.appendChild(bar); }
 var onPage = admSelVisible();
 bar.style.display = (ids.length && onPage) ? 'flex' : 'none';
-bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><button type="button" class="sb-share" id="sbShare">🔗 分享</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-cat" id="sbCat">📂 分類</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
+bar.innerHTML = '<span>已勾 '+ids.length+' 件</span><button type="button" class="sb-lt" id="sbAll">全選這頁</button><button type="button" class="sb-lt" id="sbNone">取消</button><button type="button" class="sb-mult" id="sbMult">✖️ 倍數</button><button type="button" class="sb-share" id="sbShare">🔗 分享</button><span class="sb-gap"></span><button type="button" class="sb-move" id="sbMove">📍 移區</button><button type="button" class="sb-cat" id="sbCat">📂 分類</button><button type="button" class="sb-hide" id="sbHide">🙈 隱藏</button><button type="button" class="sb-show" id="sbShow">👀 公開</button><button type="button" class="sb-del" id="sbDel">🗑 刪除</button>';
 var cs = document.querySelectorAll('.adm-sel');
 for(var i=0;i<cs.length;i++){ var on = !!adminSelected[cs[i].getAttribute('data-product-id')]; cs[i].checked = on; var cd = cs[i].closest('.adm-prod'); if(cd) cd.classList.toggle('is-sel', on); }
 }
@@ -9631,6 +9633,74 @@ done++; setBar(done+' / '+todo.length+(fail.length ? '（'+fail.length+' 件沒�
 await Promise.all([worker(), worker(), worker()]);
 showToast('已移 '+ok+' 件到「'+label+'」');
 if(fail.length) alert('有 '+fail.length+' 件沒成功：\n\n'+fail.slice(0, 8).join('\n\n')+(fail.length > 8 ? '\n…' : ''));
+adminSelected = {};
+try{ await loadAdminProducts(); }catch(er){}
+pov.remove();
+ADM_DELETING = false;
+adminSelPaint();
+});
+}
+// 勾選的一次改倍數：用每件原本的日幣價格和匯率，照新倍數重算台幣（沒有日幣換算的跳過）
+function admMultInfo(p){
+var c = p && p.cost; if(!c) return null;
+var oj = {}; try{ oj = c.optionJpy ? (typeof c.optionJpy === 'string' ? JSON.parse(c.optionJpy) : c.optionJpy) : {}; }catch(e){ oj = {}; }
+var hasJpy = Number(c.jpyPrice) > 0 || Object.keys(oj).some(function(k){ return Number(oj[k]) > 0; });
+if(!hasJpy || !(Number(c.fxRate) > 0)) return null;
+return { jpy: Number(c.jpyPrice) || 0, rate: Number(c.fxRate), mult: Number(c.multiplier) || 0, oj: oj };
+}
+function adminMultSelected(){
+var ids = Object.keys(adminSelected).filter(function(k){ return adminSelected[k]; });
+if(!ids.length) return;
+var cache = {}; adminProductsCache.forEach(function(p){ cache[p.id] = p; });
+var can = ids.filter(function(id){ return !!admMultInfo(cache[id]); });
+var skip = ids.length - can.length;
+if(!can.length){ alert('勾的商品都沒有日幣換算（價格是直接填台幣的，或是扭蛋），沒辦法用倍數改。'); return; }
+var mults = {}; can.forEach(function(id){ var m = admMultInfo(cache[id]).mult; if(m) mults[m] = (mults[m]||0) + 1; });
+var nowTxt = Object.keys(mults).map(function(m){ return m+' 倍（'+mults[m]+' 件）'; }).join('、') || '（還沒設倍數）';
+var ov = document.createElement('div');
+ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+ov.innerHTML = '<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto;">'
++ '<p style="margin:0 0 4px;font-size:16px;font-weight:900;">✖️ 勾選的 '+can.length+' 件改成幾倍？</p>'
++ '<p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.6;">日幣 × 每件原本的匯率 × 新倍數 ＝ 新台幣價格，有分規格日幣的也一起重算。已經喊的單價格不變。<br>目前：'+escHtml(nowTxt)+(skip ? '<br>另外 '+skip+' 件沒有日幣換算（直接填台幣或扭蛋），會跳過不動' : '')+'</p>'
++ '<input type="text" inputmode="decimal" class="gate-input" id="mtVal" placeholder="例如 1.35" value="'+escAttr(lastJpyMult() || '')+'" style="margin:0 0 8px;">'
++ '<div id="mtPrev" style="font-size:12.5px;color:#7C2D12;line-height:1.7;margin:0 0 10px;"></div>'
++ '<button type="button" class="btn btn--dark btn--full" id="mtGo">套用</button>'
++ '<button type="button" class="mt-cancel" style="width:100%;padding:12px;border:none;background:none;color:var(--muted);font-size:14px;font-weight:700;font-family:var(--font-body);">取消</button></div>';
+document.body.appendChild(ov);
+var inp = ov.querySelector('#mtVal'), prev = ov.querySelector('#mtPrev');
+function newPrice(id, m){ var f = admMultInfo(cache[id]); if(f.jpy) return jpyCalc(f.jpy, f.rate, m); var ks = Object.keys(f.oj).filter(function(k){ return Number(f.oj[k]) > 0; }); return ks.length ? jpyCalc(f.oj[ks[0]], f.rate, m) : 0; }
+function paintPrev(){
+var m = Number(inp.value);
+if(!(m > 0 && m < 10)){ prev.innerHTML = ''; return; }
+prev.innerHTML = can.slice(0, 5).map(function(id){ var p = cache[id]; return '・'+escHtml(String(p.name || '').slice(0, 22))+'：NT$'+fmtNum(p.price || 0)+' → <b>NT$'+fmtNum(newPrice(id, m))+'</b>'; }).join('<br>') + (can.length > 5 ? '<br>…還有 '+(can.length - 5)+' 件' : '') + (m <= 1.3 ? '<br>⚠️ 1.3 倍以內會自動設成特選商品' : '');
+}
+inp.addEventListener('input', paintPrev); paintPrev();
+ov.addEventListener('click', async function(e){
+if(e.target === ov || (e.target.closest && e.target.closest('.mt-cancel'))){ ov.remove(); return; }
+if(!(e.target.closest && e.target.closest('#mtGo'))) return;
+var m = Number(inp.value);
+if(!(m > 0 && m < 10)){ alert('請填倍數，例如 1.35'); return; }
+if(!window.confirm('把 '+can.length+' 件改成 '+m+' 倍嗎？'+(skip ? '\n（另外 '+skip+' 件沒有日幣換算，跳過）' : '')+'\n\n台幣價格會照新倍數重算，已經喊的單價格不變。')) return;
+ov.remove();
+try{ localStorage.setItem('lastJpyMult', String(m)); }catch(le){}
+ADM_DELETING = true;
+var bar = document.getElementById('admSelBar'); if(bar) bar.style.display = 'none';
+var pov = document.createElement('div'); pov.className = 'cm-ov'; pov.style.zIndex = '10060';
+pov.innerHTML = '<div class="cm-box" style="text-align:center;"><p class="cm-title">✖️ 改倍數中…</p><p id="admDelTxt" style="font-size:15px;font-weight:800;margin:10px 0;">0 / '+can.length+'</p><p class="cm-hint">請不要關掉或離開這個畫面</p></div>';
+document.body.appendChild(pov);
+var setBar = function(t){ var el = document.getElementById('admDelTxt'); if(el) el.textContent = t; };
+var ok = 0, sk = 0, fail = [], done = 0, next = 0;
+async function worker(){
+while(next < can.length){
+var id = can[next++];
+try{ var r = await callMemberApi('admin-set-product-multiplier', { productId: id, multiplier: m }); if(r && r.skipped) sk++; else ok++; }
+catch(err){ fail.push((cache[id] ? cache[id].name : '（商品）')+'：'+err.message); }
+done++; setBar(done+' / '+can.length+(fail.length ? '（'+fail.length+' 件沒成功）' : ''));
+}
+}
+await Promise.all([worker(), worker(), worker()]);
+showToast('已改成 '+m+' 倍：'+ok+' 件'+(sk ? '（'+sk+' 件跳過）' : ''));
+if(fail.length) alert('有 '+fail.length+' 件沒成功：\n\n'+fail.slice(0, 8).join('\n\n')+(fail.length > 8 ? '\n…' : '')+(/未知的操作/.test(fail[0]) ? '\n\n（後台 member-api 還沒更新，請先部署新版）' : ''));
 adminSelected = {};
 try{ await loadAdminProducts(); }catch(er){}
 pov.remove();
@@ -9780,6 +9850,7 @@ if(t.closest('#sbAll')){ var cs = document.querySelectorAll('.adm-sel'); for(var
 if(t.closest('#sbDel')){ adminDeleteSelected(); return; }
 if(t.closest('#sbMove')){ adminMoveSelected(); return; }
 if(t.closest('#sbCat')){ adminRecatSelected(); return; }
+if(t.closest('#sbMult')){ adminMultSelected(); return; }
 if(t.closest('#sbShare')){ adminShareSelected(); return; }
 if(t.closest('#sbHide')){ adminHideSelected(true); return; }
 if(t.closest('#sbShow')){ adminHideSelected(false); return; }
