@@ -1729,7 +1729,7 @@ button,a,.card,.cat-card,.nav-item{ touch-action:manipulation; }
 <script>
 (function(){
 /* ===== CONFIG — update these after redeploying or rotating keys ===== */
-var APP_VERSION = '20261126-2240';
+var APP_VERSION = '20261127-1545';
 var LIFF_ID = '2011208900-FRP3QI9Q';
 var SUPABASE_URL = 'https://dqimojivpeennporcbwv.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_eHAca3rAtH_a8cQz6ggtaA_fxgCEPK6';
@@ -8254,7 +8254,7 @@ function toOptArr(v){ return (Array.isArray(v) ? v : parseOptionList(v || '')).m
 // 匯入清單的 adminNote（文字或一行一個的陣列）：上架後存成「後台備註」，客人看不到
 function importAdminNote(it){ var v = it.adminNote; if(Array.isArray(v)) v = v.map(String).join('\n'); return String(v || '').trim().slice(0, 5000); }
 function normalizeGeneralItem(it){
-var out = { general: true, name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, tax: String(it.tax || '').trim(), cover: String(it.cover || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
+var out = { general: true, coverCollage: Array.isArray(it.coverCollage) ? it.coverCollage.map(String).filter(Boolean).slice(0, 4) : [], name: String(it.name || '').trim(), sub: String(it.sub || '').trim(), jpy: Number(it.jpy) || 0, tax: String(it.tax || '').trim(), cover: String(it.cover || (Array.isArray(it.coverCollage) && it.coverCollage[0]) || '').trim(), photos: it.photos || {}, extra: Array.isArray(it.extraPhotos) ? it.extraPhotos : [], warn: [], notes: Array.isArray(it.notes) ? it.notes.map(String) : (it.note ? [String(it.note)] : []) };
 out.adminNote = importAdminNote(it);
 out.category = String(it.category || '').trim() || '日本選物';
 out.buyStore = String(it.buyStore || '').trim().slice(0, 20);
@@ -8405,6 +8405,26 @@ return true;
 importPhotoErrors.push((last && last.message) || '未知錯誤');
 throw last || new Error('照片匯入失敗');
 }
+// 封面拼圖：2 張左右並排、3 張上 2 下 1、4 張田字格，白底、每張完整放進格子裡
+async function makeCoverCollage(urls){
+var srcs = [];
+for(var i=0;i<urls.length;i++){ srcs.push(await importImageData(urls[i])); }
+var imgs = await Promise.all(srcs.map(function(src){ return new Promise(function(res, rej){ var im = new Image(); im.onload = function(){ res(im); }; im.onerror = function(){ rej(new Error('拼圖照片讀不到')); }; im.src = src; }); }));
+var W = 1200, H = 1200, n = imgs.length, cells = [];
+if(n === 2){ cells = [[0,0,600,1200],[600,0,600,1200]]; }
+else if(n === 3){ cells = [[0,0,600,600],[600,0,600,600],[300,600,600,600]]; }
+else { cells = [[0,0,600,600],[600,0,600,600],[0,600,600,600],[600,600,600,600]]; }
+var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+var ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+imgs.forEach(function(im, k){
+var c = cells[k]; if(!c) return;
+var pad = 12, cw = c[2] - pad*2, ch = c[3] - pad*2;
+var r = Math.min(cw / im.naturalWidth, ch / im.naturalHeight);
+var w = im.naturalWidth * r, h = im.naturalHeight * r;
+ctx.drawImage(im, c[0] + pad + (cw - w)/2, c[1] + pad + (ch - h)/2, w, h);
+});
+return cv.toDataURL('image/jpeg', 0.9);
+}
 async function importImageData(url){
 if(/^data:image\//.test(String(url||''))) return url;
 try{
@@ -8508,7 +8528,13 @@ optionLabel2: '', options2: '', optionPrices: x.options.length ? JSON.stringify(
 }));
 }
 var images = [], optPhotos = {}, slot = 2;
-if(x.cover) images.push({ slot: 1, url: x.cover });
+var coverSrc = x.cover;
+// 同一個角色有好幾款：把各款照片拼成一張當封面（失敗就用第一張）
+if(x.coverCollage && x.coverCollage.length >= 2){
+if(st) st.textContent = '🧩 拼封面照片中…';
+try{ coverSrc = await makeCoverCollage(x.coverCollage); }catch(eCol){ coverSrc = x.cover; }
+}
+if(coverSrc) images.push({ slot: 1, url: coverSrc });
 x.options.forEach(function(o){ if(x.photos[o] && slot <= MAX_PHOTO_SLOT){ images.push({ slot: slot, url: x.photos[o] }); optPhotos[o] = slot; slot++; } });
 x.extra.forEach(function(u){ if(u && slot <= MAX_PHOTO_SLOT){ images.push({ slot: slot, url: u }); slot++; } });
 // 照片：系統先把官網圖抓回來，在這裡壓縮（長邊 1200、JPG 80%），再跟平常一樣上傳
